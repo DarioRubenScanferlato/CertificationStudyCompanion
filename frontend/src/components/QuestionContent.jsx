@@ -1,13 +1,14 @@
 import CodeBlock from './CodeBlock'
 
-// Matches fenced code blocks: ```lang\n ... \n```  (language is optional)
-const FENCE_RE = /```(\w+)?\n([\s\S]*?)```/g
+// Matches fenced code blocks: ```lang\n ... \n```  (language optional, CRLF ok)
+const FENCE_RE = /```(\w+)?\r?\n([\s\S]*?)```/g
 
 /**
  * Split question text into alternating prose and fenced-code segments.
  * Returns an array of { type: 'text' | 'code', content, language? }.
  */
-export function parseQuestion(text) {
+export function parseQuestion(input) {
+  const text = String(input ?? '')
   const segments = []
   let lastIndex = 0
   let match
@@ -20,7 +21,7 @@ export function parseQuestion(text) {
     segments.push({
       type: 'code',
       language: match[1] || 'sql',
-      content: match[2].replace(/\n$/, ''),
+      content: match[2].replace(/\r?\n$/, ''),
     })
     lastIndex = match.index + match[0].length
   }

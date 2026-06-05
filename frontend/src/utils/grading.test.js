@@ -26,8 +26,13 @@ describe('gradeAnswer', () => {
     expect(gradeAnswer([], ['a'])).toBe(false)
   })
 
+  it('never grades an answer-less question as correct', () => {
+    // Missing/empty correct set is malformed data -> always incorrect.
+    expect(gradeAnswer([], [])).toBe(false)
+    expect(gradeAnswer(undefined, undefined)).toBe(false)
+  })
+
   it('handles undefined inputs safely', () => {
-    expect(gradeAnswer(undefined, undefined)).toBe(true)
     expect(gradeAnswer(undefined, ['a'])).toBe(false)
   })
 })

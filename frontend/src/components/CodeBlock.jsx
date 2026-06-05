@@ -22,7 +22,7 @@ export default function CodeBlock({ code, language = 'sql' }) {
 
   const html = useMemo(() => {
     const grammar = Prism.languages[grammarName] || Prism.languages.clike
-    return Prism.highlight(code, grammar, grammarName)
+    return Prism.highlight(code ?? '', grammar, grammarName)
   }, [code, grammarName])
 
   return (

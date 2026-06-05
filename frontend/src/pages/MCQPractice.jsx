@@ -41,6 +41,30 @@ export default function MCQPractice() {
   const submitted = Boolean(result)
   const isLast = currentIndex >= total - 1
 
+  // Code-completion exercises get their own UI in a later epic. Until then,
+  // degrade gracefully rather than rendering them as a broken MCQ.
+  if (exercise.type === EXERCISE_TYPES.CODE_COMPLETION) {
+    return (
+      <UnsupportedExercise
+        message="Code-completion exercises arrive in a later update."
+        isLast={isLast}
+        onNext={next}
+      />
+    )
+  }
+
+  // Defensive guard: a malformed exercise with no options would otherwise throw
+  // in the options.map below and white-screen the whole app (no error boundary).
+  if (!Array.isArray(exercise.options) || exercise.options.length === 0) {
+    return (
+      <UnsupportedExercise
+        message="This exercise is malformed (no answer options)."
+        isLast={isLast}
+        onNext={next}
+      />
+    )
+  }
+
   function toggleOption(optionId) {
     if (submitted) return
     if (isMulti) {
@@ -110,7 +134,11 @@ export default function MCQPractice() {
                 className="mt-1"
               />
               <span className="text-gray-900">{opt.text}</span>
-              {isCorrectOption && <span className="ml-auto text-green-700 font-medium">✓</span>}
+              {isCorrectOption && (
+                <span aria-hidden="true" className="ml-auto text-green-700 font-medium">
+                  ✓
+                </span>
+              )}
             </label>
           )
         })}
@@ -142,7 +170,8 @@ function Feedback({ exercise, result, isLast, onNext }) {
           result.correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
         }`}
       >
-        {result.correct ? 'Correct! ✓' : 'Incorrect ✗'}
+        {result.correct ? 'Correct!' : 'Incorrect'}{' '}
+        <span aria-hidden="true">{result.correct ? '✓' : '✗'}</span>
       </div>
 
       <div className="mt-4 bg-white border border-gray-200 rounded-lg p-5">
@@ -153,8 +182,8 @@ function Feedback({ exercise, result, isLast, onNext }) {
           <div className="mt-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-1">References</h3>
             <ul className="list-disc list-inside space-y-1">
-              {exercise.references.map((ref) => (
-                <li key={ref}>
+              {exercise.references.map((ref, i) => (
+                <li key={`${ref}-${i}`}>
                   <a
                     href={ref}
                     target="_blank"
@@ -176,6 +205,30 @@ function Feedback({ exercise, result, isLast, onNext }) {
         className="mt-5 w-full bg-gray-900 hover:bg-gray-700 text-white font-medium py-2.5 rounded transition-colors"
       >
         {isLast ? 'See Results' : 'Next'}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Shown for exercises this page can't render (unsupported type or malformed
+ * data). Lets the user move on instead of hitting a dead end / blank screen.
+ */
+function UnsupportedExercise({ message, isLast, onNext }) {
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div
+        role="status"
+        className="rounded-lg p-4 bg-yellow-50 border border-yellow-200 text-yellow-800"
+      >
+        {message}
+      </div>
+      <button
+        type="button"
+        onClick={onNext}
+        className="mt-5 w-full bg-gray-900 hover:bg-gray-700 text-white font-medium py-2.5 rounded transition-colors"
+      >
+        {isLast ? 'See Results' : 'Skip'}
       </button>
     </div>
   )

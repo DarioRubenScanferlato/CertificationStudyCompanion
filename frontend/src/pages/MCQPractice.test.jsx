@@ -120,4 +120,39 @@ describe('MCQPractice', () => {
     expect(screen.getByText('Session complete')).toBeInTheDocument()
     expect(screen.getByText('2/2')).toBeInTheDocument()
   })
+
+  it('degrades gracefully for a code_completion exercise instead of crashing', () => {
+    renderFlow([
+      {
+        id: 'cc1',
+        type: 'code_completion',
+        domain: 'ELT with Spark SQL and Python',
+        difficulty: 'easy',
+        question: 'Fill the blank',
+        explanation: 'x',
+        references: [],
+        options: [],
+        answer: [],
+      },
+    ])
+    expect(screen.getByText(/code-completion exercises arrive/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'See Results' })).toBeInTheDocument()
+  })
+
+  it('shows a malformed message for an exercise with no options', () => {
+    renderFlow([
+      {
+        id: 'bad1',
+        type: 'single_choice',
+        domain: 'Data Governance',
+        difficulty: 'easy',
+        question: 'Broken',
+        explanation: 'x',
+        references: [],
+        options: [],
+        answer: [],
+      },
+    ])
+    expect(screen.getByText(/malformed/i)).toBeInTheDocument()
+  })
 })

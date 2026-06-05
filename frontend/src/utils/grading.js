@@ -17,6 +17,9 @@
 export function gradeAnswer(selected, correct) {
   const selectedSet = new Set(selected || [])
   const correctSet = new Set(correct || [])
+  // An exercise with no defined correct answer can never be "correct" — this
+  // guards malformed data (missing/empty answer) from grading as a pass.
+  if (correctSet.size === 0) return false
   if (selectedSet.size !== correctSet.size) return false
   for (const id of selectedSet) {
     if (!correctSet.has(id)) return false

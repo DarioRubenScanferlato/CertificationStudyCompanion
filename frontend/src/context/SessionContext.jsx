@@ -38,7 +38,11 @@ function sessionReducer(state, action) {
     case 'SUBMIT_ANSWER': {
       const exercise = state.exercises.find((e) => e.id === action.exerciseId)
       if (!exercise) return state
+      // Once submitted, an answer is final — ignore re-submits.
+      if (state.feedback[action.exerciseId]) return state
       const selected = state.selectedAnswers[action.exerciseId] || []
+      // Nothing selected -> nothing to grade.
+      if (selected.length === 0) return state
       const correct = gradeAnswer(selected, exercise.answer)
       return {
         ...state,

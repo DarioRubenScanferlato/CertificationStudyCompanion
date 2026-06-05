@@ -90,7 +90,9 @@ export async function fetchExercises(filters = {}) {
 
   const result = await apiRequest(url)
   if (!result.success) {
-    throw new APIError(result.error || 'Failed to load exercises', 200, result)
+    throw new APIError(result.error || 'Failed to load exercises', null, result)
   }
-  return result.data
+  // Guard against a "successful" response with missing/non-array data so a
+  // malformed payload can't corrupt session state downstream.
+  return Array.isArray(result.data) ? result.data : []
 }

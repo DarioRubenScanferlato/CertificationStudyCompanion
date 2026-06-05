@@ -27,8 +27,8 @@ export function computeResults(exercises, feedback) {
 
 export default function Summary() {
   const { exercises, feedback, reset } = useSession()
-  const { correct, answered, byDomain } = computeResults(exercises, feedback)
-  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0
+  const { correct, total, byDomain } = computeResults(exercises, feedback)
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -36,7 +36,7 @@ export default function Summary() {
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 text-center">
         <p className="text-5xl font-bold text-databricks-500">
-          {correct}/{answered}
+          {correct}/{total}
         </p>
         <p className="text-gray-600 mt-2">{pct}% correct</p>
       </div>
