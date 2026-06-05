@@ -5,7 +5,7 @@ baseline_commit: NO_VCS
 
 # Story 1.4: Configure Tailwind CSS
 
-**Epic:** 1 - Project Setup & Infrastructure  
+**Epic:** 1 - Project Setup & Infrastructure
 **Story Key:** 1-4-configure-tailwind-css
 
 ## Story Statement
@@ -16,11 +16,11 @@ So that **I can style components with utility classes**.
 
 ## Acceptance Criteria
 
-**Given** the frontend React app is set up  
-**When** I install Tailwind via npm  
-**Then** `tailwind.config.js` is configured  
-**And** `postcss.config.js` is configured  
-**And** `src/styles/global.css` imports Tailwind  
+**Given** the frontend React app is set up
+**When** I install Tailwind via npm
+**Then** `tailwind.config.js` is configured
+**And** `postcss.config.js` is configured
+**And** `src/styles/global.css` imports Tailwind
 **And** Tailwind classes work in React components (e.g., `className="p-4 bg-blue-500"`)
 
 ## Architecture Context

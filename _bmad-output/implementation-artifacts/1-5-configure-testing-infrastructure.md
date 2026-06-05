@@ -5,7 +5,7 @@ baseline_commit: NO_VCS
 
 # Story 1.5: Configure Testing Infrastructure
 
-**Epic:** 1 - Project Setup & Infrastructure  
+**Epic:** 1 - Project Setup & Infrastructure
 **Story Key:** 1-5-configure-testing-infrastructure
 
 ## Story Statement
@@ -16,11 +16,11 @@ So that **I can write and run tests**.
 
 ## Acceptance Criteria
 
-**Given** the frontend and backend are set up  
-**When** I run `npm test` in the frontend  
-**Then** Jest or Vitest runs and can find test files (`.test.jsx`)  
-**And** test output is clear (pass/fail for each test)  
-**And** When I run `uv run pytest` in the backend  
+**Given** the frontend and backend are set up
+**When** I run `npm test` in the frontend
+**Then** Jest or Vitest runs and can find test files (`.test.jsx`)
+**And** test output is clear (pass/fail for each test)
+**And** When I run `uv run pytest` in the backend
 **Then** pytest finds and runs test files (`test_*.py`)
 
 ## Architecture Context

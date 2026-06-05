@@ -181,5 +181,5 @@ For questions or issues:
 
 ---
 
-**Last updated:** 2026-06-05  
+**Last updated:** 2026-06-05
 **Current Phase:** 1 (MCQ Practice MVP)

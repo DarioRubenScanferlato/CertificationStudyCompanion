@@ -1,11 +1,11 @@
 ---
 status: ready-for-dev
-baseline_commit: 
+baseline_commit:
 ---
 
 # Story 1.1: Initialize Project Structure
 
-**Epic:** 1 - Project Setup & Infrastructure  
+**Epic:** 1 - Project Setup & Infrastructure
 **Story Key:** 1-1-initialize-project-structure
 
 ## Story Statement
@@ -16,10 +16,10 @@ So that **I have a clean foundation to build on**.
 
 ## Acceptance Criteria
 
-**Given** the project has just been cloned  
-**When** I examine the directory structure  
-**Then** I see: `exercises/`, `frontend/`, `backend/`, `docs/` directories created  
-**And** `.gitignore` is configured to exclude common files (node_modules, __pycache__, .venv, etc.)  
+**Given** the project has just been cloned
+**When** I examine the directory structure
+**Then** I see: `exercises/`, `frontend/`, `backend/`, `docs/` directories created
+**And** `.gitignore` is configured to exclude common files (node_modules, __pycache__, .venv, etc.)
 **And** `README.md` exists with basic project overview and setup instructions
 
 ## Architecture Context

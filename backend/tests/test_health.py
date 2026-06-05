@@ -1,5 +1,4 @@
 """Tests for health check endpoints."""
-import pytest
 
 
 def test_root_health_endpoint(client):

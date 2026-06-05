@@ -682,7 +682,7 @@ async def get_exercises(domain: str = None, difficulty: str = None):
 export function mcq_practice() {
   const [feedback_shown, setFeedbackShown] = useState(false);
   const [answer_data, set_answer_data] = useState({});
-  
+
   // ❌ Naming inconsistency; unclear if exercise is singular or list
   const [exercise, setExercise] = useState();
 }

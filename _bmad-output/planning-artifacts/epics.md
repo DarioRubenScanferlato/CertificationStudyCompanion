@@ -155,10 +155,10 @@ So that **I have a clean foundation to build on**.
 
 **Acceptance Criteria:**
 
-**Given** the project has just been cloned  
-**When** I examine the directory structure  
-**Then** I see: `exercises/`, `frontend/`, `backend/`, `docs/` directories created  
-**And** `.gitignore` is configured to exclude common files (node_modules, __pycache__, .venv, etc.)  
+**Given** the project has just been cloned
+**When** I examine the directory structure
+**Then** I see: `exercises/`, `frontend/`, `backend/`, `docs/` directories created
+**And** `.gitignore` is configured to exclude common files (node_modules, __pycache__, .venv, etc.)
 **And** `README.md` exists with basic project overview and setup instructions
 
 ---
@@ -171,11 +171,11 @@ So that **I can develop the frontend with fast feedback**.
 
 **Acceptance Criteria:**
 
-**Given** the frontend directory exists  
-**When** I run `npm install` in the frontend directory  
-**Then** dependencies are installed (React, Vite, ESLint)  
-**And** `vite.config.js` is configured to proxy `/api/*` to the backend  
-**And** `npm run dev` starts the dev server on localhost:3000  
+**Given** the frontend directory exists
+**When** I run `npm install` in the frontend directory
+**Then** dependencies are installed (React, Vite, ESLint)
+**And** `vite.config.js` is configured to proxy `/api/*` to the backend
+**And** `npm run dev` starts the dev server on localhost:3000
 **And** hot module reload works (code changes refresh instantly)
 
 ---
@@ -188,11 +188,11 @@ So that **I can develop the backend API**.
 
 **Acceptance Criteria:**
 
-**Given** the backend directory exists  
-**When** I run `pip install -r requirements.txt` (or `uv sync`)  
-**Then** dependencies are installed (FastAPI, Pydantic, pytest, uvicorn)  
-**And** `app/main.py` creates a FastAPI application  
-**And** `python -m uvicorn app.main:app --reload` starts the server on localhost:8000  
+**Given** the backend directory exists
+**When** I run `pip install -r requirements.txt` (or `uv sync`)
+**Then** dependencies are installed (FastAPI, Pydantic, pytest, uvicorn)
+**And** `app/main.py` creates a FastAPI application
+**And** `python -m uvicorn app.main:app --reload` starts the server on localhost:8000
 **And** `GET /` returns a 200 with a simple health check response
 
 ---
@@ -205,11 +205,11 @@ So that **I can style components with utility classes**.
 
 **Acceptance Criteria:**
 
-**Given** the frontend React app is set up  
-**When** I install Tailwind via `npm install tailwindcss postcss autoprefixer`  
-**Then** `tailwind.config.js` is configured  
-**And** `postcss.config.js` is configured  
-**And** `src/styles/global.css` imports Tailwind  
+**Given** the frontend React app is set up
+**When** I install Tailwind via `npm install tailwindcss postcss autoprefixer`
+**Then** `tailwind.config.js` is configured
+**And** `postcss.config.js` is configured
+**And** `src/styles/global.css` imports Tailwind
 **And** Tailwind classes work in React components (e.g., `className="p-4 bg-blue-500"`)
 
 ---
@@ -222,11 +222,11 @@ So that **I can write and run tests**.
 
 **Acceptance Criteria:**
 
-**Given** the frontend and backend are set up  
-**When** I run `npm test` in the frontend  
-**Then** Jest or Vitest runs and can find test files (`.test.jsx`)  
-**And** test output is clear (pass/fail for each test)  
-**And** When I run `pytest` in the backend  
+**Given** the frontend and backend are set up
+**When** I run `npm test` in the frontend
+**Then** Jest or Vitest runs and can find test files (`.test.jsx`)
+**And** test output is clear (pass/fail for each test)
+**And** When I run `pytest` in the backend
 **Then** pytest finds and runs test files (`test_*.py`)
 
 ---
@@ -239,10 +239,10 @@ So that **I can author exercises with confidence**.
 
 **Acceptance Criteria:**
 
-**Given** I want to create a YAML exercise file  
-**When** I write an MCQ following the defined schema  
-**Then** the file structure is: `id`, `type` (single_choice/multi_choice), `exam`, `domain`, `difficulty`, `question`, `options[]`, `answer[]`, `explanation`  
-**And** a Code-Completion template includes: `id`, `type`, `language`, `prompt`, `template`, `answer`, `accepted[]`  
+**Given** I want to create a YAML exercise file
+**When** I write an MCQ following the defined schema
+**Then** the file structure is: `id`, `type` (single_choice/multi_choice), `exam`, `domain`, `difficulty`, `question`, `options[]`, `answer[]`, `explanation`
+**And** a Code-Completion template includes: `id`, `type`, `language`, `prompt`, `template`, `answer`, `accepted[]`
 **And** Pydantic models in `backend/app/models.py` define Exercise, MCQ, CodeCompletion with validation
 
 ---
@@ -255,11 +255,11 @@ So that **exercises are available at startup**.
 
 **Acceptance Criteria:**
 
-**Given** YAML exercise files exist in `exercises/associate/*.yaml`  
-**When** the FastAPI app starts  
-**Then** `app/content.py` scans the `exercises/` directory  
-**And** all valid YAML files are parsed and loaded into memory  
-**And** `GET /api/exercises` returns the loaded exercises  
+**Given** YAML exercise files exist in `exercises/associate/*.yaml`
+**When** the FastAPI app starts
+**Then** `app/content.py` scans the `exercises/` directory
+**And** all valid YAML files are parsed and loaded into memory
+**And** `GET /api/exercises` returns the loaded exercises
 **And** `GET /api/exercises?domain=...&difficulty=...` filters the list
 
 ---
@@ -272,10 +272,10 @@ So that **malformed content fails loudly with helpful messages**.
 
 **Acceptance Criteria:**
 
-**Given** an exercise YAML file has invalid syntax or schema  
-**When** the app tries to load it  
-**Then** loading fails with an error message naming the file and the problem  
-**And** other valid exercises still load  
+**Given** an exercise YAML file has invalid syntax or schema
+**When** the app tries to load it
+**Then** loading fails with an error message naming the file and the problem
+**And** other valid exercises still load
 **And** the error includes the Exercise `id` if available
 
 ---
@@ -288,10 +288,10 @@ So that **users can study with Anki while the app matures**.
 
 **Acceptance Criteria:**
 
-**Given** MCQ exercises are loaded in the app  
-**When** I run `python backend/scripts/export_anki.py`  
-**Then** an Anki deck file (`.apkg` or JSON) is created  
-**And** the deck contains question, options, correct answer, explanation  
+**Given** MCQ exercises are loaded in the app
+**When** I run `python backend/scripts/export_anki.py`
+**Then** an Anki deck file (`.apkg` or JSON) is created
+**And** the deck contains question, options, correct answer, explanation
 **And** `GET /api/export/anki` can serve the export (for convenience)
 
 ---
@@ -304,9 +304,9 @@ So that **I can practice weak areas**.
 
 **Acceptance Criteria:**
 
-**Given** exercises are loaded with domain tags (Incremental Data Processing, ELT, etc.)  
-**When** I call `GET /api/exercises?domain=Incremental%20Data%20Processing&difficulty=medium`  
-**Then** only exercises with that domain and difficulty are returned  
+**Given** exercises are loaded with domain tags (Incremental Data Processing, ELT, etc.)
+**When** I call `GET /api/exercises?domain=Incremental%20Data%20Processing&difficulty=medium`
+**Then** only exercises with that domain and difficulty are returned
 **And** if domain doesn't match the canonical list, validation flags it
 
 ---
@@ -319,10 +319,10 @@ So that **I can choose what to study**.
 
 **Acceptance Criteria:**
 
-**Given** I open the app in my browser  
-**When** I see the SessionSelect page  
-**Then** I can select a domain from a dropdown (all Associate domains listed)  
-**And** I can select difficulty (easy/medium/hard)  
+**Given** I open the app in my browser
+**When** I see the SessionSelect page
+**Then** I can select a domain from a dropdown (all Associate domains listed)
+**And** I can select difficulty (easy/medium/hard)
 **And** a "Start Session" button creates a session and navigates to MCQPractice
 
 ---
@@ -335,10 +335,10 @@ So that **exercises persist while navigating**.
 
 **Acceptance Criteria:**
 
-**Given** a session is started  
-**When** SessionContext is created  
-**Then** it holds: `exercises[]`, `currentIndex`, `selectedAnswers{}`, `feedback`  
-**And** React hooks can consume the context (`useSession()`)  
+**Given** a session is started
+**When** SessionContext is created
+**Then** it holds: `exercises[]`, `currentIndex`, `selectedAnswers{}`, `feedback`
+**And** React hooks can consume the context (`useSession()`)
 **And** state updates are immutable (no direct mutations)
 
 ---
@@ -351,11 +351,11 @@ So that **I can focus on answering**.
 
 **Acceptance Criteria:**
 
-**Given** a session is active  
-**When** I navigate to MCQPractice  
-**Then** I see the current exercise's question  
-**And** any code snippet in the question renders in monospace with syntax highlighting (Prism.js)  
-**And** the domain and difficulty are shown  
+**Given** a session is active
+**When** I navigate to MCQPractice
+**Then** I see the current exercise's question
+**And** any code snippet in the question renders in monospace with syntax highlighting (Prism.js)
+**And** the domain and difficulty are shown
 **And** I see a progress indicator (e.g., "Question 3 of 10")
 
 ---
@@ -368,11 +368,11 @@ So that **the app can tell me if I'm right**.
 
 **Acceptance Criteria:**
 
-**Given** I'm viewing an MCQ  
-**When** it's single-select, I see radio buttons for each option  
-**And** it's multi-select, I see checkboxes  
-**And** I can change my selection before submitting  
-**When** I click "Submit", my answer is sent to the backend  
+**Given** I'm viewing an MCQ
+**When** it's single-select, I see radio buttons for each option
+**And** it's multi-select, I see checkboxes
+**And** I can change my selection before submitting
+**When** I click "Submit", my answer is sent to the backend
 **Then** the backend evaluates correctness (all-or-nothing for multi-select)
 
 ---
@@ -385,11 +385,11 @@ So that **I learn why**.
 
 **Acceptance Criteria:**
 
-**Given** I've submitted an answer  
-**When** the backend returns correctness + explanation  
-**Then** I see "Correct! ✓" or "Incorrect ✗" in clear color  
-**And** the correct option(s) are highlighted  
-**And** the Explanation is shown below (why correct, why distractors are wrong)  
+**Given** I've submitted an answer
+**When** the backend returns correctness + explanation
+**Then** I see "Correct! ✓" or "Incorrect ✗" in clear color
+**And** the correct option(s) are highlighted
+**And** the Explanation is shown below (why correct, why distractors are wrong)
 **And** reference links open in a new tab when clicked
 
 ---
@@ -402,10 +402,10 @@ So that **I progress through the session**.
 
 **Acceptance Criteria:**
 
-**Given** I've reviewed feedback  
-**When** I click "Next", I advance to the next exercise  
-**And** after the last exercise, I see the session summary  
-**Then** the summary shows: total correct/total, and per-domain breakdown  
+**Given** I've reviewed feedback
+**When** I click "Next", I advance to the next exercise
+**And** after the last exercise, I see the session summary
+**Then** the summary shows: total correct/total, and per-domain breakdown
 **And** I can start a new session from there
 
 ---
@@ -418,9 +418,9 @@ So that **code is readable**.
 
 **Acceptance Criteria:**
 
-**Given** an exercise has a code snippet  
-**When** it's rendered  
-**Then** Prism.js highlights the syntax based on language (SQL, Python, etc.)  
+**Given** an exercise has a code snippet
+**When** it's rendered
+**Then** Prism.js highlights the syntax based on language (SQL, Python, etc.)
 **And** whitespace and indentation are preserved
 
 ---
@@ -433,11 +433,11 @@ So that **I can practice syntax**.
 
 **Acceptance Criteria:**
 
-**Given** I open a Code-Completion exercise  
-**When** the page loads  
-**Then** I see the prompt (e.g., "Configure Auto Loader to infer schema")  
-**And** the code template with the blank marked clearly (e.g., `___`)  
-**And** the target language is shown  
+**Given** I open a Code-Completion exercise
+**When** the page loads
+**Then** I see the prompt (e.g., "Configure Auto Loader to infer schema")
+**And** the code template with the blank marked clearly (e.g., `___`)
+**And** the target language is shown
 **And** an input field is ready for me to type
 
 ---
@@ -450,10 +450,10 @@ So that **I can give per-token feedback**.
 
 **Acceptance Criteria:**
 
-**Given** a user types code into the input  
-**When** tokenization happens  
-**Then** the tokenizer splits the code into tokens (keywords, identifiers, operators, literals)  
-**And** tokenization is language-specific (SQL case-insensitive, PySpark case-sensitive)  
+**Given** a user types code into the input
+**When** tokenization happens
+**Then** the tokenizer splits the code into tokens (keywords, identifiers, operators, literals)
+**And** tokenization is language-specific (SQL case-insensitive, PySpark case-sensitive)
 **And** non-semantic whitespace is ignored
 
 ---
@@ -466,10 +466,10 @@ So that **users get Wordle-style hints**.
 
 **Acceptance Criteria:**
 
-**Given** the user types code and submits  
-**When** the feedback algorithm runs  
-**Then** each token is colored: green (correct position), yellow (in answer, wrong position), grey (not in answer)  
-**And** feedback is computed in < 100ms (client-side)  
+**Given** the user types code and submits
+**When** the feedback algorithm runs
+**Then** each token is colored: green (correct position), yellow (in answer, wrong position), grey (not in answer)
+**And** feedback is computed in < 100ms (client-side)
 **And** alternative accepted answers are matched correctly
 
 ---
@@ -482,10 +482,10 @@ So that **I understand what's right and what's wrong**.
 
 **Acceptance Criteria:**
 
-**Given** I've submitted a code attempt  
-**When** feedback is computed  
-**Then** my code renders with tokens colored green/yellow/grey  
-**And** I can see the remaining attempts counter  
+**Given** I've submitted a code attempt
+**When** feedback is computed
+**Then** my code renders with tokens colored green/yellow/grey
+**And** I can see the remaining attempts counter
 **And** if I've exhausted attempts, the canonical answer is revealed
 
 ---
@@ -498,11 +498,11 @@ So that **I'm motivated to think before typing**.
 
 **Acceptance Criteria:**
 
-**Given** I start a code-completion exercise  
-**When** I make an attempt  
-**Then** the remaining attempts counter decreases  
-**And** when attempts reach zero, the canonical answer is revealed  
-**And** the explanation is shown  
+**Given** I start a code-completion exercise
+**When** I make an attempt
+**Then** the remaining attempts counter decreases
+**And** when attempts reach zero, the canonical answer is revealed
+**And** the explanation is shown
 **And** I can move to the next exercise
 
 ---

@@ -5,7 +5,7 @@ baseline_commit: NO_VCS
 
 # Story 1.3: Set Up Python + FastAPI Backend
 
-**Epic:** 1 - Project Setup & Infrastructure  
+**Epic:** 1 - Project Setup & Infrastructure
 **Story Key:** 1-3-set-up-python-fastapi-backend
 
 ## Story Statement
@@ -16,11 +16,11 @@ So that **I can develop the backend API**.
 
 ## Acceptance Criteria
 
-**Given** the backend directory exists  
-**When** I run `pip install -r requirements.txt` (or `uv sync`)  
-**Then** dependencies are installed (FastAPI, Pydantic, pytest, uvicorn)  
-**And** `app/main.py` creates a FastAPI application  
-**And** `python -m uvicorn app.main:app --reload` starts the server on localhost:8000  
+**Given** the backend directory exists
+**When** I run `pip install -r requirements.txt` (or `uv sync`)
+**Then** dependencies are installed (FastAPI, Pydantic, pytest, uvicorn)
+**And** `app/main.py` creates a FastAPI application
+**And** `python -m uvicorn app.main:app --reload` starts the server on localhost:8000
 **And** `GET /` returns a 200 with a simple health check response
 
 ## Architecture Context

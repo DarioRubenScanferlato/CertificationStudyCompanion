@@ -5,7 +5,7 @@ baseline_commit: NO_VCS
 
 # Story 1.2: Set Up React + Vite Frontend
 
-**Epic:** 1 - Project Setup & Infrastructure  
+**Epic:** 1 - Project Setup & Infrastructure
 **Story Key:** 1-2-set-up-react-vite-frontend
 
 ## Story Statement
@@ -16,11 +16,11 @@ So that **I can develop the frontend with fast feedback**.
 
 ## Acceptance Criteria
 
-**Given** the frontend directory exists  
-**When** I run `npm install` in the frontend directory  
-**Then** dependencies are installed (React, Vite, ESLint)  
-**And** `vite.config.js` is configured to proxy `/api/*` to the backend  
-**And** `npm run dev` starts the dev server on localhost:3000  
+**Given** the frontend directory exists
+**When** I run `npm install` in the frontend directory
+**Then** dependencies are installed (React, Vite, ESLint)
+**And** `vite.config.js` is configured to proxy `/api/*` to the backend
+**And** `npm run dev` starts the dev server on localhost:3000
 **And** hot module reload works (code changes refresh instantly)
 
 ## Architecture Context
