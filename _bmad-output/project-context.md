@@ -1,0 +1,2 @@
+- use uv to manage the python backend
+- NEVER USE PIP

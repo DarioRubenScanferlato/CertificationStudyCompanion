@@ -1,0 +1,1887 @@
+# Databricks DE Certification Study Companion - MCQ Batch 01
+# Generated: 2026-06-05
+# Total Questions: 72
+# Domain Distribution:
+#   - Databricks Lakehouse Platform: 17 (24%)
+#   - ELT with Spark SQL and Python: 21 (29%)
+#   - Incremental Data Processing: 16 (22%)
+#   - Production Pipelines: 12 (16%)
+#   - Data Governance: 6 (9%)
+
+exercises:
+  # ========== DATABRICKS LAKEHOUSE PLATFORM (17 questions) ==========
+  - id: dbx-de-0001
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: easy
+    question: "What is the primary benefit of the Databricks Lakehouse architecture?"
+    options:
+      - id: a
+        text: "Combines data lake flexibility with data warehouse reliability and performance"
+        correct: true
+      - id: b
+        text: "Eliminates the need for data warehouses entirely"
+        correct: false
+      - id: c
+        text: "Provides unlimited storage at no cost"
+        correct: false
+      - id: d
+        text: "Requires no schema definition for data"
+        correct: false
+    answer: [a]
+    explanation: "The Lakehouse architecture combines the benefits of data lakes (flexibility, open formats) with data warehouses (ACID transactions, schema enforcement). This provides both cost-efficiency and reliability. Options B and C are false claims, and D ignores schema benefits."
+    references:
+      - "https://docs.databricks.com/en/lakehouse/index.html"
+    tags: [lakehouse, architecture]
+    source: original
+
+  - id: dbx-de-0002
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: easy
+    question: "Which storage format does Databricks use by default for Delta Lake tables?"
+    options:
+      - id: a
+        text: "Parquet with Delta transaction log"
+        correct: true
+      - id: b
+        text: "ORC with Hive metastore"
+        correct: false
+      - id: c
+        text: "CSV with version control"
+        correct: false
+      - id: d
+        text: "Avro with schema registry"
+        correct: false
+    answer: [a]
+    explanation: "Delta Lake uses Parquet as the underlying storage format with a transaction log (_delta_log) for ACID guarantees and time travel. This provides efficient columnar storage with reliability."
+    references:
+      - "https://docs.databricks.com/en/delta/index.html"
+    tags: [delta, storage]
+    source: original
+
+  - id: dbx-de-0003
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "What is the purpose of the Delta transaction log (_delta_log)?"
+    options:
+      - id: a
+        text: "Tracks all changes to provide ACID guarantees and enable time travel"
+        correct: true
+      - id: b
+        text: "Stores user access logs for auditing"
+        correct: false
+      - id: c
+        text: "Compresses data to reduce storage costs"
+        correct: false
+      - id: d
+        text: "Replicates data across multiple regions"
+        correct: false
+    answer: [a]
+    explanation: "The _delta_log directory is fundamental to Delta Lake, containing JSON files that record every transaction (add, remove, update). This enables ACID properties and time travel queries. The other options describe different features."
+    references:
+      - "https://docs.databricks.com/en/delta/index.html"
+    tags: [delta, transactions]
+    source: original
+
+  - id: dbx-de-0004
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "Which of the following is a valid reason to use external tables in Databricks?"
+    options:
+      - id: a
+        text: "When data is stored in cloud storage (S3, ADLS, GCS) outside the warehouse"
+        correct: true
+      - id: b
+        text: "To automatically encrypt all data at rest"
+        correct: false
+      - id: c
+        text: "To eliminate the need for schema definition"
+        correct: false
+      - id: d
+        text: "To avoid paying for compute resources"
+        correct: false
+    answer: [a]
+    explanation: "External tables reference data stored in cloud storage locations via a LOCATION path. This is useful when data is managed outside the Databricks warehouse or needs to remain in a specific location. Managed tables store data in the warehouse's default location."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-table.html"
+    tags: [tables, external]
+    source: original
+
+  - id: dbx-de-0005
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "What is the difference between a managed table and an external table in Databricks?"
+    options:
+      - id: a
+        text: "Managed tables store data in the warehouse directory; external tables reference data in cloud storage"
+        correct: true
+      - id: b
+        text: "Managed tables are read-only; external tables support updates"
+        correct: false
+      - id: c
+        text: "Managed tables are slower than external tables"
+        correct: false
+      - id: d
+        text: "External tables require Databricks Premium"
+        correct: false
+    answer: [a]
+    explanation: "Managed tables store data in the warehouse's managed storage location (e.g., /user/hive/warehouse). External tables reference data at a custom LOCATION. When you drop a managed table, data is deleted; dropping an external table only removes metadata."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-table.html"
+    tags: [tables, managed, external]
+    source: original
+
+  - id: dbx-de-0006
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: hard
+    question: "You have a managed Delta table. After dropping it, the data is no longer accessible. Which statement explains this?"
+    options:
+      - id: a
+        text: "Dropping a managed table deletes both metadata and underlying data from the warehouse location"
+        correct: true
+      - id: b
+        text: "The data still exists but the table cannot find it"
+        correct: false
+      - id: c
+        text: "Managed tables automatically archive data after drop"
+        correct: false
+      - id: d
+        text: "Data is retained in the Delta transaction log for recovery"
+        correct: false
+    answer: [a]
+    explanation: "When you drop a managed table, Databricks deletes the underlying Parquet files and metadata. The data is permanently removed from the warehouse directory. For external tables, only the metadata is removed; data persists in cloud storage."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-drop-table.html"
+    tags: [tables, lifecycle]
+    source: original
+
+  - id: dbx-de-0007
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "Which command would you use to view the schema of a Delta table?"
+    options:
+      - id: a
+        text: "DESCRIBE table_name or DESC EXTENDED table_name"
+        correct: true
+      - id: b
+        text: "SHOW SCHEMA table_name"
+        correct: false
+      - id: c
+        text: "INSPECT table_name"
+        correct: false
+      - id: d
+        text: "SCHEMA table_name"
+        correct: false
+    answer: [a]
+    explanation: "Both DESCRIBE and DESC are valid commands to view table schema. DESC EXTENDED shows additional metadata like table properties and location. SHOW SCHEMA is for catalogs/schemas, not tables."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-aux-describe-table.html"
+    tags: [schema, commands]
+    source: original
+
+  - id: dbx-de-0008
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "What is the purpose of the OPTIMIZE command in Delta Lake?"
+    options:
+      - id: a
+        text: "Consolidates small files into larger files to improve query performance"
+        correct: true
+      - id: b
+        text: "Compresses data to reduce storage size"
+        correct: false
+      - id: c
+        text: "Deletes old versions of data to save space"
+        correct: false
+      - id: d
+        text: "Replicates data across clusters"
+        correct: false
+    answer: [a]
+    explanation: "OPTIMIZE rewrites table data by consolidating small Parquet files into larger, fewer files. This improves query performance by reducing file I/O overhead. It's especially helpful after many write operations. Use OPTIMIZE along with ZORDER to further improve performance."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-optimize.html"
+    tags: [optimize, performance]
+    source: original
+
+  - id: dbx-de-0009
+    type: multi_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "Which of the following are valid parameters for the OPTIMIZE command? (Select all that apply)"
+    options:
+      - id: a
+        text: "ZORDER BY column_name"
+        correct: true
+      - id: b
+        text: "PARTITION BY column_name"
+        correct: false
+      - id: c
+        text: "WHERE clause for filtering data"
+        correct: true
+      - id: d
+        text: "CACHE AS temporary view"
+        correct: false
+    answer: [a, c]
+    explanation: "OPTIMIZE can be used with ZORDER BY to reorder data by a column for better clustering, and you can filter which partitions to optimize with WHERE. PARTITION BY is used at table creation, not in OPTIMIZE. CACHE AS is a separate caching command."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-optimize.html"
+    tags: [optimize, performance]
+    source: original
+
+  - id: dbx-de-0010
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: hard
+    question: "You notice that your Delta table has many small Parquet files (1-10 MB each). This is causing slow queries. What is the best solution?"
+    options:
+      - id: a
+        text: "Run OPTIMIZE to consolidate files into larger chunks"
+        correct: true
+      - id: b
+        text: "Recreate the table with larger block size"
+        correct: false
+      - id: c
+        text: "Delete and reload all data"
+        correct: false
+      - id: d
+        text: "Increase the number of worker nodes"
+        correct: false
+    answer: [a]
+    explanation: "Many small files cause query slowness due to file I/O overhead. OPTIMIZE consolidates these into fewer, larger files. Recreating the table doesn't help; additional nodes may improve performance but don't address the root cause."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-optimize.html"
+    tags: [optimize, performance, troubleshooting]
+    source: original
+
+  - id: dbx-de-0011
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "What does the VACUUM command do in Delta Lake?"
+    options:
+      - id: a
+        text: "Removes old versions of data files that are no longer referenced by the transaction log"
+        correct: true
+      - id: b
+        text: "Compresses data to save storage space"
+        correct: false
+      - id: c
+        text: "Deletes all historical data for privacy"
+        correct: false
+      - id: d
+        text: "Defragments the transaction log"
+        correct: false
+    answer: [a]
+    explanation: "VACUUM removes data files that are no longer needed by any table version. By default, it retains files for 7 days (configurable) to allow time travel. This frees up storage space by deleting orphaned files from failed writes or expired versions."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-vacuum.html"
+    tags: [vacuum, cleanup]
+    source: original
+
+  - id: dbx-de-0012
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "When using DESCRIBE HISTORY on a Delta table, which information is NOT typically returned?"
+    options:
+      - id: a
+        text: "The exact column values that were changed"
+        correct: true
+      - id: b
+        text: "Timestamp of each version"
+        correct: false
+      - id: c
+        text: "Number of files added/removed"
+        correct: false
+      - id: d
+        text: "Operation type (INSERT, UPDATE, etc.)"
+        correct: false
+    answer: [a]
+    explanation: "DESCRIBE HISTORY shows transaction metadata (timestamp, operation, file counts, etc.) but not the actual data changes. To see specific changed values, you'd need to query previous versions using time travel."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-aux-describe-history.html"
+    tags: [history, time-travel]
+    source: original
+
+  - id: dbx-de-0013
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: hard
+    question: "Your Delta table has been updated many times and you want to query it as it existed 30 days ago. Which approach is correct?"
+    options:
+      - id: a
+        text: "Use VERSION AS OF or TIMESTAMP AS OF clause in the query"
+        correct: true
+      - id: b
+        text: "Restore the entire table to that point"
+        correct: false
+      - id: c
+        text: "Query the _delta_log directory"
+        correct: false
+      - id: d
+        text: "Export data from backup and reimport"
+        correct: false
+    answer: [a]
+    explanation: "Delta time travel lets you query previous versions using VERSION AS OF version_number or TIMESTAMP AS OF 'timestamp' without modifying the table. This is powerful for auditing and recovery without restoring the entire table (unless you actually need to restore it)."
+    references:
+      - "https://docs.databricks.com/en/delta/query-old-snapshot.html"
+    tags: [time-travel, versions]
+    source: original
+
+  - id: dbx-de-0014
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "In the Databricks workspace, what is a Repo?"
+    options:
+      - id: a
+        text: "A Git repository integration for version controlling notebooks and code"
+        correct: true
+      - id: b
+        text: "A storage location for Parquet files"
+        correct: false
+      - id: c
+        text: "A cluster configuration template"
+        correct: false
+      - id: d
+        text: "A user permission group"
+        correct: false
+    answer: [a]
+    explanation: "Repos allow you to connect a Databricks workspace to a Git repository (GitHub, GitLab, Azure DevOps). This enables version control, collaboration, and CI/CD integration for notebooks and code files."
+    references:
+      - "https://docs.databricks.com/en/repos/index.html"
+    tags: [repos, git]
+    source: original
+
+  - id: dbx-de-0015
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "What is the three-level namespace in Unity Catalog?"
+    options:
+      - id: a
+        text: "Catalog > Schema > Table"
+        correct: true
+      - id: b
+        text: "Database > Table > Column"
+        correct: false
+      - id: c
+        text: "Workspace > Cluster > Notebook"
+        correct: false
+      - id: d
+        text: "Folder > File > Function"
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog introduces a three-level namespace: Catalog (highest level, similar to a database system) > Schema (similar to databases) > Table (the actual table). This is different from the legacy two-level Hive metastore (Schema.Table)."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
+    tags: [unity-catalog, namespace]
+    source: original
+
+  - id: dbx-de-0016
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: hard
+    question: "You want to restrict access to sensitive columns in a table at query time based on the user's identity. Which Unity Catalog feature should you use?"
+    options:
+      - id: a
+        text: "Column masking / Dynamic column masking"
+        correct: true
+      - id: b
+        text: "Row-level security with views"
+        correct: false
+      - id: c
+        text: "Table-level grants only"
+        correct: false
+      - id: d
+        text: "External table permissions"
+        correct: false
+    answer: [a]
+    explanation: "Column masking (also called dynamic masking or column-level security) hides sensitive column values from users who don't have permission. This is more granular than table-level grants and more flexible than views for compliance."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/column-level-security.html"
+    tags: [unity-catalog, security]
+    source: original
+
+  - id: dbx-de-0017
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    difficulty: medium
+    question: "In Databricks, what is the primary purpose of using clusters?"
+    options:
+      - id: a
+        text: "To provide compute resources for running Spark jobs and queries"
+        correct: true
+      - id: b
+        text: "To organize notebooks into groups"
+        correct: false
+      - id: c
+        text: "To store metadata about tables"
+        correct: false
+      - id: d
+        text: "To define schema structure"
+        correct: false
+    answer: [a]
+    explanation: "Clusters are groups of machines (nodes) that execute your Spark jobs and SQL queries. They provide the distributed compute needed to process data. Different cluster types (all-purpose, jobs, SQL) serve different use cases."
+    references:
+      - "https://docs.databricks.com/en/clusters/index.html"
+    tags: [clusters, compute]
+    source: original
+
+  # ========== ELT WITH SPARK SQL AND PYTHON (21 questions) ==========
+  - id: dbx-de-0018
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: easy
+    question: "In the context of Databricks, what does ELT stand for?"
+    options:
+      - id: a
+        text: "Extract, Load, Transform"
+        correct: true
+      - id: b
+        text: "Extract, Link, Transfer"
+        correct: false
+      - id: c
+        text: "Encode, Load, Transmit"
+        correct: false
+      - id: d
+        text: "Extract, Log, Threshold"
+        correct: false
+    answer: [a]
+    explanation: "ELT (Extract, Load, Transform) is a data pipeline approach where raw data is extracted and loaded into the data lake first, then transformed using SQL or Spark. This differs from ETL where transformation happens before loading. ELT is common in modern data lakes because transformation is cheaper after data is already in the system."
+    references:
+      - "https://docs.databricks.com/en/"
+    tags: [elt, pipelines]
+    source: original
+
+  - id: dbx-de-0019
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: easy
+    question: "Which statement is valid for reading a CSV file into a Spark DataFrame using PySpark?"
+    options:
+      - id: a
+        text: "spark.read.format('csv').option('header', 'true').load('path/to/file.csv')"
+        correct: true
+      - id: b
+        text: "spark.read.csv('path/to/file.csv') without additional options"
+        correct: false
+      - id: c
+        text: "spark.read.format('csv').load('path/to/file.csv') without header option"
+        correct: false
+      - id: d
+        text: "spark.csv('path/to/file.csv')"
+        correct: false
+    answer: [a]
+    explanation: "The correct syntax uses format('csv'), option('header', 'true') to treat the first row as column names, and load() to specify the file path. Without the header option, the first row is treated as data."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, reading]
+    source: original
+
+  - id: dbx-de-0020
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "What is the difference between using select() and selectExpr() in PySpark?"
+    options:
+      - id: a
+        text: "select() takes column objects; selectExpr() takes SQL expressions as strings"
+        correct: true
+      - id: b
+        text: "selectExpr() is faster than select()"
+        correct: false
+      - id: c
+        text: "select() only works with DataFrames; selectExpr() only works with RDDs"
+        correct: false
+      - id: d
+        text: "selectExpr() cannot handle column aliases"
+        correct: false
+    answer: [a]
+    explanation: "select() uses PySpark Column objects (e.g., col('name')). selectExpr() takes raw SQL expression strings (e.g., 'age * 2 as doubled_age'). Both are useful; selectExpr() is convenient for SQL-like syntax."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, select]
+    source: original
+
+  - id: dbx-de-0021
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "Which method would you use to add a new column derived from existing columns?"
+    options:
+      - id: a
+        text: "withColumn('new_col', expression)"
+        correct: true
+      - id: b
+        text: "addColumn('new_col', expression)"
+        correct: false
+      - id: c
+        text: "createColumn('new_col', expression)"
+        correct: false
+      - id: d
+        text: "newColumn('new_col', expression)"
+        correct: false
+    answer: [a]
+    explanation: "withColumn() is the standard PySpark method to add or update a column. The second parameter is a Column expression. If the column exists, it's updated; otherwise, it's created."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, columns]
+    source: original
+
+  - id: dbx-de-0022
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "In PySpark, what does the groupBy().agg() pattern accomplish?"
+    options:
+      - id: a
+        text: "Groups data by column(s) and applies aggregation functions (sum, count, avg, etc.)"
+        correct: true
+      - id: b
+        text: "Sorts data in ascending order"
+        correct: false
+      - id: c
+        text: "Joins two DataFrames on common columns"
+        correct: false
+      - id: d
+        text: "Filters rows based on a condition"
+        correct: false
+    answer: [a]
+    explanation: "groupBy() partitions the data by one or more columns, and agg() applies aggregation functions to each group. Common aggregations: sum(), count(), avg(), max(), min()."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, groupby, aggregation]
+    source: original
+
+  - id: dbx-de-0023
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: hard
+    question: "You have a DataFrame with a column containing JSON strings. How do you parse the JSON into a struct column?"
+    options:
+      - id: a
+        text: "Use from_json('column_name', schema) function"
+        correct: true
+      - id: b
+        text: "Use parse_json('column_name')"
+        correct: false
+      - id: c
+        text: "Use json_extract('column_name')"
+        correct: false
+      - id: d
+        text: "Use cast('column_name' as json)"
+        correct: false
+    answer: [a]
+    explanation: "from_json() takes a JSON string column and a schema StructType, returning a struct column. json_extract is for accessing fields in existing JSON, not parsing strings into structs."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, json]
+    source: original
+
+  - id: dbx-de-0024
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "What is the purpose of the filter() or where() method in PySpark?"
+    options:
+      - id: a
+        text: "To select rows that match a condition"
+        correct: true
+      - id: b
+        text: "To select specific columns"
+        correct: false
+      - id: c
+        text: "To sort rows by a column"
+        correct: false
+      - id: d
+        text: "To remove duplicate rows"
+        correct: false
+    answer: [a]
+    explanation: "filter() and where() are equivalent in PySpark; both select rows matching a Boolean condition. To select columns, use select(). To sort, use orderBy(). To remove duplicates, use distinct()."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, filter]
+    source: original
+
+  - id: dbx-de-0025
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "When writing a DataFrame to Delta Lake using PySpark, which mode overwrites the entire table and is recommended for idempotent writes?"
+    options:
+      - id: a
+        text: "overwrite"
+        correct: true
+      - id: b
+        text: "append"
+        correct: false
+      - id: c
+        text: "ignore"
+        correct: false
+      - id: d
+        text: "update"
+        correct: false
+    answer: [a]
+    explanation: "mode('overwrite') replaces the entire table. This is idempotent — running it multiple times with the same data produces the same result. mode('append') adds data without removing old data, while 'ignore' does nothing if the table exists."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, write]
+    source: original
+
+  - id: dbx-de-0026
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "Which pyspark.sql.functions import is needed to use the col() function in expressions?"
+    options:
+      - id: a
+        text: "from pyspark.sql.functions import col"
+        correct: true
+      - id: b
+        text: "from pyspark.sql import col"
+        correct: false
+      - id: c
+        text: "import pyspark.sql.col"
+        correct: false
+      - id: d
+        text: "from pyspark import col"
+        correct: false
+    answer: [a]
+    explanation: "col() is part of the functions module, so the correct import is from pyspark.sql.functions import col. This function is used to reference column names in expressions."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, imports]
+    source: original
+
+  - id: dbx-de-0027
+    type: multi_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "Which of the following are valid ways to create a DataFrame in PySpark? (Select all that apply)"
+    options:
+      - id: a
+        text: "spark.read.format('delta').load('path')"
+        correct: true
+      - id: b
+        text: "spark.table('table_name')"
+        correct: true
+      - id: c
+        text: "spark.createDataFrame(data, schema)"
+        correct: true
+      - id: d
+        text: "spark.DataFrame(data)"
+        correct: false
+    answer: [a, b, c]
+    explanation: "Valid methods: read.format('delta').load() for external data, spark.table() for registered tables, and spark.createDataFrame() for in-memory data. spark.DataFrame() is not a valid constructor."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, creating-dataframes]
+    source: original
+
+  - id: dbx-de-0028
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: hard
+    question: "You need to apply a custom transformation to each row in a PySpark DataFrame. Which method should you use?"
+    options:
+      - id: a
+        text: "rdd.map(custom_function) to convert to RDD, apply function, then convert back to DataFrame"
+        correct: true
+      - id: b
+        text: "withColumn() with a simple UDF"
+        correct: false
+      - id: c
+        text: "foreach() to iterate rows"
+        correct: false
+      - id: d
+        text: "collect() then loop in Python"
+        correct: false
+    answer: [a]
+    explanation: "For complex row-wise transformations, convert the DataFrame to an RDD using .rdd, apply map() with your custom function, then convert back to a DataFrame. UDFs are slower. foreach() is for side effects only. collect() brings all data to driver memory, which is inefficient for large datasets."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, transformations]
+    source: original
+
+  - id: dbx-de-0029
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "When you call df.printSchema(), what information is displayed?"
+    options:
+      - id: a
+        text: "Column names, data types, and nullability of the DataFrame"
+        correct: true
+      - id: b
+        text: "The first 20 rows of data"
+        correct: false
+      - id: c
+        text: "Memory size of the DataFrame"
+        correct: false
+      - id: d
+        text: "Partition count and distribution"
+        correct: false
+    answer: [a]
+    explanation: "printSchema() shows the structure of the DataFrame: column names, data types (IntegerType, StringType, etc.), and whether each column is nullable. Use show() to see sample data."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, schema]
+    source: original
+
+  - id: dbx-de-0030
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "In Spark SQL, what does the EXPLODE function do?"
+    options:
+      - id: a
+        text: "Transforms each element in an array or map into a separate row"
+        correct: true
+      - id: b
+        text: "Joins multiple tables"
+        correct: false
+      - id: c
+        text: "Filters rows based on conditions"
+        correct: false
+      - id: d
+        text: "Concatenates strings"
+        correct: false
+    answer: [a]
+    explanation: "EXPLODE is useful for flattening nested arrays or maps. If a row has an array [1, 2, 3], EXPLODE creates three output rows, one for each element."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/"
+    tags: [spark-sql, functions]
+    source: original
+
+  - id: dbx-de-0031
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "Which SQL window function would you use to assign a sequential number to each row within a group?"
+    options:
+      - id: a
+        text: "ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ...)"
+        correct: true
+      - id: b
+        text: "RANK() OVER (PARTITION BY ... ORDER BY ...)"
+        correct: false
+      - id: c
+        text: "COUNT() OVER (PARTITION BY ... ORDER BY ...)"
+        correct: false
+      - id: d
+        text: "SEQUENCE() OVER (...)"
+        correct: false
+    answer: [a]
+    explanation: "ROW_NUMBER() assigns unique sequential numbers within each partition. RANK() handles ties differently. Neither COUNT() nor SEQUENCE() are used for sequential numbering."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/"
+    tags: [spark-sql, window-functions]
+    source: original
+
+  - id: dbx-de-0032
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: hard
+    question: "You want to perform a join between two DataFrames on a condition that is not a simple equality (e.g., df1.col1 < df2.col1). Which type of join is appropriate?"
+    options:
+      - id: a
+        text: "Theta join using join() with a complex condition"
+        correct: true
+      - id: b
+        text: "Inner join only supports equality"
+        correct: false
+      - id: c
+        text: "Cross join will always work"
+        correct: false
+      - id: d
+        text: "Use merge() instead of join()"
+        correct: false
+    answer: [a]
+    explanation: "join() in PySpark supports any condition, including non-equality predicates (>, <, BETWEEN, etc.). This is called a theta join or general join. Cross joins (Cartesian product) create many rows and should be avoided unless intentional."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, joins]
+    source: original
+
+  - id: dbx-de-0033
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "In PySpark, how do you convert a DataFrame to a pandas DataFrame for local processing?"
+    options:
+      - id: a
+        text: "df.toPandas()"
+        correct: true
+      - id: b
+        text: "df.asPandas()"
+        correct: false
+      - id: c
+        text: "df.to_pandas()"
+        correct: false
+      - id: d
+        text: "pandas.from_spark(df)"
+        correct: false
+    answer: [a]
+    explanation: "toPandas() converts a Spark DataFrame to a pandas DataFrame in memory. Be cautious with large DataFrames as this brings all data to the driver node. Use for small result sets only."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, pandas]
+    source: original
+
+  - id: dbx-de-0034
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "When reading from a Delta table in PySpark, which statement is correct?"
+    options:
+      - id: a
+        text: "spark.read.format('delta').load('path/to/table')"
+        correct: true
+      - id: b
+        text: "spark.read.delta('path/to/table')"
+        correct: false
+      - id: c
+        text: "spark.read('path/to/table')"
+        correct: false
+      - id: d
+        text: "spark.table.read('path/to/table')"
+        correct: false
+    answer: [a]
+    explanation: "The correct syntax is format('delta').load(). If the table is registered in the metastore, you can also use spark.table('table_name'), but for direct path access, use the format() and load() methods."
+    references:
+      - "https://docs.databricks.com/en/delta/quick-start.html"
+    tags: [delta, pyspark]
+    source: original
+
+  - id: dbx-de-0035
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "What is the purpose of the .option() method when reading or writing data in PySpark?"
+    options:
+      - id: a
+        text: "To specify format-specific options like header=true, inferSchema=true, etc."
+        correct: true
+      - id: b
+        text: "To define which columns to read"
+        correct: false
+      - id: c
+        text: "To set the number of partitions"
+        correct: false
+      - id: d
+        text: "To enable compression"
+        correct: false
+    answer: [a]
+    explanation: "option() sets format-specific configurations. For CSV, common options are header, delimiter, inferSchema. For Delta, options control merge behavior, etc. To control partitioning, use partitionBy() or repartition()."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, options]
+    source: original
+
+  - id: dbx-de-0036
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "What is the correct syntax to use the when() function for conditional column creation in PySpark?"
+    options:
+      - id: a
+        text: "from pyspark.sql.functions import when; when(col('age') > 18, 'adult')"
+        correct: true
+      - id: b
+        text: "df.when(col('age') > 18, 'adult')"
+        correct: false
+      - id: c
+        text: "df.col('age').when('> 18', 'adult')"
+        correct: false
+      - id: d
+        text: "when(condition='age > 18', value='adult')"
+        correct: false
+    answer: [a]
+    explanation: "when() is imported from pyspark.sql.functions and takes a condition and value. Use it within withColumn() or select(): .withColumn('category', when(col('age') > 18, 'adult').otherwise('minor'))"
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, functions]
+    source: original
+
+  - id: dbx-de-0037
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: medium
+    question: "In PySpark, what does the cache() method do?"
+    options:
+      - id: a
+        text: "Caches the DataFrame in memory for reuse in multiple operations, improving performance"
+        correct: true
+      - id: b
+        text: "Deletes the DataFrame after first use"
+        correct: false
+      - id: c
+        text: "Compresses the DataFrame"
+        correct: false
+      - id: d
+        text: "Saves the DataFrame to disk"
+        correct: false
+    answer: [a]
+    explanation: "cache() (or persist()) keeps the DataFrame in memory across operations. Use when reusing a DataFrame multiple times. Remember to call unpersist() when done to free memory. Default storage level is MEMORY_AND_DISK."
+    references:
+      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
+    tags: [pyspark, performance]
+    source: original
+
+  - id: dbx-de-0038
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    difficulty: hard
+    question: "You want to write a DataFrame to Delta with a schema guarantee — the write should fail if the DataFrame's schema doesn't match the table's existing schema. What do you use?"
+    options:
+      - id: a
+        text: "mergeSchema=false option"
+        correct: true
+      - id: b
+        text: "schemaValidation=true"
+        correct: false
+      - id: c
+        text: "enforceSchema=true"
+        correct: false
+      - id: d
+        text: "Write will always fail on schema mismatch by default"
+        correct: false
+    answer: [a]
+    explanation: "By default, Delta allows schema evolution with mergeSchema=true. To enforce strict schema matching and fail on mismatch, use .option('mergeSchema', 'false') or explicitly check schema compatibility before writing."
+    references:
+      - "https://docs.databricks.com/en/delta/schema-enforcement.html"
+    tags: [delta, schema]
+    source: original
+
+  # ========== INCREMENTAL DATA PROCESSING (16 questions) ==========
+  - id: dbx-de-0039
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: easy
+    question: "What is the primary purpose of Auto Loader in Databricks?"
+    options:
+      - id: a
+        text: "To automatically detect and ingest new data files as they arrive in cloud storage"
+        correct: true
+      - id: b
+        text: "To automatically optimize table performance"
+        correct: false
+      - id: c
+        text: "To automatically delete old data"
+        correct: false
+      - id: d
+        text: "To automatically create backups"
+        correct: false
+    answer: [a]
+    explanation: "Auto Loader continuously monitors a cloud storage location (S3, ADLS, GCS) and automatically ingests new files as they appear. It uses directory listing (default) or file notifications for efficiency, and can infer or evolve schema automatically."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, ingestion]
+    source: original
+
+  - id: dbx-de-0040
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "When configuring Auto Loader, what does the cloudFiles.schemaLocation option do?"
+    options:
+      - id: a
+        text: "Specifies where the inferred schema is stored for schema evolution tracking"
+        correct: true
+      - id: b
+        text: "Specifies the location to read data from"
+        correct: false
+      - id: c
+        text: "Specifies the location to write processed data"
+        correct: false
+      - id: d
+        text: "Specifies the backup location for old schemas"
+        correct: false
+    answer: [a]
+    explanation: "cloudFiles.schemaLocation stores metadata about the inferred schema and detected changes. This enables Auto Loader to evolve the table schema automatically as new columns appear in source files, while tracking changes in the specified location."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, schema]
+    source: original
+
+  - id: dbx-de-0041
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "What does cloudFiles.schemaEvolutionMode control in Auto Loader?"
+    options:
+      - id: a
+        text: "How Auto Loader handles new columns or data type changes in incoming files"
+        correct: true
+      - id: b
+        text: "Whether to use directory listing or file notifications"
+        correct: false
+      - id: c
+        text: "The compression format of files"
+        correct: false
+      - id: d
+        text: "The frequency of schema checks"
+        correct: false
+    answer: [a]
+    explanation: "schemaEvolutionMode can be set to 'addNewColumns' (default, adds new columns) or 'failOnNewColumns' (raises error on schema changes). This controls how the table adapts to source file changes."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, schema]
+    source: original
+
+  - id: dbx-de-0042
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "In Structured Streaming, what does the checkpointLocation option do?"
+    options:
+      - id: a
+        text: "Stores the state of the streaming query to enable exactly-once processing and fault tolerance"
+        correct: true
+      - id: b
+        text: "Stores processed data output"
+        correct: false
+      - id: c
+        text: "Creates a backup of input data"
+        correct: false
+      - id: d
+        text: "Compresses streaming data"
+        correct: false
+    answer: [a]
+    explanation: "checkpointLocation is critical for Structured Streaming fault tolerance. It tracks which records have been processed, enabling the query to resume from the exact point it left off after failures, preventing data loss or duplication."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, checkpoint]
+    source: original
+
+  - id: dbx-de-0043
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "What are the three output modes for Structured Streaming?"
+    options:
+      - id: a
+        text: "append, update, complete"
+        correct: true
+      - id: b
+        text: "insert, modify, refresh"
+        correct: false
+      - id: c
+        text: "new, changed, all"
+        correct: false
+      - id: d
+        text: "batch, stream, hybrid"
+        correct: false
+    answer: [a]
+    explanation: "Output modes: append (new rows only, fastest), update (changed rows, for aggregate queries), complete (all rows, slowest, use carefully). Choose based on whether you need full state or just changes."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, output-modes]
+    source: original
+
+  - id: dbx-de-0044
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "In a Structured Streaming query, what does a trigger control?"
+    options:
+      - id: a
+        text: "How often the streaming query processes new micro-batches of data"
+        correct: true
+      - id: b
+        text: "Which rows are selected from the input"
+        correct: false
+      - id: c
+        text: "Where the output data is written"
+        correct: false
+      - id: d
+        text: "The schema of the data"
+        correct: false
+    answer: [a]
+    explanation: "Triggers define batch intervals: processingTime('30 seconds'), availableNow (process all available data once), or continuous (experimental). Default is processingTime with micro-batches as soon as data arrives."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, triggers]
+    source: original
+
+  - id: dbx-de-0045
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: hard
+    question: "You have a streaming query that uses window() function. What does watermarking prevent?"
+    options:
+      - id: a
+        text: "Prevents late-arriving data from being dropped; determines when to close a window"
+        correct: true
+      - id: b
+        text: "Prevents memory issues from long-running queries"
+        correct: false
+      - id: c
+        text: "Prevents duplicate records in output"
+        correct: false
+      - id: d
+        text: "Prevents network congestion"
+        correct: false
+    answer: [a]
+    explanation: "withWatermark() allows windows to remain open for a specified duration to handle late data. Without it, data arriving after the window closes is dropped. Watermarking is critical for correct windowed aggregations."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, watermark]
+    source: original
+
+  - id: dbx-de-0046
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "What is the purpose of readStream vs read in Spark?"
+    options:
+      - id: a
+        text: "readStream reads streaming data continuously; read reads static data once"
+        correct: true
+      - id: b
+        text: "readStream is faster than read"
+        correct: false
+      - id: c
+        text: "readStream is only for Kafka"
+        correct: false
+      - id: d
+        text: "read is deprecated in favor of readStream"
+        correct: false
+    answer: [a]
+    explanation: "readStream creates a streaming DataFrame that continuously listens for new data. read returns a static DataFrame. Use readStream for Kafka, files with Auto Loader, etc. Use read for one-time data ingestion."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, reading]
+    source: original
+
+  - id: dbx-de-0047
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "When using AUTO Loader with cloud storage, which mechanism is preferred for detecting new files?"
+    options:
+      - id: a
+        text: "File notifications (SNS/Event Grid) for efficiency; directory listing as fallback"
+        correct: true
+      - id: b
+        text: "Directory listing is always used"
+        correct: false
+      - id: c
+        text: "Directory listing for performance"
+        correct: false
+      - id: d
+        text: "Custom polling logic"
+        correct: false
+    answer: [a]
+    explanation: "Auto Loader prefers file notifications (AWS SNS, Azure Event Grid) which are low-latency and cost-effective. It falls back to directory listing if notifications aren't configured. Directory listing works but is slower and more expensive."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, notifications]
+    source: original
+
+  - id: dbx-de-0048
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "What is the difference between using COPY INTO and Auto Loader for ingesting files?"
+    options:
+      - id: a
+        text: "COPY INTO is one-time import; Auto Loader continuously monitors for new files"
+        correct: true
+      - id: b
+        text: "COPY INTO is faster"
+        correct: false
+      - id: c
+        text: "Auto Loader only works with Parquet"
+        correct: false
+      - id: d
+        text: "COPY INTO requires streaming"
+        correct: false
+    answer: [a]
+    explanation: "COPY INTO is a SQL command for one-time ingestion of existing files. Auto Loader continuously watches for new files and ingests them automatically. Use COPY INTO for backfill; use Auto Loader for ongoing data flows."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [ingestion, copy-into]
+    source: original
+
+  - id: dbx-de-0049
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: hard
+    question: "You're building a data pipeline that ingests JSON files from S3, infers and evolves schema automatically, and writes to Delta Lake. Which approach is best?"
+    options:
+      - id: a
+        text: "Use Auto Loader with format('cloudFiles'), inferColumnTypes=true, and cloudFiles.schemaLocation"
+        correct: true
+      - id: b
+        text: "Use readStream with manual schema definition"
+        correct: false
+      - id: c
+        text: "Use COPY INTO with explicit schema"
+        correct: false
+      - id: d
+        text: "Use spark.read with inferSchema=true in a batch job"
+        correct: false
+    answer: [a]
+    explanation: "Auto Loader is designed for this: format('cloudFiles') enables Auto Loader, inferColumnTypes=true infers types, and cloudFiles.schemaLocation enables automatic schema evolution. This is efficient, scalable, and handles incremental ingestion."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, schema, ingestion]
+    source: original
+
+  - id: dbx-de-0050
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "In Auto Loader, what is the purpose of the _rescuedData column?"
+    options:
+      - id: a
+        text: "Captures unparseable data and schema-mismatched records for debugging"
+        correct: true
+      - id: b
+        text: "Stores backup copies of valid records"
+        correct: false
+      - id: c
+        text: "Tracks which records were processed"
+        correct: false
+      - id: d
+        text: "Stores deleted records"
+        correct: false
+    answer: [a]
+    explanation: "_rescuedData is a column containing rows that couldn't be parsed or don't match the schema. It allows the pipeline to continue without failing, while capturing problematic records for investigation and fix."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, error-handling]
+    source: original
+
+  - id: dbx-de-0051
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "When using Auto Loader, which format option enables schema inference and evolution?"
+    options:
+      - id: a
+        text: "format('cloudFiles')"
+        correct: true
+      - id: b
+        text: "format('autoload')"
+        correct: false
+      - id: c
+        text: "format('incremental')"
+        correct: false
+      - id: d
+        text: "format('delta') with special options"
+        correct: false
+    answer: [a]
+    explanation: "Use format('cloudFiles') to enable Auto Loader. Additional options like cloudFiles.format, cloudFiles.schemaLocation, and cloudFiles.schemaEvolutionMode control behavior. This is the standard Spark interface to Auto Loader."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, format]
+    source: original
+
+  - id: dbx-de-0052
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: hard
+    question: "Your Auto Loader pipeline fails because some source files have a different schema (new columns). You want the pipeline to automatically adapt. What should you do?"
+    options:
+      - id: a
+        text: "Set cloudFiles.schemaEvolutionMode to 'addNewColumns' and specify cloudFiles.schemaLocation"
+        correct: true
+      - id: b
+        text: "Stop the pipeline and update the table schema manually"
+        correct: false
+      - id: c
+        text: "Use COPY INTO instead"
+        correct: false
+      - id: d
+        text: "Reject files with schema changes"
+        correct: false
+    answer: [a]
+    explanation: "Set cloudFiles.schemaEvolutionMode='addNewColumns' to allow new columns, and cloudFiles.schemaLocation to track schema changes. This enables Auto Loader to adapt automatically without pipeline failures."
+    references:
+      - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+    tags: [auto-loader, schema-evolution]
+    source: original
+
+  - id: dbx-de-0053
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "In Structured Streaming, what does the isStreaming property of a DataFrame indicate?"
+    options:
+      - id: a
+        text: "Whether the DataFrame represents streaming data or static data"
+        correct: true
+      - id: b
+        text: "Whether the DataFrame is currently being executed"
+        correct: false
+      - id: c
+        text: "Whether the DataFrame uses checkpointing"
+        correct: false
+      - id: d
+        text: "Whether the DataFrame is optimized"
+        correct: false
+    answer: [a]
+    explanation: "isStreaming returns true for DataFrames from readStream() and false for DataFrames from read(). This property helps determine what operations are allowed (e.g., streaming aggregations don't support certain operations)."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, dataframe]
+    source: original
+
+  - id: dbx-de-0054
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    difficulty: medium
+    question: "What is the purpose of foreachBatch() in Structured Streaming?"
+    options:
+      - id: a
+        text: "To apply a custom function to each micro-batch of data for flexible output handling"
+        correct: true
+      - id: b
+        text: "To set the batch size of processing"
+        correct: false
+      - id: c
+        text: "To filter data before processing"
+        correct: false
+      - id: d
+        text: "To pause streaming"
+        correct: false
+    answer: [a]
+    explanation: "foreachBatch(func) allows you to define custom logic for each micro-batch. This is useful for UPSERT operations, conditional logic, or writing to systems without native Spark support. func receives the batch DataFrame and batch id."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
+    tags: [streaming, foreachbatch]
+    source: original
+
+  # ========== PRODUCTION PIPELINES (12 questions) ==========
+  - id: dbx-de-0055
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: easy
+    question: "What is a Databricks Job?"
+    options:
+      - id: a
+        text: "A scheduled or triggered workflow that runs notebooks, SQL, or DLT pipelines on a cluster"
+        correct: true
+      - id: b
+        text: "A single notebook execution"
+        correct: false
+      - id: c
+        text: "A cluster configuration"
+        correct: false
+      - id: d
+        text: "A user permission"
+        correct: false
+    answer: [a]
+    explanation: "Jobs are workflows you can schedule (daily, hourly, etc.) or trigger manually. They can contain multiple tasks (notebooks, SQL, Python, DLT) that run in sequence or parallel, with retry and alerting policies."
+    references:
+      - "https://docs.databricks.com/en/workflows/jobs/index.html"
+    tags: [jobs, workflows]
+    source: original
+
+  - id: dbx-de-0056
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "In a Databricks Job with multiple tasks, what defines the execution order?"
+    options:
+      - id: a
+        text: "Task dependencies specified via depends_on or task_key references"
+        correct: true
+      - id: b
+        text: "The order tasks are listed in the configuration"
+        correct: false
+      - id: c
+        text: "Random order for parallelism"
+        correct: false
+      - id: d
+        text: "Always sequential regardless of dependencies"
+        correct: false
+    answer: [a]
+    explanation: "Task dependencies control execution order. You can run tasks in parallel if they have no dependencies, or sequentially by having later tasks depend on earlier ones. This creates a DAG (directed acyclic graph)."
+    references:
+      - "https://docs.databricks.com/en/workflows/jobs/index.html"
+    tags: [jobs, dependencies]
+    source: original
+
+  - id: dbx-de-0057
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "What is the purpose of dbutils.widgets in a Databricks notebook within a Job?"
+    options:
+      - id: a
+        text: "To define parameters that can be passed to the notebook from the Job configuration"
+        correct: true
+      - id: b
+        text: "To create UI elements in the notebook"
+        correct: false
+      - id: c
+        text: "To schedule notebook execution"
+        correct: false
+      - id: d
+        text: "To manage cluster configurations"
+        correct: false
+    answer: [a]
+    explanation: "dbutils.widgets.text(), .dropdown(), .multiselect() define parameters. When a notebook is run by a Job, the Job configuration can pass values for these widgets. Retrieve them with dbutils.widgets.get()."
+    references:
+      - "https://docs.databricks.com/en/dev-tools/databricks-utils.html"
+    tags: [dbutils, widgets, parameters]
+    source: original
+
+  - id: dbx-de-0058
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "What does dbutils.jobs.taskValues allow you to do?"
+    options:
+      - id: a
+        text: "Pass data between tasks in a multi-task Job"
+        correct: true
+      - id: b
+        text: "Store results in a database"
+        correct: false
+      - id: c
+        text: "Schedule tasks"
+        correct: false
+      - id: d
+        text: "Cluster configuration"
+        correct: false
+    answer: [a]
+    explanation: "taskValues allows you to pass data from one task to downstream tasks. One task puts data with dbutils.jobs.taskValues.set(), and later tasks retrieve it with dbutils.jobs.taskValues.get(). Useful for sharing status, counts, paths, etc."
+    references:
+      - "https://docs.databricks.com/en/dev-tools/databricks-utils.html"
+    tags: [dbutils, task-values]
+    source: original
+
+  - id: dbx-de-0059
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "When scheduling a Job to run daily at 2 AM UTC, which cron expression is correct?"
+    options:
+      - id: a
+        text: '"0 2 * * ?" (or equivalent Quartz syntax)'
+        correct: true
+      - id: b
+        text: "2 * * * *"
+        correct: false
+      - id: c
+        text: "*/2 * * * *"
+        correct: false
+      - id: d
+        text: "2 0 0 * *"
+        correct: false
+    answer: [a]
+    explanation: "Databricks uses Quartz cron syntax. '0 2 * * ?' means minute 0, hour 2, every day, every month, any day of week. '2 * * * *' would mean every second minute, which is 30 times per hour."
+    references:
+      - "https://docs.databricks.com/en/workflows/jobs/index.html"
+    tags: [jobs, scheduling, cron]
+    source: original
+
+  - id: dbx-de-0060
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "What is the difference between an all-purpose cluster and a jobs cluster in Databricks?"
+    options:
+      - id: a
+        text: "All-purpose clusters persist for interactive use; jobs clusters are created and destroyed per Job for cost efficiency"
+        correct: true
+      - id: b
+        text: "Jobs clusters are slower"
+        correct: false
+      - id: c
+        text: "All-purpose clusters don't support SQL"
+        correct: false
+      - id: d
+        text: "Jobs clusters are required for production"
+        correct: false
+    answer: [a]
+    explanation: "All-purpose clusters stay alive for users to run code interactively. Jobs clusters are created when a Job runs and terminated after, reducing costs. Jobs clusters are isolated and secure, and recommended for production."
+    references:
+      - "https://docs.databricks.com/en/clusters/index.html"
+    tags: [clusters, jobs]
+    source: original
+
+  - id: dbx-de-0061
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: hard
+    question: "Your Job runs a notebook that fails intermittently. You want to automatically retry the task up to 3 times with exponential backoff. How should you configure this?"
+    options:
+      - id: a
+        text: "Set max_retries=3 in the Job task configuration"
+        correct: true
+      - id: b
+        text: "Add retry logic in the notebook code"
+        correct: false
+      - id: c
+        text: "Create multiple copies of the task"
+        correct: false
+      - id: d
+        text: "Use a cluster auto-scaling policy"
+        correct: false
+    answer: [a]
+    explanation: "max_retries in the Job task configuration automatically retries failed tasks. Databricks applies exponential backoff between retries. This is simpler and more reliable than adding retry logic in notebook code."
+    references:
+      - "https://docs.databricks.com/en/workflows/jobs/index.html"
+    tags: [jobs, retries]
+    source: original
+
+  - id: dbx-de-0062
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "What is a Databricks Lakeflow Declarative Pipeline (formerly Delta Live Tables)?"
+    options:
+      - id: a
+        text: "A framework for defining reliable, maintainable data pipelines using SQL or Python with automatic optimization"
+        correct: true
+      - id: b
+        text: "A type of cluster"
+        correct: false
+      - id: c
+        text: "A notebook feature"
+        correct: false
+      - id: d
+        text: "A storage format"
+        correct: false
+    answer: [a]
+    explanation: "Lakeflow Declarative Pipelines (LFP, formerly DLT) let you define pipelines declaratively. You write SQL CREATE TABLE/VIEW or Python @dlt.table decorators, and the system handles ordering, recovery, and optimization. Includes quality checks (expectations)."
+    references:
+      - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
+    tags: [dlt, pipelines]
+    source: original
+
+  - id: dbx-de-0063
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "In a Lakeflow Declarative Pipeline, what is the purpose of a @dlt.expect() or @dlt.expect_or_drop decorator?"
+    options:
+      - id: a
+        text: "To define data quality checks and specify what to do when checks fail (drop rows or fail pipeline)"
+        correct: true
+      - id: b
+        text: "To select which columns to include"
+        correct: false
+      - id: c
+        text: "To define the table schema"
+        correct: false
+      - id: d
+        text: "To schedule the pipeline"
+        correct: false
+    answer: [a]
+    explanation: "Expectations are quality checks. @dlt.expect() or @dlt.expect_or_drop() validate data. If they fail, you can drop rows with expect_or_drop or fail the pipeline with FAIL UPDATE. This ensures only quality data flows downstream."
+    references:
+      - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
+    tags: [dlt, expectations]
+    source: original
+
+  - id: dbx-de-0064
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "What is the purpose of the medallion architecture pattern?"
+    options:
+      - id: a
+        text: "Organizes data into bronze (raw), silver (cleaned), gold (aggregated) layers for quality and performance"
+        correct: true
+      - id: b
+        text: "Defines cluster configuration"
+        correct: false
+      - id: c
+        text: "Specifies user permissions"
+        correct: false
+      - id: d
+        text: "Controls data compression"
+        correct: false
+    answer: [a]
+    explanation: "Medallion (layered) architecture: Bronze (raw data as-is), Silver (cleaned, deduplicated), Gold (business-ready aggregates). This separation improves maintainability, allows reuse, and provides quality gates at each layer."
+    references:
+      - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
+    tags: [medallion, architecture]
+    source: original
+
+  - id: dbx-de-0065
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: hard
+    question: "Your production pipeline ingests data hourly, transforms it through multiple steps, and writes to a summary table. A step occasionally fails due to transient issues. What's the best approach?"
+    options:
+      - id: a
+        text: "Use a Lakeflow Pipeline with automatic retry and monitoring, or a Job with task retries and alerting"
+        correct: true
+      - id: b
+        text: "Run the pipeline manually after failures"
+        correct: false
+      - id: c
+        text: "Increase cluster size to prevent failures"
+        correct: false
+      - id: d
+        text: "Use a batch job without retries"
+        correct: false
+    answer: [a]
+    explanation: "Lakeflow Pipelines or Jobs with retries and alerts are production-best-practices. They provide automatic recovery, logging, and notifications. Manual intervention is not scalable for production systems."
+    references:
+      - "https://docs.databricks.com/en/workflows/jobs/index.html"
+    tags: [pipelines, production]
+    source: original
+
+  - id: dbx-de-0066
+    type: single_choice
+    exam: associate
+    domain: "Production Pipelines"
+    difficulty: medium
+    question: "What does the term 'idempotent' mean in the context of data pipelines?"
+    options:
+      - id: a
+        text: "Running the pipeline multiple times with the same input produces the same output, with no duplication or side effects"
+        correct: true
+      - id: b
+        text: "The pipeline runs very fast"
+        correct: false
+      - id: c
+        text: "The pipeline uses minimal memory"
+        correct: false
+      - id: d
+        text: "The pipeline is fault-tolerant"
+        correct: false
+    answer: [a]
+    explanation: "Idempotency is critical for production. If a pipeline reruns (due to failure or retry), it should produce identical output without duplicates. Use idempotent writes (mode='overwrite') and ensure transformations are deterministic."
+    references:
+      - "https://docs.databricks.com/en/delta/index.html"
+    tags: [idempotency, pipelines]
+    source: original
+
+  # ========== DATA GOVERNANCE (6 questions) ==========
+  - id: dbx-de-0067
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    difficulty: easy
+    question: "What is Unity Catalog in Databricks?"
+    options:
+      - id: a
+        text: "A centralized metadata and access control system for managing data across workspaces"
+        correct: true
+      - id: b
+        text: "A storage service"
+        correct: false
+      - id: c
+        text: "A compute resource"
+        correct: false
+      - id: d
+        text: "A networking service"
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog provides: centralized three-level namespace (catalog > schema > table), fine-grained access control (GRANT/REVOKE), and lineage tracking across workspaces. It's essential for data governance and compliance."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
+    tags: [unity-catalog, governance]
+    source: original
+
+  - id: dbx-de-0068
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    difficulty: medium
+    question: "In Unity Catalog, what does the GRANT command control?"
+    options:
+      - id: a
+        text: "Assigns permissions (SELECT, MODIFY, CREATE, USE CATALOG, etc.) on objects to users or groups"
+        correct: true
+      - id: b
+        text: "Creates new tables"
+        correct: false
+      - id: c
+        text: "Compresses data"
+        correct: false
+      - id: d
+        text: "Schedules jobs"
+        correct: false
+    answer: [a]
+    explanation: "GRANT assigns permissions. Examples: GRANT SELECT ON TABLE my_table TO user@example.com; GRANT USE CATALOG ON CATALOG main TO group_name; GRANT CREATE ON SCHEMA my_schema TO group_name. Use REVOKE to remove permissions."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
+    tags: [unity-catalog, permissions]
+    source: original
+
+  - id: dbx-de-0069
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    difficulty: medium
+    question: "What is the purpose of Delta Sharing in Databricks?"
+    options:
+      - id: a
+        text: "Securely share Delta tables with external organizations without copying data"
+        correct: true
+      - id: b
+        text: "Replicates data for backup"
+        correct: false
+      - id: c
+        text: "Compresses data for storage"
+        correct: false
+      - id: d
+        text: "Encrypts sensitive data"
+        correct: false
+    answer: [a]
+    explanation: "Delta Sharing lets you grant read access to external parties (even non-Databricks users) without copying data. Shares are enforced with fine-grained permissions and audit trails. Shareable objects appear as shared catalogs/schemas to recipients."
+    references:
+      - "https://docs.databricks.com/en/data-sharing/index.html"
+    tags: [delta-sharing, governance]
+    source: original
+
+  - id: dbx-de-0070
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    difficulty: medium
+    question: "What does lineage in Unity Catalog help you track?"
+    options:
+      - id: a
+        text: "The origin and dependencies of data, showing how tables are created from and used by other tables"
+        correct: true
+      - id: b
+        text: "User login history"
+        correct: false
+      - id: c
+        text: "Cluster performance"
+        correct: false
+      - id: d
+        text: "Storage costs"
+        correct: false
+    answer: [a]
+    explanation: "Lineage tracks data provenance: which tables were used as input, which tables are outputs, and the transformations applied. This is crucial for auditing, impact analysis, and understanding data dependencies."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
+    tags: [lineage, governance]
+    source: original
+
+  - id: dbx-de-0071
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    difficulty: hard
+    question: "Your organization needs to comply with GDPR and hide personally identifiable information (PII) from most users. Which Unity Catalog feature is best?"
+    options:
+      - id: a
+        text: "Dynamic column masking to hide PII columns from unauthorized users"
+        correct: true
+      - id: b
+        text: "Separate tables for each user"
+        correct: false
+      - id: c
+        text: "Encryption at storage"
+        correct: false
+      - id: d
+        text: "Regular backups"
+        correct: false
+    answer: [a]
+    explanation: "Column masking / dynamic masking hides sensitive data at query time based on user permissions. This is compliant, efficient, and doesn't require separate tables or data copies. Users with permission see real data; others see NULL, redacted, or masked values."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/column-level-security.html"
+    tags: [masking, governance, compliance]
+    source: original
+
+  - id: dbx-de-0072
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    difficulty: medium
+    question: "What is the primary benefit of using external locations in Unity Catalog?"
+    options:
+      - id: a
+        text: "To manage access control and credentials for cloud storage in a centralized way"
+        correct: true
+      - id: b
+        text: "To increase storage capacity"
+        correct: false
+      - id: c
+        text: "To compress data automatically"
+        correct: false
+      - id: d
+        text: "To speed up queries"
+        correct: false
+    answer: [a]
+    explanation: "External locations define where external tables point to, with associated credentials and RBAC control. This centralizes access management so individual users don't need cloud credentials, improving security and auditability."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
+    tags: [external-locations, governance]
+    source: original

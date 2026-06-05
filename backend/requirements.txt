@@ -1,0 +1,21 @@
+# FastAPI web framework
+fastapi==0.104.1
+
+# ASGI server
+uvicorn[standard]==0.24.0
+
+# Data validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Testing framework
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.1
+
+# Environment management
+python-dotenv==1.0.0
+
+# Development utilities
+black==23.11.0
+flake8==6.1.0

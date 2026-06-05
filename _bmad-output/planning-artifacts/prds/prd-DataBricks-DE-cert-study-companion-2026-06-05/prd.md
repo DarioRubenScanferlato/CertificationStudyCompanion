@@ -1,0 +1,323 @@
+---
+title: Databricks DE Cert Study Companion
+status: final
+created: 2026-06-05
+updated: 2026-06-05
+---
+
+# PRD: Databricks DE Cert Study Companion
+*Working title — confirm.*
+
+## 0. Document Purpose
+
+This PRD is for Dario as the builder, and for the downstream architecture and implementation work it feeds. It defines **what** the study companion must do — not how it is built. The app is being created to help one person (initially) practice for the **Databricks Certified Data Engineer** exams, with an exam ~1–2 months out, so MVP scope is deliberately tight: get exam-realistic multiple-choice practice working first, defer everything else.
+
+Structure: vocabulary is anchored in the Glossary (§3) and used verbatim throughout; features are grouped with globally-numbered Functional Requirements (FRs) nested under them; assumptions are tagged inline as `[ASSUMPTION: …]` and indexed in §9. Technology choices the user raised (React vs HTMX; Rust vs Python+uv) are **out of scope for this PRD** and are recorded in the companion `addendum.md` for the architecture phase. Discovery research (exam structure, comparable products, the "Wordle-for-code" design space, and a proposed exercise file schema) also lives in `addendum.md`.
+
+## 1. Vision
+
+A lightweight, locally-run study companion that turns Databricks Data Engineer exam prep into short, focused practice sessions. Its core loop mirrors the real exam: read a question (often with a code snippet), pick an answer, and immediately learn *why* — with a rationale tied to the exam domain and a link back to the official docs. Because the exam is entirely multiple-choice with no live coding, exam-realistic MCQ practice is the heart of the product and ships first.
+
+Beyond the exam itself, the app aims to build genuine **syntax fluency** in Spark SQL and PySpark through a second, novel exercise type: a "Wordle-style" code-completion drill that gives positional feedback as you type code. This is a deliberately differentiated, under-served idea — most cert tools stop at multiple choice — and it is sequenced after the MCQ core precisely because it carries the most design risk.
+
+The companion is content-driven, and the **content bank is the durable product** — not the app shell. Exercises live in a simple, human-authorable, version-controlled, **portable** file format that the user (or a Claude agent skill) writes by hand. Because the format is portable, the content can be studied immediately through an existing tool (e.g. exported to Anki) while the bespoke app matures — so passing the exam is never blocked on finishing the build. The app's value grows by adding content rather than code, and the same portability keeps a future "share it with other candidates" path open without committing to it now.
+
+This reframes the build: **borrow for the deadline, build for the novelty.** Exam-realistic MCQ practice is table-stakes and can be served immediately by a lean built-in runner *or* a borrowed tool; the genuinely under-served, worth-building-from-scratch piece is the Wordle-style code-completion drill. See §6's Build-vs-Borrow decision.
+
+## 2. Target User
+
+### 2.1 Jobs To Be Done
+- **As the builder/learner:** "I have a Databricks DE certification exam in ~1–2 months and I want to drill exam-style questions and check my answers with explanations, so I walk in confident." (This is for me first — a valid and primary framing.)
+- **Practice syntax I keep fumbling:** "I want to rehearse Spark SQL / PySpark syntax (MERGE, Auto Loader options, DLT decorators, window functions) until it's automatic, not just recognizable."
+- **Study in small chunks:** "I want to do a 10–15 minute session on a specific domain (e.g. Incremental Data Processing) when I have a gap, not commit to a whole mock exam."
+- **Grow my own bank:** "I want to author or generate new questions cheaply and have them just show up in the app."
+- *(Latent, deferred)* **Share with peers:** "If this turns out useful, I'd like to hand it to other candidates without a painful rewrite."
+
+### 2.2 Non-Users (v1)
+- Other cert candidates as *end users on shared/hosted infrastructure* — v1 is single-user and local; sharing is a future consideration, not a v1 audience.
+- Candidates for non-Data-Engineer Databricks certs (ML, Data Analyst, etc.) — out of scope, though the format could extend later.
+- Learners wanting hands-on lab/cluster execution — the exam has no live coding and neither does this app.
+
+### 2.3 Key User Journeys
+*Single operator (the builder). Journeys kept light per scope; they exist to pin down the core loop, not to drive heavy UX.*
+
+- **UJ-1. Dario drills a weak domain over coffee.**
+  Dario has ~15 minutes and knows Incremental Data Processing is his weak spot. He opens the app (running locally), picks a practice set filtered to that domain, and works through multiple-choice questions one at a time. For each, he selects an answer, submits, and immediately sees whether he was right, a rationale for the correct answer and why the distractors are wrong, and a link to the relevant Databricks doc. At the end he sees a simple score for the session. Realizes FR-5 through FR-12. **Edge case:** a question is a "select all that apply" — he can pick multiple options before submitting, and partial-credit/all-or-nothing scoring behaves predictably (see FR-9).
+
+- **UJ-2. Dario rehearses PySpark syntax he keeps forgetting.** *(Phase 2)*
+  Dario can never remember the exact Auto Loader options. He opens a code-completion exercise: a short prompt ("Configure Auto Loader to infer and evolve schema") and a code template with a blank. He types his attempt; the app gives Wordle-style positional feedback (correct tokens highlighted) and lets him try again within a guess limit. When he solves it (or runs out of guesses), he sees the canonical answer and a short explanation. Realizes FR-13 through FR-17. **Edge case:** he types a *valid alternative* phrasing (`df.where` vs `df.filter`) — the exercise accepts it rather than marking it wrong (FR-16).
+
+## 3. Glossary
+
+*Downstream workflows and readers must use these terms exactly. No synonyms elsewhere in the PRD.*
+
+- **Exam** — A Databricks Certified Data Engineer certification exam. Two exist: **Associate** and **Professional**. v1 content seeds Associate; the taxonomy supports both.
+- **Domain** — An official exam-blueprint topic area with a weight (e.g. "Incremental Data Processing"). Every Exercise is tagged with exactly one Domain. The canonical Domain list per Exam is defined by Databricks' current exam guide.
+- **Subdomain** — An optional finer topic tag within a Domain (e.g. "Auto Loader" within "Incremental Data Processing").
+- **Exercise** — A single practice item the user attempts. Two **Exercise Types** exist: **MCQ** and **Code-Completion**. Every Exercise has a stable `id`, a Domain, a difficulty, and an explanation.
+- **MCQ (Multiple-Choice Question)** — An Exercise presenting a question (optionally with a code snippet) and a set of Options; the user selects one or more and submits. Supports **single-select** and **multi-select** variants.
+- **Code-Completion Exercise** — The "Wordle-style" Exercise Type: a code template with a blank (or a prompt) that the user completes by typing, receiving positional feedback. (Phase 2.)
+- **Option** — One selectable answer choice in an MCQ, with text, a `correct` flag, and optionally per-Option rationale.
+- **Explanation** — The teaching text shown after an Exercise is answered: why the correct answer is correct, why distractors are wrong, and reference link(s) to official docs.
+- **Exercise Set** — A named, parseable file (or collection of files) containing Exercises, loaded by the app. The unit the user authors or generates.
+- **Practice Session** — A single run-through of a selected group of Exercises (filtered by Domain / difficulty / type), ending in a summary.
+- **Positional Feedback** — In a Code-Completion Exercise, per-token (or per-character) coloring indicating correct content in the correct place vs. correct content in the wrong place vs. absent — the Wordle mechanic, adapted for code.
+
+## 4. Features
+
+*Listed in build order. FR IDs are global and stable.*
+
+### 4.1 Exercise Content Format & Loading *(foundational — built first, with 4.2)*
+
+**Description:** The app is content-driven. Exercises live in a **standardized, human-authorable, version-controlled file format** that the user — or a Claude agent skill — can write by hand and drop into the project. The app loads these files, validates them against the schema, and makes them available as Practice Sessions. This feature is foundational: it is the contract between content authoring and the app, and it is what makes in-app generation *optional* rather than required. The exact schema is proposed in `addendum.md` (YAML for authoring; the app may serve/store JSON internally). `[ASSUMPTION: authoring format is YAML, one Exercise Set per file, loaded from a known content directory in the repo.]`
+
+**Functional Requirements:**
+
+#### FR-1: Standardized, parseable Exercise format
+The format defines, for each Exercise: stable `id`, Exercise Type, Domain (and optional Subdomain), difficulty, the question/prompt, type-specific payload (Options for MCQ; template/answer for Code-Completion), Explanation, and optional reference link(s) and tags.
+
+**Consequences (testable):**
+- A hand-authored Exercise Set file conforming to the documented schema loads with zero code changes.
+- Both single-select and multi-select MCQs are expressible in one format (e.g. `answer` is a list).
+- MCQ and Code-Completion share common fields (`id`, `domain`, `difficulty`, `explanation`) so analytics/session logic can treat them uniformly later.
+
+#### FR-2: App loads Exercise Sets from files
+The app discovers and loads Exercise Set files from a designated content location at startup (or on demand).
+
+**Consequences (testable):**
+- Adding a new well-formed file makes its Exercises available without rebuilding/recompiling content into the app. `[ASSUMPTION: content is read from files at runtime, not compiled in.]`
+- Exercises retain their authored `id`; duplicate `id`s across the corpus are detected and reported.
+
+#### FR-3: Fail clearly on malformed content
+A malformed Exercise file fails loudly with enough information to locate the problem (which file, ideally which Exercise) rather than failing silently. *(Deliberately minimal for v1 — single author; a clear error/stack trace is an acceptable "validation report." Elaborate per-field validation and partial-load are explicitly out of scope for MVP — see §6.)*
+
+**Consequences (testable):**
+- Loading a file with a syntax/schema error produces an error that names the file (and where possible the Exercise) — not a silent drop.
+
+#### FR-4: Blueprint-aligned Domain tagging
+Domains (and the per-Exam canonical Domain list) align with Databricks' official exam blueprint, so content can be filtered and — later — weighted to mirror the real exam.
+
+**Consequences (testable):**
+- Every Exercise resolves to exactly one Domain from the canonical list for its Exam.
+- An Exercise tagged with an unknown Domain is flagged in validation.
+
+#### FR-18: Portable / exportable content
+The Exercise format is portable enough that MCQ content can be consumed by an existing study tool, so studying is not gated on the bespoke app being finished. *(This is what makes the Build-vs-Borrow decision in §6 viable.)*
+
+**Consequences (testable):**
+- The MCQ content can be converted/exported to at least one external tool's import format — Anki is the reference target. `[ASSUMPTION: Anki is the borrow target; a one-shot converter (script) is acceptable rather than live two-way sync.]`
+- The conversion preserves question, options, correct answer(s), and Explanation.
+
+**Notes:** `[NOTE FOR PM] The canonical Domain lists and their weights must be confirmed against the current Databricks PDF exam guides (see Open Question OQ-1) before authoring at volume.`
+
+### 4.2 Multiple-Choice Practice *(lean built-in runner — or borrow; see §6)*
+
+**Description:** Exam-realistic MCQ practice — the core study loop. The user selects a group of Exercises (a Practice Session), works through MCQs one at a time in an exam-like single-question view, selects answer(s), submits, and gets immediate correctness feedback plus the Explanation. At session end they see a simple score summary. Realizes UJ-1.
+
+*Build-vs-Borrow stance (see §6): this loop is **table-stakes, not novel** — every cert tool has it. The built-in runner is therefore deliberately **lean**, and a borrowed tool (Anki via FR-18) is an acceptable substitute for v1 studying. The FRs below specify the lean built-in runner if/when built; they are NOT a reason to delay studying.*
+
+**Functional Requirements:**
+
+#### FR-5: Start a Practice Session with filters
+The user can start a Practice Session over a filtered subset of Exercises — at minimum by Domain and by difficulty; optionally by Exercise Set and by Exercise Type.
+
+**Consequences (testable):**
+- Selecting Domain = "Incremental Data Processing" yields a session containing only that Domain's Exercises.
+- An empty filter result is communicated clearly (no crash, no empty silent screen).
+
+#### FR-6: Present one MCQ at a time, exam-style
+The session shows a single MCQ at a time: the question text, any associated code snippet rendered legibly (monospace, preserved formatting), and the selectable Options.
+
+**Consequences (testable):**
+- Code snippets in questions render in monospace with whitespace/indentation preserved.
+- The user can navigate forward through the session; `[ASSUMPTION: backward navigation within a session is allowed but not required for MVP — confirm.]`
+
+#### FR-7: Select answer(s) and submit
+The user selects one Option (single-select) or multiple Options (multi-select) and submits. The UI makes the variant obvious (radio vs. checkbox affordance).
+
+**Consequences (testable):**
+- Single-select permits exactly one selection; multi-select permits several.
+- Submission is an explicit action (the user can change selection before submitting).
+
+#### FR-8: Immediate correctness feedback
+On submit, the app immediately indicates whether the answer was correct and which Option(s) were correct.
+
+**Consequences (testable):**
+- Correct/incorrect state is shown without navigating away.
+- The correct Option(s) are visually identifiable after submit, including when the user was wrong.
+
+#### FR-9: Defined multi-select scoring
+Multi-select MCQs are scored **all-or-nothing** (every correct Option selected and no incorrect Option selected = correct; otherwise incorrect), matching typical exam scoring. *(Decided 2026-06-05.)*
+
+**Consequences (testable):**
+- A multi-select answer is marked correct only if the selected Option set exactly equals the correct Option set.
+- Selecting a strict subset of the correct Options scores incorrect (no partial credit).
+
+#### FR-10: Show Explanation after answering
+After submit, the app shows the Explanation: why the correct answer is correct, ideally why distractors are wrong, and any reference link(s).
+
+**Consequences (testable):**
+- Explanation and reference link(s), when present in the Exercise, are displayed post-submit.
+- Reference links open the official doc (in browser). `[ASSUMPTION: links open externally.]`
+
+#### FR-11: Advance through the session
+The user can move to the next Exercise after reviewing feedback, until the session is complete.
+
+**Consequences (testable):**
+- After the last Exercise, the user is taken to the session summary (FR-12).
+
+#### FR-12: End-of-session summary
+At session end, the app shows a simple summary: number correct / total, and a per-Domain breakdown when the session spans multiple Domains.
+
+**Consequences (testable):**
+- Score reflects the FR-9 scoring rule.
+- A single-Domain session still shows a meaningful summary.
+
+**Out of Scope (this feature, MVP):**
+- Persisting session history across runs (that's the analytics phase — see §6.2).
+- Timed/countdown mode (deferred — §6.2).
+
+### 4.3 Code-Completion ("Wordle-style") Practice *(Phase 2 — after MVP)*
+
+**Description:** A novel syntax-drilling Exercise Type and the product's key differentiator. The *feel* is load-bearing, not incidental: the playful, Wordle-like **guess-and-narrow** loop — attempt, see colored feedback, refine — is the reason this is more engaging than a flashcard, and the design should preserve that delight rather than reduce it to a correctness check. The user is given a short prompt and a code template containing a blank (e.g. a `MERGE` statement with the `WHEN NOT MATCHED` arm blanked, or an Auto Loader `.option(...)`), types an attempt, and receives **Positional Feedback** in the Wordle spirit. Discovery research surfaced real design hazards in porting Wordle literally to code; the FRs below encode the research-recommended shape rather than a naive per-character clone. The detailed feedback algorithm and rendering approach belong to architecture/design and are captured in `addendum.md`.
+
+**Design stance (from research, carried as assumptions to confirm):**
+- **CONFIRMED:** Positional Feedback uses **green / yellow / grey at the TOKEN level** (a token = keyword/identifier/operator/literal), not literal per-character. Green = correct token in the correct slot; yellow = token present in the answer but in the wrong slot; grey = token not in the answer. Token-level is chosen because per-character "yellow" is misleading in code where position is syntactically rigid.
+- `[ASSUMPTION: each exercise is scoped to a SINGLE line or a single fill-in-the-blank slot, not a whole multi-line snippet, to keep feedback legible.]`
+- `[ASSUMPTION: non-semantic whitespace is ignored in matching; the user is not penalized for indentation/spacing.]`
+- `[ASSUMPTION: a case policy is explicit per language (SQL keywords case-insensitive; PySpark identifiers case-sensitive).]`
+- `[ASSUMPTION: multiple valid answers are accepted via an authored "accepted alternatives" set.]`
+
+**Functional Requirements:**
+
+#### FR-13: Present a Code-Completion Exercise
+The app presents the prompt, the code template with its blank/slot clearly indicated, and the input affordance. Realizes UJ-2.
+
+**Consequences (testable):**
+- The template renders in monospace with the blank visibly marked.
+- The target language (SQL or PySpark) is indicated.
+
+#### FR-14: Accept a typed attempt and give Positional Feedback
+On an attempt, the app evaluates it against the canonical answer and renders Positional Feedback: content correct and in the right place vs. correct content in the wrong place vs. content not in the answer.
+
+**Consequences (testable):**
+- Feedback is computed and shown without a server round-trip perceptible to the user (target < 100ms; see NFR).
+- Whitespace handling follows the ignore-non-semantic-whitespace assumption.
+
+#### FR-15: Limited guesses with reveal
+The user has a bounded number of attempts; on solving or exhausting attempts, the canonical answer is revealed.
+
+**Consequences (testable):**
+- The remaining-attempts count is visible.
+- On the final failed attempt, the canonical answer and Explanation are shown.
+
+#### FR-16: Accept valid alternative answers
+Authored alternative correct phrasings are treated as correct.
+
+**Consequences (testable):**
+- An attempt matching any entry in the Exercise's accepted-alternatives set is marked solved.
+- `[ASSUMPTION: matching is against an authored alternatives list in MVP of this feature; AST/execution-equivalence validation is explicitly out of scope.]`
+
+#### FR-17: Show Explanation after a Code-Completion Exercise
+As with MCQs, the Explanation (and references) is shown once the Exercise concludes.
+
+**Consequences (testable):**
+- Explanation displays on solve or on exhausting attempts.
+
+**Feature-specific NFRs:**
+- Positional Feedback must feel instant (target < 100ms from keystroke/submit to render); the comparison is small and should be computable client-side.
+
+**Notes:** `[NOTE FOR PM] This is the riskiest feature. Recommend a throwaway design spike on the token-level feedback algorithm + rendering before committing the full FR set. Feedback semantics are decided (token-level green/yellow/grey); the spike validates the tokenizer and rendering, not the color model.]`
+
+### 4.4 Exercise Generation *(optional — deferred)*
+
+**Description:** Optionally, the app could generate Exercises from official Databricks documentation rather than relying solely on hand/agent authoring. Per the user's direction this is **explicitly optional** and **not in the MVP**: the standardized format (4.1) plus a Claude agent skill that authors into it is the committed path. Generation is recorded here so the format stays generation-friendly, not because v1 builds it.
+
+**Functional Requirements:** *(deferred — not specified at FR depth in v1)*
+- `[NOTE FOR PM] If/when pursued: define source-doc ingestion, generation quality controls (no hallucinated APIs, correct answers verifiable), and dedup against existing Exercises. The 4.1 format already carries a `source`/provenance field to support an anti-braindump / "original, verified" stance.]`
+
+## 5. Non-Goals (Explicit)
+
+- **Not a hands-on lab platform.** No cluster execution, no running real Spark/SQL against data. The exam has no live coding; neither does this app.
+- **Not a hosted, multi-user service in v1.** Single-user, local. No accounts, no auth, no server-side user data.
+- **Not a content authoring UI.** Exercises are authored as files (by hand or agent skill); the app consumes them. No in-app exercise editor in v1.
+- **Not a braindump of real exam questions.** Content is original and blueprint-aligned; provenance is tracked. (Credibility + avoids candidate exam-bans.)
+- **Not a general LMS / course platform.** No videos, no curriculum sequencing, no certificates.
+- **Not multi-cert beyond Databricks DE** in v1 (no ML/Analyst certs), though the format is designed not to preclude it.
+
+## 6. MVP Scope
+
+### 6.0 Build-vs-Borrow decision *(decided 2026-06-05)*
+
+With an exam ~1–2 months out and a solo builder, **time spent building is time not studying.** The MCQ practice loop is table-stakes (every cert tool has it), while the content bank and the Wordle-style drill are the parts worth owning. The decision:
+
+- **Borrow / go-lean for MCQ study now.** The content bank (§6.1) is authored in the portable format and studied immediately — via Anki (FR-18) or a deliberately lean built-in runner — whichever is faster to get in front of the learner. Studying must never block on app polish.
+- **Build for the novelty later.** The bespoke app's justified, from-scratch investment is the **Wordle-style Code-Completion drill** (§4.3) — genuinely under-served, no real incumbent. It is Phase 2, after the exam-critical content + study path exist.
+
+This makes the **content bank the primary MVP deliverable** and the app shell secondary.
+
+### 6.1 In Scope (MVP — the exam-critical core)
+- **Content bank — the primary deliverable.** A committed starter bank of **~50–75 original, blueprint-aligned MCQs**, distributed across the 5 **Associate** Domains roughly by their official weights (per addendum §C). Each with correct answer(s), per-distractor Explanation, and a reference link.
+- **Committed agent-skill authoring track.** A lightweight Claude agent skill that authors Exercises into the standardized format (4.1) is a committed parallel workstream, runnable independent of app progress (resolves former OQ-5). `[ASSUMPTION: the authoring skill is specced/built as its own small workstream; exact spec TBD.]`
+- **Portable, parseable Exercise format** (4.1: FR-1, FR-2, FR-3-lean, FR-4, **FR-18 export to Anki**) — enough that the content above is studiable *today*.
+- **A study path that works now:** either Anki import (FR-18) **or** the lean built-in MCQ runner (4.2: FR-5–FR-12). At least one must be usable well before the exam; the lean runner is not a prerequisite for studying.
+
+### 6.2 Out of Scope for MVP (phased)
+- **Code-Completion ("Wordle") Practice (4.3)** — *Phase 2.* The build-worthy novel feature, but sequenced after the exam-critical content + study path. Begin with a throwaway design spike (tokenizer + rendering).
+- **Heavyweight content validation / partial-load** (the elaborated form of FR-3) — *cut for v1.* Single author; a clear failure is enough.
+- **Timed mock-exam mode** — *later phase.* Domain-weighted full set + countdown + final score. `[NOTE FOR PM] Emotionally load-bearing for exam realism; revisit if timeline permits before the exam — Anki does not replicate the timed-exam feel.]`
+- **Weak-area analytics & readiness** — *later phase.* Requires persisting Practice Session history.
+- **Spaced repetition (SRS)** — *later phase.* (Note: borrowing Anki for MCQ gives SRS for free in the interim.)
+- **In-app Exercise generation from docs (4.4)** — *optional/deferred.* Agent-skill authoring is the committed path.
+- **Sharing / hosting / multi-user** — *future, not committed.* Portable format keeps the door open.
+
+## 7. Success Metrics
+
+*Hobby/personal scope — kept lean.*
+
+**Primary**
+- **SM-1 (the real one):** Dario studies regularly through to exam day and **passes** the Databricks DE Associate exam. Validates the product's reason to exist.
+- **SM-2:** The committed content bank exists and is studiable — **~50–75 MCQs across all five Associate Domains**, weighted roughly by the official split, consumable via Anki or the lean runner — **well before** exam day. Validates FR-1, FR-4, FR-18, and §6.1.
+
+**Secondary**
+- **SM-3:** Authoring a new Exercise and getting it into the study path takes only writing a file (+ a one-shot export) — **no app code changes**. Validates FR-1–FR-3, FR-18.
+- **SM-4 (Phase 2):** The Code-Completion feedback feels instant and *teaches* syntax (Dario can recall a drilled snippet unaided afterward). Validates FR-13–FR-17.
+
+**Counter-metrics (do not optimize)**
+- **SM-C1:** Don't optimize for **app features / polish** at the expense of **content volume and exam readiness**. Counterbalances SM-1; a beautiful app with 12 questions fails the actual job. This is the whole point of the Build-vs-Borrow decision (§6.0) — borrow the runner, invest the hours in content.
+- **SM-C2:** Don't optimize the Wordle feature's cleverness at the expense of shipping the MCQ core. Counterbalances SM-4.
+
+## 8. Open Questions
+
+1. **OQ-1 (confirm before authoring):** Verify the **Associate exam domain list and their weights** against the live official Databricks PDF exam guide. The original MCQs will be authored to the current official documentation (Lakeflow Pipelines, not DLT; etc.), not reverse-engineered from real exam questions (which are proprietary). Domain list + weights are the only gate — they shape the content prioritization. Discovery research was model-knowledge-based (no live network); the addendum domains/weights are provisional. Other facts (question counts, passing score, price) are nice-to-know but not blocking content authoring.
+2. **OQ-2:** Final Exercise schema details — file granularity (one Set per file vs. many), content directory location, and whether YAML-author/JSON-serve is worth the extra step for a single-user local app.
+3. **OQ-3 (resolved):** Code-Completion feedback semantics = **token-level green/yellow/grey** (decided 2026-06-05). Remaining design-spike work is the tokenizer + rendering, not the color model.
+4. **OQ-4 (resolved):** Starter content target = **~50–75 Associate MCQs weighted by domain split** (decided 2026-06-05, §6.1). Open sub-question: confirm this is enough for *your* confidence as exam day nears (top up if weak domains emerge).
+5. **OQ-5 (resolved → committed):** The agent-skill authoring path **is** a committed parallel workstream (§6.1). Open sub-question: its exact spec (input prompts, output validation, dedup) — small follow-up, not a blocker.
+
+## 9. Assumptions Index
+
+*Every `[ASSUMPTION]` in the document, surfaced for confirmation:*
+
+- §4.1 — Authoring format is YAML, one Exercise Set per file, loaded from a known content directory.
+- §4.1 / FR-2 — Content is read from files at runtime, not compiled into the app.
+- §4.1 / FR-18 — Anki is the borrow/export target; a one-shot converter (script) is acceptable rather than live two-way sync.
+- §4.2 / FR-6 — Backward navigation within a session is allowed but not required for MVP.
+- §4.2 / FR-10 — Reference links open externally in the browser.
+- §4.3 — Code-Completion is single-line/fill-in-blank scope, whitespace-insensitive, with an explicit per-language case policy. *(Token-level green/yellow/grey is a confirmed decision, not an assumption.)*
+- §4.3 / FR-16 — Alternative-answer matching is against an authored alternatives list; AST/execution equivalence is out of scope.
+- §6.1 — The agent-skill authoring path is specced/built as its own small workstream; exact spec TBD.
+
+---
+
+## Appendix A. Future Exercise Type Ideas
+*Requested by the user for post-Wordle expansion. Not committed; recorded so the format and architecture stay open to them. Each reuses the shared `id`/`domain`/`difficulty`/`explanation` fields.*
+
+- **Output / result prediction** — "Given this PySpark/SQL, what does it return (rows, schema, or error)?" Multiple-choice or short-answer.
+- **Spot-the-bug** — present a snippet with a subtle error (wrong trigger mode, missing `checkpointLocation`, bad `MERGE` clause); user identifies/fixes it.
+- **Ordering / sequencing** — drag to order steps (medallion bronze→silver→gold, job task dependencies, streaming setup steps).
+- **Match terms to definitions** — pair Glossary-style Databricks concepts with definitions (good SRS fodder).
+- **Config fill-in** — complete a cluster/job/DLT pipeline config to meet a stated requirement.
+- **Scenario / "best approach"** — exam-realistic scenario MCQs ("which ingestion approach fits these constraints?"), heavier for Professional.
+- **Rapid-fire true/false** — quick recall warm-ups.
+- **Flashcards** — term→definition cards that feed a future SRS, unifying with the analytics/SRS phase.
