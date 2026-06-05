@@ -18,14 +18,14 @@ development_status:
   2-4-implement-anki-export: merged
   2-5-implement-domain-tagging-filtering: merged
 
-  # EPIC 3: MCQ Study Practice Interface
-  3-1-create-session-select-page: ready-for-dev
-  3-2-create-session-context: ready-for-dev
-  3-3-create-mcqpractice-page-display: ready-for-dev
-  3-4-implement-answer-selection-submission: ready-for-dev
-  3-5-implement-feedback-display: ready-for-dev
-  3-6-implement-session-navigation-summary: ready-for-dev
-  3-7-add-syntax-highlighting-prism: ready-for-dev
+  # EPIC 3: MCQ Study Practice Interface (implemented, awaiting review)
+  3-1-create-session-select-page: review
+  3-2-create-session-context: review
+  3-3-create-mcqpractice-page-display: review
+  3-4-implement-answer-selection-submission: review
+  3-5-implement-feedback-display: review
+  3-6-implement-session-navigation-summary: review
+  3-7-add-syntax-highlighting-prism: review
 
   # EPIC 4: Code-Completion Practice (Phase 2)
   4-1-create-code-completion-page-template-display: ready-for-dev
@@ -44,11 +44,11 @@ development_status:
 
 summary:
   total_stories: 25
-  ready_for_dev: 7
+  ready_for_dev: 5
   in_progress: 0
-  review: 0
+  review: 7
   approved: 0
   merged: 10
   blocked: 0
   last_updated: 2026-06-05
-  completed: "10 (Epic 1 complete: 1.1-1.5, Epic 2 complete: 2.1-2.5)"
+  completed: "17 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 in review)"

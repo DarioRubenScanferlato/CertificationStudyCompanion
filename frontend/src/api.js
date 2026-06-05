@@ -73,3 +73,24 @@ export async function isBackendAvailable() {
     return false
   }
 }
+
+/**
+ * Fetch exercises, optionally filtered.
+ * @param {object} filters - { domain, difficulty, exam, exercise_type }
+ * @returns {Promise<Array>} list of exercise objects
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function fetchExercises(filters = {}) {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.append(key, value)
+  }
+  const query = params.toString()
+  const url = `/api/exercises${query ? `?${query}` : ''}`
+
+  const result = await apiRequest(url)
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to load exercises', 200, result)
+  }
+  return result.data
+}
