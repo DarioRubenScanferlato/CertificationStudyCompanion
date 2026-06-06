@@ -29,22 +29,30 @@ class Difficulty(str, Enum):
 
 
 class Domain(str, Enum):
-    """Exam domain (Associates)."""
+    """Exam domain.
+
+    Associate has 5 domains; Professional has 10 (2026 blueprint, verified
+    against databricks.com/learn/certification/data-engineer-professional).
+    ``DATA_GOVERNANCE`` is shared by both exams.
+    """
 
     # Associate domains (5 total)
     LAKEHOUSE_PLATFORM = "Databricks Lakehouse Platform"
     ELT_SPARK = "ELT with Spark SQL and Python"
     INCREMENTAL_PROCESSING = "Incremental Data Processing"
     PRODUCTION_PIPELINES = "Production Pipelines"
-    DATA_GOVERNANCE = "Data Governance"
+    DATA_GOVERNANCE = "Data Governance"  # shared with Professional
 
-    # Professional domains (for future) - commented out for now
-    # DATABRICKS_TOOLING = "Databricks Tooling"
-    # DATA_PROCESSING = "Data Processing"
-    # DATA_MODELING = "Data Modeling"
-    # SECURITY_GOVERNANCE = "Security & Governance"
-    # MONITORING_LOGGING = "Monitoring & Logging"
-    # TESTING_DEPLOYMENT = "Testing & Deployment"
+    # Professional domains (2026 blueprint, 10 total; Data Governance shared above)
+    DEV_CODE_PROCESSING = "Developing Code for Data Processing"
+    DATA_INGESTION = "Data Ingestion & Acquisition"
+    DATA_TRANSFORMATION = "Data Transformation, Cleansing, and Quality"
+    DATA_SHARING_FEDERATION = "Data Sharing and Federation"
+    MONITORING_ALERTING = "Monitoring and Alerting"
+    COST_PERFORMANCE = "Cost & Performance Optimization"
+    DATA_SECURITY_COMPLIANCE = "Ensuring Data Security and Compliance"
+    DEBUGGING_DEPLOYING = "Debugging and Deploying"
+    DATA_MODELLING = "Data Modelling"
 
 
 class Option(BaseModel):

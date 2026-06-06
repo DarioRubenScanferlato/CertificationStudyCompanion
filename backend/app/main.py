@@ -135,21 +135,29 @@ def get_exercises(
 
 @app.get("/api/sessions")
 def get_session(
-    domain: str = Query(None, description="Filter by domain (one of the 5 Associate domains)"),
+    domain: str = Query(None, description="Filter by domain (case-insensitive)"),
     difficulty: str = Query(None, description="Filter by difficulty (easy, medium, hard)"),
+    exam: str = Query(None, description="Filter by exam (associate, professional)"),
 ):
     """
     Build a randomized practice session.
 
-    Filters the loaded exercises (same domain/difficulty semantics as
+    Filters the loaded exercises (same domain/difficulty/exam semantics as
     ``GET /api/exercises``) and runs the result through the session randomizer.
     MCQs are returned in randomized order, each with exactly 4 flag-less
     ``displayedOptions`` (no ``correct`` flags are ever leaked to the client).
     Code-completion exercises are skipped by the session builder.
 
     Query Parameters:
-    - domain: Filter by one of the 5 Associate domains (case-insensitive)
+    - domain: Filter by domain (case-insensitive)
     - difficulty: Filter by difficulty level (easy, medium, hard)
+    - exam: Filter by exam type (associate, professional; case-insensitive)
+
+    Default-exam policy: a session must never mix the Associate and
+    Professional corpora. When ``exam`` is omitted it defaults to
+    ``associate`` before filtering, so this endpoint never returns a
+    mixed-exam result (the frontend always sends an explicit ``exam``; the
+    default only governs raw/no-UI callers).
 
     Returns:
     {
@@ -178,6 +186,7 @@ def get_session(
     for label, value, enum_cls, valid_noun in (
         ("domain", domain, Domain, "domains"),
         ("difficulty", difficulty, Difficulty, "values"),
+        ("exam type", exam, ExamType, "values"),
     ):
         if not value:
             continue
@@ -191,11 +200,184 @@ def get_session(
     if errors:
         return {"success": False, "data": [], "error": "; ".join(errors)}
 
+    # Default-exam policy: never pass exam=None to filter_exercises (a no-op
+    # that would mix the Associate + Professional corpora). Default to
+    # associate when the caller omits exam.
+    exam = exam or ExamType.ASSOCIATE.value
+
     # Reuse the shared filter helper (same approach as GET /api/exercises).
-    filtered = filter_exercises(exercises, domain=domain, difficulty=difficulty)
+    filtered = filter_exercises(exercises, domain=domain, difficulty=difficulty, exam=exam)
 
     # An empty filter result is a successful empty session, not an error.
     session = build_session(filtered)
+
+    return {"success": True, "data": session, "error": None}
+
+
+@app.get("/api/exercises/count")
+def get_exercise_count(
+    domain: str = Query(None, description="Filter by domain (case-insensitive)"),
+    difficulty: str = Query(None, description="Filter by difficulty (easy, medium, hard)"),
+    exam: str = Query(None, description="Filter by exam (associate, professional)"),
+):
+    """
+    Count the exercises matching the given filters (Start-screen preview).
+
+    Returns a lightweight match count so the Start screen can show
+    "{n} questions match" before a session is started. The response carries
+    ONLY the count -- no exercise objects, options, pools, displayedOptions,
+    explanations, references, or ``correct`` flags are ever serialized
+    (preserving the FR-20 non-leakage rule).
+
+    Query Parameters:
+    - domain: Filter by domain (case-insensitive)
+    - difficulty: Filter by difficulty level (easy, medium, hard)
+    - exam: Filter by exam type (associate, professional; case-insensitive)
+
+    Default-exam policy: the count must never reflect a mixed-exam corpus.
+    When ``exam`` is omitted it defaults to ``associate`` before filtering,
+    mirroring ``GET /api/sessions`` so the preview count and the resulting
+    session population always agree (the frontend always sends an explicit
+    ``exam``; the default only governs raw/no-UI callers).
+
+    Returns:
+    {
+        "success": bool,
+        "data": {"count": int} | null,
+        "error": null | error_message
+    }
+    """
+    # Guard against the endpoint being hit before startup populated state.
+    exercises = getattr(app.state, "exercises", [])
+    errors = []
+
+    # Validate filters case-insensitively, matching GET /api/sessions.
+    for label, value, enum_cls, valid_noun in (
+        ("domain", domain, Domain, "domains"),
+        ("difficulty", difficulty, Difficulty, "values"),
+        ("exam type", exam, ExamType, "values"),
+    ):
+        if not value:
+            continue
+        valid_values = [member.value for member in enum_cls]
+        if value.strip().lower() not in [v.lower() for v in valid_values]:
+            errors.append(
+                f"Invalid {label} '{value}'. Valid {valid_noun} are: {', '.join(valid_values)}"
+            )
+            logger.warning(f"Invalid {label} filter attempted: {value}")
+
+    if errors:
+        return {"success": False, "data": None, "error": "; ".join(errors)}
+
+    # Default-exam policy: never count across mixed corpora (see get_session).
+    exam = exam or ExamType.ASSOCIATE.value
+
+    # Reuse the shared filter helper; serialize only the count (no exercises).
+    filtered = filter_exercises(exercises, domain=domain, difficulty=difficulty, exam=exam)
+
+    return {"success": True, "data": {"count": len(filtered)}, "error": None}
+
+
+class SessionByIdsRequest(BaseModel):
+    """Request body for POST /api/sessions.
+
+    ``exerciseIds`` are the ORIGINAL authored exercise ids (e.g.
+    ``"dbx-de-0001"``). The endpoint builds a fresh, re-sampled and re-shuffled
+    session over just those exercises so "Restart" / "Practice these again"
+    never replay identical questions (FR-20/21). Unknown ids are dropped and
+    logged at WARNING, never treated as fatal.
+    """
+
+    exerciseIds: list[str] = Field(
+        ...,
+        description="Original authored exercise ids to build a session from (e.g. 'dbx-de-0001')",
+    )
+    exam: str | None = Field(
+        default=None,
+        description=(
+            "Optional exam scope (associate, professional). When provided, the "
+            "replay is restricted to exercises of that exam so it can never mix "
+            "the Associate and Professional corpora."
+        ),
+    )
+
+
+@app.post("/api/sessions")
+def post_session(request: SessionByIdsRequest):
+    """Build a fresh randomized session from an explicit set of exercise ids.
+
+    Filters the loaded exercises down to those whose ``id`` is in
+    ``request.exerciseIds``, then runs the matched subset through the same
+    session randomizer as ``GET /api/sessions``. Because ``build_session``
+    re-shuffles order and re-samples + re-shuffles each MCQ's displayed options
+    on every call, replays are automatically fresh with no extra randomization
+    logic (FR-20/21). Code-completion exercises are skipped by the builder.
+
+    Request body::
+
+        {"exerciseIds": ["dbx-de-0001", "dbx-de-0002", ...], "exam": "associate"}
+
+    ``exam`` is optional (associate, professional; case-insensitive). When
+    given, it scopes the replay to that exam so a session never mixes the two
+    corpora; an invalid value is an error. Because POST replays an explicit,
+    already-scoped id set rather than the whole corpus, omitting ``exam`` does
+    NOT default to associate here (that would silently drop a legitimately
+    Professional id set the caller asked to replay).
+
+    Unknown / unmatched ids are dropped and logged at WARNING; the request still
+    succeeds over the recognized subset. An empty (or all-unknown)
+    ``exerciseIds`` returns a successful empty list, not an error.
+
+    Returns the standard ``{success, data, error}`` wrapper; ``data`` has the
+    exact same shape as ``GET /api/sessions`` (see :func:`get_session`).
+    """
+    # Validate the optional exam scope case-insensitively, mirroring the GET
+    # endpoints' validation pattern.
+    if request.exam:
+        valid_values = [member.value for member in ExamType]
+        if request.exam.strip().lower() not in [v.lower() for v in valid_values]:
+            logger.warning(f"Invalid exam type filter attempted: {request.exam}")
+            return {
+                "success": False,
+                "data": [],
+                "error": (
+                    f"Invalid exam type '{request.exam}'. "
+                    f"Valid values are: {', '.join(valid_values)}"
+                ),
+            }
+
+    # Guard against the endpoint being hit before startup populated state.
+    exercises = getattr(app.state, "exercises", [])
+
+    # Build a lookup of recognized exercises by id.
+    by_id = {ex.id: ex for ex in exercises}
+
+    # Partition requested ids into matched vs unknown, preserving request order
+    # for selection determinism (build_session re-randomizes order anyway).
+    matched = []
+    unknown = []
+    for exercise_id in request.exerciseIds:
+        exercise = by_id.get(exercise_id)
+        if exercise is None:
+            unknown.append(exercise_id)
+        else:
+            matched.append(exercise)
+
+    # A stale frontend id set should be diagnosable but never fatal.
+    if unknown:
+        logger.warning(
+            "POST /api/sessions: dropping %d unknown exercise id(s): %s",
+            len(unknown),
+            unknown,
+        )
+
+    # When an exam scope is supplied, reuse filter_exercises to keep only that
+    # exam's exercises -- a replay must never mix corpora (no new filter path).
+    if request.exam:
+        matched = filter_exercises(matched, exam=request.exam)
+
+    # Reuse the Story 5.3 randomizer; an empty match list yields an empty session.
+    session = build_session(matched)
 
     return {"success": True, "data": session, "error": None}
 

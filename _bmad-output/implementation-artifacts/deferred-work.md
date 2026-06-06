@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of Epic 6 (2026-06-06)
+
+- **Replay exam-scope is convention-only (defense-in-depth)** — `frontend/src/api.js` `getSessionByIds` never sends `exam`, so the backend `POST /api/sessions` `exam` scoping is unused by the UI. Harmless today (session id sets are single-exam), but the "never mix corpora" guarantee on the replay path rests on the id set being homogeneous. Proper fix needs tracking the active session's `exam` in context. Low practical risk now.
+- **aria-live announcer re-announces full progress on every option selection** (`frontend/src/pages/MCQPractice.jsx`) — the polite live region recomputes "Progress: …" on each render incl. selection; noisy for AT users. Minor polish; only the submit transition meaningfully changes.
+
 ## Deferred from: code review of Epic 5 (2026-06-06)
 
 - **Summary denominator counts unanswered/skipped** (`frontend/src/pages/Summary.jsx`) — headline `{correct}/{total}` uses `exercises.length`; skipped/unanswered understate the score. Belongs to Epic 6 (quit-to-partial-summary surfaces answered/skipped counts). Pre-existing logic from Epic 3.

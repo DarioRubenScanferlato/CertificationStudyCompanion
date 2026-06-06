@@ -173,6 +173,85 @@ describe('MCQPractice', () => {
     expect(screen.getByText('2/2')).toBeInTheDocument()
   })
 
+  // --- End session / Exit confirm (Story 6.4) ---
+
+  // Answer the current question (q1) so there is progress to protect.
+  async function answerFirstQuestion() {
+    api.submitFeedback.mockResolvedValue({
+      correct: true,
+      correctOptionId: 'a',
+      explanation: 'x',
+      references: [],
+    })
+    fireEvent.click(screen.getByLabelText(/A governance solution/))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await screen.findByText(/Correct!/)
+  }
+
+  it('shows a persistent, neutral End session control', () => {
+    renderFlow()
+    const endBtn = screen.getByRole('button', { name: 'End session' })
+    expect(endBtn).toBeInTheDocument()
+    // Neutral styling — not the databricks-500 Submit treatment.
+    expect(endBtn.className).not.toMatch(/databricks-500/)
+  })
+
+  it('with at least one answered, End session opens the Exit confirm', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'End session' }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByText(/You've answered 1 of 2\./)).toBeInTheDocument()
+  })
+
+  it('See results routes to a partial Summary over the answered subset', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'End session' }))
+    fireEvent.click(screen.getByRole('button', { name: 'See results' }))
+
+    expect(screen.getByText('Session complete')).toBeInTheDocument()
+    // Partial summary scores over the ANSWERED subset (Story 6.6): 1 correct
+    // of 1 answered (the 2nd question was never answered before ending early).
+    // Assert the percentage — unambiguous, unlike "1/1" which also appears in
+    // the per-domain breakdown row.
+    expect(screen.getByText('100% correct')).toBeInTheDocument()
+  })
+
+  it('Discard & exit returns to the Start screen', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'End session' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard & exit' }))
+
+    // Harness renders nothing on the 'select' view.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('Session complete')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Question \d of \d/)).not.toBeInTheDocument()
+  })
+
+  it('Keep practicing closes the confirm and stays on Practice', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'End session' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep practicing' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument()
+  })
+
+  it('with zero answered, End session exits straight to Start with no confirm', () => {
+    renderFlow()
+    fireEvent.click(screen.getByRole('button', { name: 'End session' }))
+    // No confirm appears...
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // ...and we left Practice straight to Start (Harness renders null).
+    expect(screen.queryByText('Question 1 of 2')).not.toBeInTheDocument()
+    expect(screen.queryByText('Session complete')).not.toBeInTheDocument()
+  })
+
   it('degrades gracefully for a code_completion exercise instead of crashing', () => {
     renderFlow([
       {
@@ -202,5 +281,147 @@ describe('MCQPractice', () => {
       },
     ])
     expect(screen.getByText(/malformed/i)).toBeInTheDocument()
+  })
+
+  // --- Progress bar, navigation & keyboard shortcuts (Story 6.5) ---
+
+  it('renders a progress bar with position and a running correct count', () => {
+    renderFlow()
+    const bar = screen.getByRole('progressbar')
+    expect(bar).toHaveAttribute('aria-valuenow', '1')
+    expect(bar).toHaveAttribute('aria-valuemax', '2')
+    expect(screen.getByText('1/2 · 0 correct')).toBeInTheDocument()
+  })
+
+  it('updates the running correct count on submit', async () => {
+    renderFlow()
+    expect(screen.getByText('1/2 · 0 correct')).toBeInTheDocument()
+    await answerFirstQuestion()
+    expect(screen.getByText('1/2 · 1 correct')).toBeInTheDocument()
+  })
+
+  it('updates progress position on navigation', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2')
+    expect(screen.getByText('2/2 · 1 correct')).toBeInTheDocument()
+  })
+
+  it('selects an option with the "1" key and the "a" key', () => {
+    renderFlow()
+    fireEvent.keyDown(document, { key: '1' })
+    expect(screen.getByLabelText(/A governance solution/)).toBeChecked()
+    fireEvent.keyDown(document, { key: 'b' })
+    expect(screen.getByLabelText(/A storage format/)).toBeChecked()
+  })
+
+  it('Enter submits a selected answer then Enter advances, reaching Summary on the last question', async () => {
+    api.submitFeedback.mockResolvedValue({
+      correct: true,
+      correctOptionId: 'a',
+      explanation: 'x',
+      references: [],
+    })
+    renderFlow()
+
+    // q1: select via keyboard, submit via Enter, advance via Enter.
+    fireEvent.keyDown(document, { key: '1' })
+    fireEvent.keyDown(document, { key: 'Enter' })
+    await screen.findByText(/Correct!/)
+    fireEvent.keyDown(document, { key: 'Enter' })
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+
+    // q2: same rhythm, last question -> Summary.
+    fireEvent.keyDown(document, { key: 'a' })
+    fireEvent.keyDown(document, { key: 'Enter' })
+    await screen.findByText(/Correct!/)
+    fireEvent.keyDown(document, { key: 'Enter' })
+    expect(screen.getByText('Session complete')).toBeInTheDocument()
+  })
+
+  it('keyboard selection is a no-op after submit', async () => {
+    renderFlow()
+    await answerFirstQuestion() // selects + submits option "a"
+    // Try to change selection after submit; the radios are disabled and the
+    // handler should ignore the key.
+    fireEvent.keyDown(document, { key: '2' })
+    expect(screen.getByLabelText(/A governance solution/)).toBeChecked()
+    expect(screen.getByLabelText(/A storage format/)).not.toBeChecked()
+  })
+
+  it('ArrowLeft goes Back read-only without re-POSTing', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+
+    const callsBefore = api.submitFeedback.mock.calls.length
+    fireEvent.keyDown(document, { key: 'ArrowLeft' })
+    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument()
+    // The revisited question keeps its feedback; no new grading request fired.
+    expect(screen.getByText(/Correct!/)).toBeInTheDocument()
+    expect(api.submitFeedback.mock.calls.length).toBe(callsBefore)
+  })
+
+  it('ArrowRight advances after submit and Skips (records unanswered) before submit', async () => {
+    renderFlow()
+    // Before submit: ArrowRight skips to q2 without grading.
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+    expect(api.submitFeedback).not.toHaveBeenCalled()
+
+    // After submit: ArrowRight advances (to Summary, last question).
+    await answerFirstQuestion()
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    expect(screen.getByText('Session complete')).toBeInTheDocument()
+  })
+
+  it('Back button is disabled on the first question', () => {
+    renderFlow()
+    expect(screen.getByRole('button', { name: /Back to previous question/ })).toBeDisabled()
+  })
+
+  it('Skip button advances without grading (pointer parity)', () => {
+    renderFlow()
+    fireEvent.click(screen.getByRole('button', { name: /Skip this question/ }))
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+    expect(api.submitFeedback).not.toHaveBeenCalled()
+  })
+
+  it('Back button revisits the previous question (pointer parity)', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Back to previous question/ }))
+    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument()
+  })
+
+  it('Escape opens the Exit-confirm (reusing the 6.4 confirm)', async () => {
+    renderFlow()
+    await answerFirstQuestion()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('exposes accessibility attributes: aria-live region, radiogroup, focus-visible', () => {
+    const { container } = renderFlow()
+    // aria-live polite announcer present.
+    expect(container.querySelector('[aria-live="polite"]')).toBeInTheDocument()
+    // Radio group semantics retained.
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument()
+    // Visible focus-ring classes on controls (Submit shown here).
+    expect(screen.getByRole('button', { name: 'Submit' }).className).toMatch(
+      /focus-visible:ring/
+    )
+  })
+
+  it('exposes a discoverable keyboard-hints affordance', () => {
+    renderFlow()
+    const toggle = screen.getByRole('button', { name: /Keyboard shortcuts/ })
+    expect(toggle).toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(screen.getByText(/select an option/i)).toBeInTheDocument()
   })
 })

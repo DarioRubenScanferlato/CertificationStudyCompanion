@@ -12,7 +12,15 @@ import { submitFeedback } from '../api'
  * - submitting: {exerciseId: true}   (in-flight grading requests)
  * - submitErrors: {exerciseId: string} (last grading error, if the submit failed)
  * - feedback: {exerciseId: {correct, correctOptionId, explanation, references}}
- *     (recorded after the backend grades each exercise)
+ *     (recorded after the backend grades each exercise; retained for read-only
+ *      revisit and review — answers are final, never re-graded)
+ * - sessionState: 'active' | 'ended-early' | 'completed'
+ *     ('active' during practice; 'completed' when advanced past the last
+ *      question; 'ended-early' when the user ends to Summary early)
+ * - questionState: {exerciseId: 'unanswered' | 'answered' | 'skipped'}
+ *     (absent key is treated as 'unanswered')
+ * - furthestIndex: number            (furthest-reached question index; never
+ *      decremented, so Back/Next can't overrun the visited range)
  */
 const initialState = {
   view: 'select',
@@ -22,6 +30,9 @@ const initialState = {
   submitting: {},
   submitErrors: {},
   feedback: {},
+  sessionState: 'active',
+  questionState: {},
+  furthestIndex: 0,
 }
 
 function sessionReducer(state, action) {
@@ -66,6 +77,10 @@ function sessionReducer(state, action) {
           ...state.feedback,
           [action.exerciseId]: action.result,
         },
+        questionState: {
+          ...state.questionState,
+          [action.exerciseId]: 'answered',
+        },
       }
     }
 
@@ -85,10 +100,54 @@ function sessionReducer(state, action) {
     case 'NEXT': {
       const isLast = state.currentIndex >= state.exercises.length - 1
       if (isLast) {
-        return { ...state, view: 'summary' }
+        return { ...state, view: 'summary', sessionState: 'completed' }
       }
-      return { ...state, currentIndex: state.currentIndex + 1 }
+      const nextIndex = state.currentIndex + 1
+      return {
+        ...state,
+        currentIndex: nextIndex,
+        furthestIndex: Math.max(state.furthestIndex, nextIndex),
+      }
     }
+
+    case 'PREV': {
+      // Read-only back: move to an earlier question. No-op at index 0. Does not
+      // touch feedback/selections/submitting/furthestIndex — answers stay final.
+      if (state.currentIndex <= 0) return state
+      return { ...state, currentIndex: state.currentIndex - 1 }
+    }
+
+    case 'SKIP': {
+      // Skip records the current question as unanswered (not incorrect) and
+      // advances like NEXT. Only meaningful before submit; if the question is
+      // already answered, leave its state untouched and just advance.
+      const alreadyAnswered = Boolean(state.feedback[action.exerciseId])
+      const questionState = alreadyAnswered
+        ? state.questionState
+        : { ...state.questionState, [action.exerciseId]: 'skipped' }
+
+      const isLast = state.currentIndex >= state.exercises.length - 1
+      if (isLast) {
+        return {
+          ...state,
+          questionState,
+          view: 'summary',
+          sessionState: 'completed',
+        }
+      }
+      const nextIndex = state.currentIndex + 1
+      return {
+        ...state,
+        questionState,
+        currentIndex: nextIndex,
+        furthestIndex: Math.max(state.furthestIndex, nextIndex),
+      }
+    }
+
+    case 'END_TO_SUMMARY':
+      // End the session early -> Summary over the answered subset. Feedback and
+      // questionState are preserved so computeResults scores what was answered.
+      return { ...state, view: 'summary', sessionState: 'ended-early' }
 
     case 'RESET':
       return { ...initialState }
@@ -151,6 +210,9 @@ export function SessionProvider({ children }) {
         dispatch({ type: 'SET_SELECTION', exerciseId, optionId }),
       submitAnswer,
       next: () => dispatch({ type: 'NEXT' }),
+      prev: () => dispatch({ type: 'PREV' }),
+      skip: () => dispatch({ type: 'SKIP', exerciseId: currentExercise?.exerciseId }),
+      endToSummary: () => dispatch({ type: 'END_TO_SUMMARY' }),
       reset: () => dispatch({ type: 'RESET' }),
     }
   }, [state])

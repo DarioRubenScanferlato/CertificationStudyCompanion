@@ -21,16 +21,16 @@ exercises:
         text: "Combines data lake flexibility with data warehouse reliability and performance"
         correct: true
       - id: b
-        text: "Eliminates the need for data warehouses entirely"
+        text: "Stores all data in a proprietary columnar format for maximum performance"
         correct: false
       - id: c
-        text: "Provides unlimited storage at no cost"
+        text: "Separates storage and compute so each can scale independently"
         correct: false
       - id: d
-        text: "Requires no schema definition for data"
+        text: "Loads all data into memory to eliminate disk I/O"
         correct: false
     answer: [a]
-    explanation: "The Lakehouse architecture combines the benefits of data lakes (flexibility, open formats) with data warehouses (ACID transactions, schema enforcement). This provides both cost-efficiency and reliability. Options B and C are false claims, and D ignores schema benefits."
+    explanation: "The Lakehouse architecture combines the benefits of data lakes (flexibility, open formats) with data warehouses (ACID transactions, schema enforcement). This provides both cost-efficiency and reliability. Option B is wrong because the lakehouse is built on open formats (Parquet/Delta), not a proprietary one. Option C describes a real cloud-architecture benefit but it is not the defining benefit of the lakehouse pattern. Option D is not how the lakehouse works; data is read from object storage, not preloaded into memory."
     references:
       - "https://docs.databricks.com/en/lakehouse/index.html"
     tags: [lakehouse, architecture]
@@ -99,16 +99,16 @@ exercises:
         text: "When data is stored in cloud storage (S3, ADLS, GCS) outside the warehouse"
         correct: true
       - id: b
-        text: "To automatically encrypt all data at rest"
+        text: "When you want dropping the table to also delete the underlying files"
         correct: false
       - id: c
-        text: "To eliminate the need for schema definition"
+        text: "When you need the table to support ACID transactions and time travel"
         correct: false
       - id: d
-        text: "To avoid paying for compute resources"
+        text: "When you want Databricks to manage the storage lifecycle for you"
         correct: false
     answer: [a]
-    explanation: "External tables reference data stored in cloud storage locations via a LOCATION path. This is useful when data is managed outside the Databricks warehouse or needs to remain in a specific location. Managed tables store data in the warehouse's default location."
+    explanation: "External tables reference data stored in cloud storage locations via a LOCATION path. This is useful when data is managed outside the Databricks warehouse or needs to remain in a specific location. Option B is backwards: dropping an external table leaves the files in place; that delete-on-drop behavior is what managed tables provide. Option C is wrong because both managed and external Delta tables support ACID and time travel. Option D describes managed tables, where Databricks owns the storage lifecycle."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-table.html"
     tags: [tables, external]
@@ -125,16 +125,16 @@ exercises:
         text: "Managed tables store data in the warehouse directory; external tables reference data in cloud storage"
         correct: true
       - id: b
-        text: "Managed tables are read-only; external tables support updates"
+        text: "Dropping a managed table only removes metadata; dropping an external table also deletes the data"
         correct: false
       - id: c
-        text: "Managed tables are slower than external tables"
+        text: "Managed tables must be Delta, while external tables can only be Parquet or CSV"
         correct: false
       - id: d
-        text: "External tables require Databricks Premium"
+        text: "External tables are created without a LOCATION clause; managed tables require one"
         correct: false
     answer: [a]
-    explanation: "Managed tables store data in the warehouse's managed storage location (e.g., /user/hive/warehouse). External tables reference data at a custom LOCATION. When you drop a managed table, data is deleted; dropping an external table only removes metadata."
+    explanation: "Managed tables store data in the warehouse's managed storage location (e.g., /user/hive/warehouse). External tables reference data at a custom LOCATION. When you drop a managed table, data is deleted; dropping an external table only removes metadata. Option B reverses that drop behavior. Option C is false: both can be Delta, and external tables support many formats. Option D is backwards: external tables are the ones defined with a LOCATION clause, while managed tables use the default location."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-table.html"
     tags: [tables, managed, external]
@@ -151,16 +151,16 @@ exercises:
         text: "Dropping a managed table deletes both metadata and underlying data from the warehouse location"
         correct: true
       - id: b
-        text: "The data still exists but the table cannot find it"
+        text: "Only the metadata was removed; the underlying files are still in the warehouse location"
         correct: false
       - id: c
-        text: "Managed tables automatically archive data after drop"
+        text: "The data can be restored with UNDROP TABLE within the retention window"
         correct: false
       - id: d
-        text: "Data is retained in the Delta transaction log for recovery"
+        text: "The data is recoverable with RESTORE TABLE using time travel"
         correct: false
     answer: [a]
-    explanation: "When you drop a managed table, Databricks deletes the underlying Parquet files and metadata. The data is permanently removed from the warehouse directory. For external tables, only the metadata is removed; data persists in cloud storage."
+    explanation: "When you drop a managed table, Databricks deletes the underlying Parquet files and metadata. The data is permanently removed from the warehouse directory. For external tables, only the metadata is removed; data persists in cloud storage. Option B describes external-table drop behavior, not managed. Options C and D name real Databricks features, but neither recovers a dropped managed table whose files have already been deleted; time travel and RESTORE operate on a table's version history, not on a dropped table's removed data."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-drop-table.html"
     tags: [tables, lifecycle]
@@ -177,16 +177,16 @@ exercises:
         text: "DESCRIBE table_name or DESC EXTENDED table_name"
         correct: true
       - id: b
-        text: "SHOW SCHEMA table_name"
+        text: "SHOW SCHEMA FROM table_name"
         correct: false
       - id: c
-        text: "INSPECT table_name"
+        text: "SHOW COLUMNS FROM table_name"
         correct: false
       - id: d
-        text: "SCHEMA table_name"
+        text: "SELECT SCHEMA(table_name)"
         correct: false
     answer: [a]
-    explanation: "Both DESCRIBE and DESC are valid commands to view table schema. DESC EXTENDED shows additional metadata like table properties and location. SHOW SCHEMA is for catalogs/schemas, not tables."
+    explanation: "Both DESCRIBE and DESC are valid commands to view table schema. DESC EXTENDED shows additional metadata like table properties and location. SHOW SCHEMA is not valid for this purpose; SHOW SCHEMAS lists schemas in a catalog. SHOW COLUMNS FROM lists only column names (not types or nullability), so it does not show the full schema. SELECT SCHEMA(...) is not a valid function call for retrieving a table's schema."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-aux-describe-table.html"
     tags: [schema, commands]
@@ -203,16 +203,16 @@ exercises:
         text: "Consolidates small files into larger files to improve query performance"
         correct: true
       - id: b
-        text: "Compresses data to reduce storage size"
+        text: "Removes unreferenced data files to reclaim storage space"
         correct: false
       - id: c
-        text: "Deletes old versions of data to save space"
+        text: "Collects column statistics so the optimizer can build better query plans"
         correct: false
       - id: d
-        text: "Replicates data across clusters"
+        text: "Partitions the table on the most frequently filtered column"
         correct: false
     answer: [a]
-    explanation: "OPTIMIZE rewrites table data by consolidating small Parquet files into larger, fewer files. This improves query performance by reducing file I/O overhead. It's especially helpful after many write operations. Use OPTIMIZE along with ZORDER to further improve performance."
+    explanation: "OPTIMIZE rewrites table data by consolidating small Parquet files into larger, fewer files. This improves query performance by reducing file I/O overhead. It's especially helpful after many write operations. Use OPTIMIZE along with ZORDER to further improve performance. Option B describes VACUUM, not OPTIMIZE. Option C describes ANALYZE TABLE ... COMPUTE STATISTICS. Option D describes partitioning at table creation, which OPTIMIZE does not perform."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-optimize.html"
     tags: [optimize, performance]
@@ -284,16 +284,16 @@ exercises:
         text: "Removes old versions of data files that are no longer referenced by the transaction log"
         correct: true
       - id: b
-        text: "Compresses data to save storage space"
+        text: "Consolidates small files into larger files to improve read performance"
         correct: false
       - id: c
-        text: "Deletes all historical data for privacy"
+        text: "Permanently deletes all previous versions so time travel always returns the latest data"
         correct: false
       - id: d
-        text: "Defragments the transaction log"
+        text: "Compacts the JSON entries in the _delta_log into a single checkpoint file"
         correct: false
     answer: [a]
-    explanation: "VACUUM removes data files that are no longer needed by any table version. By default, it retains files for 7 days (configurable) to allow time travel. This frees up storage space by deleting orphaned files from failed writes or expired versions."
+    explanation: "VACUUM removes data files that are no longer needed by any table version. By default, it retains files for 7 days (configurable) to allow time travel. This frees up storage space by deleting orphaned files from failed writes or expired versions. Option B describes OPTIMIZE. Option C overstates VACUUM: it only removes files older than the retention period that are no longer referenced, and Delta creates log checkpoints automatically rather than via VACUUM, which option D incorrectly attributes to it."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-vacuum.html"
     tags: [vacuum, cleanup]
@@ -362,16 +362,16 @@ exercises:
         text: "A Git repository integration for version controlling notebooks and code"
         correct: true
       - id: b
-        text: "A storage location for Parquet files"
+        text: "A managed folder in DBFS for storing data files and artifacts"
         correct: false
       - id: c
-        text: "A cluster configuration template"
+        text: "A snapshot of a notebook's revision history within the workspace"
         correct: false
       - id: d
-        text: "A user permission group"
+        text: "A reusable cluster policy that pins library versions"
         correct: false
     answer: [a]
-    explanation: "Repos allow you to connect a Databricks workspace to a Git repository (GitHub, GitLab, Azure DevOps). This enables version control, collaboration, and CI/CD integration for notebooks and code files."
+    explanation: "Repos allow you to connect a Databricks workspace to a Git repository (GitHub, GitLab, Azure DevOps). This enables version control, collaboration, and CI/CD integration for notebooks and code files. Option B confuses Repos with DBFS storage. Option C describes the workspace's built-in notebook revision history, which is separate from Git-backed Repos. Option D describes cluster policies, an unrelated feature."
     references:
       - "https://docs.databricks.com/en/repos/index.html"
     tags: [repos, git]
@@ -440,16 +440,16 @@ exercises:
         text: "To provide compute resources for running Spark jobs and queries"
         correct: true
       - id: b
-        text: "To organize notebooks into groups"
+        text: "To persist Delta tables and their underlying data files"
         correct: false
       - id: c
-        text: "To store metadata about tables"
+        text: "To store catalog and table metadata for the metastore"
         correct: false
       - id: d
-        text: "To define schema structure"
+        text: "To enforce access control and governance policies on data"
         correct: false
     answer: [a]
-    explanation: "Clusters are groups of machines (nodes) that execute your Spark jobs and SQL queries. They provide the distributed compute needed to process data. Different cluster types (all-purpose, jobs, SQL) serve different use cases."
+    explanation: "Clusters are groups of machines (nodes) that execute your Spark jobs and SQL queries. They provide the distributed compute needed to process data. Different cluster types (all-purpose, jobs, SQL) serve different use cases. Option B confuses compute with storage (data lives in cloud object storage). Option C describes the metastore/Unity Catalog. Option D describes Unity Catalog governance, not clusters."
     references:
       - "https://docs.databricks.com/en/clusters/index.html"
     tags: [clusters, compute]
@@ -655,10 +655,10 @@ exercises:
         text: "ignore"
         correct: false
       - id: d
-        text: "update"
+        text: "errorIfExists"
         correct: false
     answer: [a]
-    explanation: "mode('overwrite') replaces the entire table. This is idempotent — running it multiple times with the same data produces the same result. mode('append') adds data without removing old data, while 'ignore' does nothing if the table exists."
+    explanation: "mode('overwrite') replaces the entire table. This is idempotent — running it multiple times with the same data produces the same result. mode('append') adds data without removing old data, 'ignore' does nothing if the table exists, and 'errorIfExists' (the default) fails when the table already exists. None of those three replace the table contents idempotently."
     references:
       - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
     tags: [pyspark, write]
@@ -808,13 +808,13 @@ exercises:
         text: "RANK() OVER (PARTITION BY ... ORDER BY ...)"
         correct: false
       - id: c
-        text: "COUNT() OVER (PARTITION BY ... ORDER BY ...)"
+        text: "DENSE_RANK() OVER (PARTITION BY ... ORDER BY ...)"
         correct: false
       - id: d
-        text: "SEQUENCE() OVER (...)"
+        text: "NTILE(n) OVER (PARTITION BY ... ORDER BY ...)"
         correct: false
     answer: [a]
-    explanation: "ROW_NUMBER() assigns unique sequential numbers within each partition. RANK() handles ties differently. Neither COUNT() nor SEQUENCE() are used for sequential numbering."
+    explanation: "ROW_NUMBER() assigns a unique sequential number to every row within each partition, with no gaps and no ties. RANK() and DENSE_RANK() assign the same value to tied rows (RANK leaves gaps, DENSE_RANK does not), so they are not strictly sequential per row. NTILE(n) buckets rows into n groups rather than numbering them individually."
     references:
       - "https://docs.databricks.com/en/spark/latest/spark-sql/"
     tags: [spark-sql, window-functions]
@@ -1014,16 +1014,16 @@ exercises:
         text: "To automatically detect and ingest new data files as they arrive in cloud storage"
         correct: true
       - id: b
-        text: "To automatically optimize table performance"
+        text: "To automatically run OPTIMIZE and VACUUM on ingested tables"
         correct: false
       - id: c
-        text: "To automatically delete old data"
+        text: "To automatically batch-load an entire directory once on a schedule"
         correct: false
       - id: d
-        text: "To automatically create backups"
+        text: "To automatically infer and enforce primary keys on incoming data"
         correct: false
     answer: [a]
-    explanation: "Auto Loader continuously monitors a cloud storage location (S3, ADLS, GCS) and automatically ingests new files as they appear. It uses directory listing (default) or file notifications for efficiency, and can infer or evolve schema automatically."
+    explanation: "Auto Loader continuously monitors a cloud storage location (S3, ADLS, GCS) and automatically ingests new files as they appear. It uses directory listing (default) or file notifications for efficiency, and can infer or evolve schema automatically. Option B describes table maintenance commands, not ingestion. Option C is closer to a one-time COPY INTO load and misses Auto Loader's incremental, exactly-once tracking. Option D is not an Auto Loader feature."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [auto-loader, ingestion]
@@ -1092,16 +1092,16 @@ exercises:
         text: "Stores the state of the streaming query to enable exactly-once processing and fault tolerance"
         correct: true
       - id: b
-        text: "Stores processed data output"
+        text: "Specifies the output path where the streaming sink writes results"
         correct: false
       - id: c
-        text: "Creates a backup of input data"
+        text: "Caches recent micro-batches in memory to speed up reprocessing"
         correct: false
       - id: d
-        text: "Compresses streaming data"
+        text: "Defines how frequently the query triggers a new micro-batch"
         correct: false
     answer: [a]
-    explanation: "checkpointLocation is critical for Structured Streaming fault tolerance. It tracks which records have been processed, enabling the query to resume from the exact point it left off after failures, preventing data loss or duplication."
+    explanation: "checkpointLocation is critical for Structured Streaming fault tolerance. It tracks which records have been processed, enabling the query to resume from the exact point it left off after failures, preventing data loss or duplication. Option B confuses it with the sink path. Option C is wrong; checkpoint state is persisted to durable storage, not an in-memory cache. Option D describes the trigger setting, not the checkpoint."
     references:
       - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
     tags: [streaming, checkpoint]
@@ -1144,16 +1144,16 @@ exercises:
         text: "How often the streaming query processes new micro-batches of data"
         correct: true
       - id: b
-        text: "Which rows are selected from the input"
+        text: "How many rows are included in each output write"
         correct: false
       - id: c
-        text: "Where the output data is written"
+        text: "Which output mode (append, update, complete) is applied"
         correct: false
       - id: d
-        text: "The schema of the data"
+        text: "How long the query retains state for late-arriving data"
         correct: false
     answer: [a]
-    explanation: "Triggers define batch intervals: processingTime('30 seconds'), availableNow (process all available data once), or continuous (experimental). Default is processingTime with micro-batches as soon as data arrives."
+    explanation: "Triggers define batch intervals: processingTime('30 seconds'), availableNow (process all available data once), or continuous (experimental). Default is processingTime with micro-batches as soon as data arrives. Option B is controlled by the source/data volume, not the trigger. Option C is set by outputMode. Option D is governed by withWatermark, not the trigger."
     references:
       - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
     tags: [streaming, triggers]
@@ -1170,16 +1170,16 @@ exercises:
         text: "Prevents late-arriving data from being dropped; determines when to close a window"
         correct: true
       - id: b
-        text: "Prevents memory issues from long-running queries"
+        text: "Prevents the query from ever dropping any record, however late it arrives"
         correct: false
       - id: c
-        text: "Prevents duplicate records in output"
+        text: "Prevents duplicate records by deduplicating on the event-time column"
         correct: false
       - id: d
-        text: "Prevents network congestion"
+        text: "Prevents the checkpoint from growing by trimming old offsets"
         correct: false
     answer: [a]
-    explanation: "withWatermark() allows windows to remain open for a specified duration to handle late data. Without it, data arriving after the window closes is dropped. Watermarking is critical for correct windowed aggregations."
+    explanation: "withWatermark() allows windows (and aggregation state) to remain open for a specified duration to handle late data, then close so old state can be dropped. Without it, data arriving after the window closes is dropped. Watermarking is critical for correct windowed aggregations. Option B is the opposite: watermarking actually bounds how late data can be before it is dropped. Option C describes dropDuplicates, not watermarking. Option D confuses it with checkpoint compaction; watermarking bounds aggregation state, not checkpoint offsets."
     references:
       - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
     tags: [streaming, watermark]
@@ -1248,16 +1248,16 @@ exercises:
         text: "COPY INTO is one-time import; Auto Loader continuously monitors for new files"
         correct: true
       - id: b
-        text: "COPY INTO is faster"
+        text: "COPY INTO is a Python DataFrame API; Auto Loader is a SQL command"
         correct: false
       - id: c
-        text: "Auto Loader only works with Parquet"
+        text: "Auto Loader can only ingest Parquet, while COPY INTO supports any format"
         correct: false
       - id: d
-        text: "COPY INTO requires streaming"
+        text: "COPY INTO requires a checkpointLocation, while Auto Loader does not"
         correct: false
     answer: [a]
-    explanation: "COPY INTO is a SQL command for one-time ingestion of existing files. Auto Loader continuously watches for new files and ingests them automatically. Use COPY INTO for backfill; use Auto Loader for ongoing data flows."
+    explanation: "COPY INTO is a SQL command for idempotent, incremental ingestion of files that runs on demand, while Auto Loader is a Structured Streaming source that continuously watches for new files. Use COPY INTO for periodic or backfill loads; use Auto Loader for ongoing streaming data flows. Option B reverses their interfaces (COPY INTO is SQL). Option C is false; Auto Loader supports JSON, CSV, Parquet, Avro, and more. Option D is backwards: it is Auto Loader (as a streaming source) that uses a checkpointLocation, not COPY INTO."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [ingestion, copy-into]
@@ -1300,16 +1300,16 @@ exercises:
         text: "Captures unparseable data and schema-mismatched records for debugging"
         correct: true
       - id: b
-        text: "Stores backup copies of valid records"
+        text: "Stores the source file path and modification time for each ingested row"
         correct: false
       - id: c
-        text: "Tracks which records were processed"
+        text: "Holds rows that failed @dlt.expect data-quality checks"
         correct: false
       - id: d
-        text: "Stores deleted records"
+        text: "Quarantines duplicate records detected during ingestion"
         correct: false
     answer: [a]
-    explanation: "_rescuedData is a column containing rows that couldn't be parsed or don't match the schema. It allows the pipeline to continue without failing, while capturing problematic records for investigation and fix."
+    explanation: "_rescuedData is a column capturing data that didn't match the inferred schema, such as fields with the wrong type or columns not present in the schema. It lets the pipeline continue without failing while preserving the problematic values for investigation. Option B describes file-metadata columns like _metadata, not _rescuedData. Option C describes Lakeflow expectations, a separate mechanism. Option D is not what _rescuedData does; it does not perform deduplication."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [auto-loader, error-handling]
@@ -1431,16 +1431,16 @@ exercises:
         text: "A scheduled or triggered workflow that runs notebooks, SQL, or DLT pipelines on a cluster"
         correct: true
       - id: b
-        text: "A single notebook execution"
+        text: "An interactive notebook session attached to an all-purpose cluster"
         correct: false
       - id: c
-        text: "A cluster configuration"
+        text: "A reusable cluster policy that defines compute defaults"
         correct: false
       - id: d
-        text: "A user permission"
+        text: "A query saved in the SQL editor for ad-hoc reuse"
         correct: false
     answer: [a]
-    explanation: "Jobs are workflows you can schedule (daily, hourly, etc.) or trigger manually. They can contain multiple tasks (notebooks, SQL, Python, DLT) that run in sequence or parallel, with retry and alerting policies."
+    explanation: "Jobs are workflows you can schedule (daily, hourly, etc.) or trigger manually. They can contain multiple tasks (notebooks, SQL, Python, DLT) that run in sequence or parallel, with retry and alerting policies. Option B is an interactive session, not an orchestrated workflow. Option C describes a cluster policy. Option D describes a saved SQL query, neither of which is a Job."
     references:
       - "https://docs.databricks.com/en/workflows/jobs/index.html"
     tags: [jobs, workflows]
@@ -1483,16 +1483,16 @@ exercises:
         text: "To define parameters that can be passed to the notebook from the Job configuration"
         correct: true
       - id: b
-        text: "To create UI elements in the notebook"
+        text: "To pass return values from this notebook back to the calling task"
         correct: false
       - id: c
-        text: "To schedule notebook execution"
+        text: "To set Spark configuration properties for the notebook's session"
         correct: false
       - id: d
-        text: "To manage cluster configurations"
+        text: "To define secrets that the notebook can read at runtime"
         correct: false
     answer: [a]
-    explanation: "dbutils.widgets.text(), .dropdown(), .multiselect() define parameters. When a notebook is run by a Job, the Job configuration can pass values for these widgets. Retrieve them with dbutils.widgets.get()."
+    explanation: "dbutils.widgets.text(), .dropdown(), .multiselect() define input parameters. When a notebook is run by a Job, the Job configuration can pass values for these widgets, retrieved with dbutils.widgets.get(). Option B describes dbutils.notebook.exit / taskValues for outputs. Option C is done via spark.conf.set. Option D describes dbutils.secrets, not widgets."
     references:
       - "https://docs.databricks.com/en/dev-tools/databricks-utils.html"
     tags: [dbutils, widgets, parameters]
@@ -1509,16 +1509,16 @@ exercises:
         text: "Pass data between tasks in a multi-task Job"
         correct: true
       - id: b
-        text: "Store results in a database"
+        text: "Define widget parameters that a notebook reads at runtime"
         correct: false
       - id: c
-        text: "Schedule tasks"
+        text: "Set the dependency order between tasks in a Job"
         correct: false
       - id: d
-        text: "Cluster configuration"
+        text: "Read and write files in DBFS from within a task"
         correct: false
     answer: [a]
-    explanation: "taskValues allows you to pass data from one task to downstream tasks. One task puts data with dbutils.jobs.taskValues.set(), and later tasks retrieve it with dbutils.jobs.taskValues.get(). Useful for sharing status, counts, paths, etc."
+    explanation: "taskValues allows you to pass data from one task to downstream tasks. One task puts data with dbutils.jobs.taskValues.set(), and later tasks retrieve it with dbutils.jobs.taskValues.get(). Useful for sharing status, counts, paths, etc. Option B describes dbutils.widgets. Option C is configured through task depends_on, not taskValues. Option D describes dbutils.fs."
     references:
       - "https://docs.databricks.com/en/dev-tools/databricks-utils.html"
     tags: [dbutils, task-values]
@@ -1561,16 +1561,16 @@ exercises:
         text: "All-purpose clusters persist for interactive use; jobs clusters are created and destroyed per Job for cost efficiency"
         correct: true
       - id: b
-        text: "Jobs clusters are slower"
+        text: "Jobs clusters can be shared by many users at once; all-purpose clusters are single-user only"
         correct: false
       - id: c
-        text: "All-purpose clusters don't support SQL"
+        text: "All-purpose clusters cannot run scheduled workloads under any circumstances"
         correct: false
       - id: d
-        text: "Jobs clusters are required for production"
+        text: "Jobs clusters bill at the all-purpose compute rate, which is higher than interactive"
         correct: false
     answer: [a]
-    explanation: "All-purpose clusters stay alive for users to run code interactively. Jobs clusters are created when a Job runs and terminated after, reducing costs. Jobs clusters are isolated and secure, and recommended for production."
+    explanation: "All-purpose clusters stay alive for users to run code interactively. Jobs clusters are created when a Job runs and terminated after, reducing costs; they are recommended for production. Option B is backwards: all-purpose clusters are the ones designed for shared interactive use. Option C is false; a Job can be configured to run on an existing all-purpose cluster, it's just less cost-efficient. Option D is reversed: jobs compute is billed at a lower DBU rate than all-purpose compute."
     references:
       - "https://docs.databricks.com/en/clusters/index.html"
     tags: [clusters, jobs]
@@ -1587,16 +1587,16 @@ exercises:
         text: "Set max_retries=3 in the Job task configuration"
         correct: true
       - id: b
-        text: "Add retry logic in the notebook code"
+        text: "Wrap the notebook logic in a try/except loop that re-runs on failure"
         correct: false
       - id: c
-        text: "Create multiple copies of the task"
+        text: "Set min_retry_interval_millis without setting max_retries"
         correct: false
       - id: d
-        text: "Use a cluster auto-scaling policy"
+        text: "Enable the cluster's automatic recovery / auto-restart setting"
         correct: false
     answer: [a]
-    explanation: "max_retries in the Job task configuration automatically retries failed tasks. Databricks applies exponential backoff between retries. This is simpler and more reliable than adding retry logic in notebook code."
+    explanation: "max_retries in the Job task configuration automatically retries failed tasks, and Databricks applies exponential backoff between retries. This is simpler and more reliable than adding retry logic in notebook code. Option B reinvents retries in application code and won't recover from a failure that crashes the run. Option C sets the backoff interval but does nothing without max_retries to enable retries. Option D restarts unhealthy clusters but does not retry a failed task."
     references:
       - "https://docs.databricks.com/en/workflows/jobs/index.html"
     tags: [jobs, retries]
@@ -1613,16 +1613,16 @@ exercises:
         text: "A framework for defining reliable, maintainable data pipelines using SQL or Python with automatic optimization"
         correct: true
       - id: b
-        text: "A type of cluster"
+        text: "A purpose-built cluster type optimized for streaming ingestion"
         correct: false
       - id: c
-        text: "A notebook feature"
+        text: "A scheduler that triggers notebooks but leaves dependency ordering to the author"
         correct: false
       - id: d
-        text: "A storage format"
+        text: "An open table format that extends Delta with built-in CDC"
         correct: false
     answer: [a]
-    explanation: "Lakeflow Declarative Pipelines (LFP, formerly DLT) let you define pipelines declaratively. You write SQL CREATE TABLE/VIEW or Python @dlt.table decorators, and the system handles ordering, recovery, and optimization. Includes quality checks (expectations)."
+    explanation: "Lakeflow Declarative Pipelines (LFP, formerly DLT) let you define pipelines declaratively. You write SQL CREATE TABLE/VIEW or Python @dlt.table decorators, and the system handles ordering, recovery, and optimization. Includes quality checks (expectations). Option B confuses it with a cluster type. Option C is wrong because the framework infers the dependency DAG automatically rather than leaving ordering to the author. Option D confuses it with a storage/table format; it is an orchestration framework, not a format."
     references:
       - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
     tags: [dlt, pipelines]
@@ -1665,16 +1665,16 @@ exercises:
         text: "Organizes data into bronze (raw), silver (cleaned), gold (aggregated) layers for quality and performance"
         correct: true
       - id: b
-        text: "Defines cluster configuration"
+        text: "Partitions tables by date into hot, warm, and cold storage tiers"
         correct: false
       - id: c
-        text: "Specifies user permissions"
+        text: "Assigns SELECT, MODIFY, and OWNER permission tiers to data consumers"
         correct: false
       - id: d
-        text: "Controls data compression"
+        text: "Ranks tables by query frequency so the cache can prioritize them"
         correct: false
     answer: [a]
-    explanation: "Medallion (layered) architecture: Bronze (raw data as-is), Silver (cleaned, deduplicated), Gold (business-ready aggregates). This separation improves maintainability, allows reuse, and provides quality gates at each layer."
+    explanation: "Medallion (layered) architecture: Bronze (raw data as-is), Silver (cleaned, deduplicated), Gold (business-ready aggregates). This separation improves maintainability, allows reuse, and provides quality gates at each layer. Option B confuses the layers with storage tiering. Option C confuses them with access-control grants. Option D invents a caching scheme; the layers are about data refinement, not query frequency."
     references:
       - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
     tags: [medallion, architecture]
@@ -1744,16 +1744,16 @@ exercises:
         text: "A centralized metadata and access control system for managing data across workspaces"
         correct: true
       - id: b
-        text: "A storage service"
+        text: "A query engine that executes SQL against Delta tables"
         correct: false
       - id: c
-        text: "A compute resource"
+        text: "A managed object-storage service for Delta files"
         correct: false
       - id: d
-        text: "A networking service"
+        text: "A per-workspace Hive metastore with two-level naming"
         correct: false
     answer: [a]
-    explanation: "Unity Catalog provides: centralized three-level namespace (catalog > schema > table), fine-grained access control (GRANT/REVOKE), and lineage tracking across workspaces. It's essential for data governance and compliance."
+    explanation: "Unity Catalog provides: centralized three-level namespace (catalog > schema > table), fine-grained access control (GRANT/REVOKE), and lineage tracking across workspaces. It's essential for data governance and compliance. Option B describes a compute/query engine. Option C describes cloud storage, not a governance layer. Option D describes the legacy Hive metastore that Unity Catalog replaces; Unity Catalog is centralized across workspaces and uses three-level naming."
     references:
       - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
     tags: [unity-catalog, governance]
@@ -1874,16 +1874,16 @@ exercises:
         text: "To manage access control and credentials for cloud storage in a centralized way"
         correct: true
       - id: b
-        text: "To increase storage capacity"
+        text: "To cache frequently accessed cloud files for faster reads"
         correct: false
       - id: c
-        text: "To compress data automatically"
+        text: "To replicate data across regions for high availability"
         correct: false
       - id: d
-        text: "To speed up queries"
+        text: "To convert files to Delta format on write automatically"
         correct: false
     answer: [a]
-    explanation: "External locations define where external tables point to, with associated credentials and RBAC control. This centralizes access management so individual users don't need cloud credentials, improving security and auditability."
+    explanation: "External locations combine a cloud storage path with a storage credential and Unity Catalog permissions, centralizing access management so individual users don't need their own cloud credentials. This improves security and auditability. Options B, C, and D describe caching, replication, and format conversion, none of which is the purpose of an external location."
     references:
       - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
     tags: [external-locations, governance]

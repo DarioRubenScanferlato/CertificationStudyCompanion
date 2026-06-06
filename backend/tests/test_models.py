@@ -231,14 +231,29 @@ class TestDomainEnum:
     """Tests for Domain enum."""
 
     def test_all_domains_present(self):
-        """Test that all 5 Associate domains are defined."""
+        """All 5 Associate + 10 Professional domains are defined.
+
+        Data Governance is shared by both exams, so the enum has 14 distinct
+        members (5 + 10 - 1 shared).
+        """
         domains = [d.value for d in Domain]
-        assert len(domains) == 5
+        assert len(domains) == 14
+        # Associate (5)
         assert "Databricks Lakehouse Platform" in domains
         assert "ELT with Spark SQL and Python" in domains
         assert "Incremental Data Processing" in domains
         assert "Production Pipelines" in domains
-        assert "Data Governance" in domains
+        assert "Data Governance" in domains  # shared
+        # Professional (2026 blueprint; +9 new beyond the shared Data Governance)
+        assert "Developing Code for Data Processing" in domains
+        assert "Data Ingestion & Acquisition" in domains
+        assert "Data Transformation, Cleansing, and Quality" in domains
+        assert "Data Sharing and Federation" in domains
+        assert "Monitoring and Alerting" in domains
+        assert "Cost & Performance Optimization" in domains
+        assert "Ensuring Data Security and Compliance" in domains
+        assert "Debugging and Deploying" in domains
+        assert "Data Modelling" in domains
 
     def test_domain_values(self):
         """Test domain string values match blueprint."""

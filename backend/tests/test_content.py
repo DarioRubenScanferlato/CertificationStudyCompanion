@@ -86,10 +86,15 @@ class TestFiltering:
         assert all(e.domain == first_domain and e.difficulty == "medium" for e in filtered)
 
     def test_filter_empty_result(self, sample_exercises):
-        """Test filtering that returns empty result."""
+        """Test filtering that returns empty result.
+
+        Professional exercises never live in the Associate-only domain
+        "Databricks Lakehouse Platform", so this combination is always empty.
+        """
         filtered = filter_exercises(
             sample_exercises,
-            exam="professional",  # Only associate exercises loaded
+            exam="professional",
+            domain="Databricks Lakehouse Platform",
         )
         assert filtered == []
 
@@ -97,14 +102,20 @@ class TestFiltering:
 class TestExerciseCount:
     """Tests to verify exercise counts by domain."""
 
-    def test_72_exercises_loaded(self):
-        """Test that 72 exercises are loaded."""
+    def test_all_exercises_loaded(self):
+        """72 Associate + 60 Professional = 132 exercises load with no errors."""
         exercises, error_count, error_log = load_exercises_from_directory()
-        assert len(exercises) == 72, f"Expected 72 exercises, got {len(exercises)}"
+        assert len(exercises) == 132, f"Expected 132 exercises, got {len(exercises)}"
         assert error_count == 0
 
+        by_exam = {}
+        for ex in exercises:
+            by_exam[ex.exam.value] = by_exam.get(ex.exam.value, 0) + 1
+        assert by_exam.get("associate") == 72
+        assert by_exam.get("professional") == 60
+
     def test_domain_distribution(self):
-        """Test that exercises are distributed across domains."""
+        """Associate domain split is intact; Professional domains are present."""
         exercises, _, _ = load_exercises_from_directory()
 
         by_domain = {}
@@ -112,18 +123,33 @@ class TestExerciseCount:
             domain = ex.domain.value
             by_domain[domain] = by_domain.get(domain, 0) + 1
 
-        # Verify we have all 5 Associate domains
-        assert len(by_domain) == 5
-
-        # Verify approximate distribution (as per target percentages)
-        expected = {
+        # Associate domains keep their authored counts. Note: Data Governance
+        # is shared, so it also carries Professional questions and is checked
+        # separately below.
+        expected_associate = {
             "Databricks Lakehouse Platform": 17,
             "ELT with Spark SQL and Python": 21,
             "Incremental Data Processing": 16,
             "Production Pipelines": 12,
-            "Data Governance": 6,
         }
-
-        for domain, expected_count in expected.items():
+        for domain, expected_count in expected_associate.items():
             actual = by_domain.get(domain, 0)
             assert actual == expected_count, f"{domain}: expected {expected_count}, got {actual}"
+
+        # Data Governance is shared (6 Associate + 4 Professional = 10).
+        assert by_domain.get("Data Governance") == 10
+
+        # All 9 Professional-only domains are represented.
+        professional_only = [
+            "Developing Code for Data Processing",
+            "Data Ingestion & Acquisition",
+            "Data Transformation, Cleansing, and Quality",
+            "Data Sharing and Federation",
+            "Monitoring and Alerting",
+            "Cost & Performance Optimization",
+            "Ensuring Data Security and Compliance",
+            "Debugging and Deploying",
+            "Data Modelling",
+        ]
+        for domain in professional_only:
+            assert by_domain.get(domain, 0) > 0, f"missing professional domain: {domain}"

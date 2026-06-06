@@ -1,0 +1,316 @@
+# Databricks DE Certification (Professional) - MCQ Batch
+# Generated: 2026-06-06
+# Total Questions: 10
+# Domain Distribution:
+#   - Data Transformation, Cleansing, and Quality: 6
+#   - Data Ingestion & Acquisition: 4
+# ID range: dbx-pro-0026 .. dbx-pro-0035
+
+exercises:
+  # ========== DATA TRANSFORMATION, CLEANSING, AND QUALITY (6) ==========
+  - id: dbx-pro-0026
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Data quality expectations"
+    difficulty: hard
+    question: "A streaming Lakeflow Spark Declarative Pipeline ingests payment events into a silver table. Regulatory rules require that any record with a NULL transaction_id must NOT land in the silver table, but the pipeline must keep running and process all other records. The team also wants the dropped records counted in the pipeline event metrics. Which expectation best meets these requirements?"
+    code_context: |
+      from pyspark import pipelines as dp
+      from pyspark.sql.functions import col
+    options:
+      - id: a
+        text: "Decorate the table function with @dp.expect_or_drop(\"valid_txn\", \"transaction_id IS NOT NULL\")"
+        correct: true
+      - id: b
+        text: "Decorate the table function with @dp.expect_or_fail(\"valid_txn\", \"transaction_id IS NOT NULL\")"
+        correct: false
+      - id: c
+        text: "Decorate the table function with @dp.expect(\"valid_txn\", \"transaction_id IS NOT NULL\")"
+        correct: false
+      - id: d
+        text: "Add a .filter(col(\"transaction_id\").isNotNull()) call inside the function with no expectation decorator"
+        correct: false
+    answer: [a]
+    explanation: "@dp.expect_or_drop drops rows that violate the constraint while letting the pipeline continue, and the violating rows are tracked in the pipeline's data quality event metrics. This satisfies all three needs. (b) expect_or_fail would halt the update on the first violation, breaking the 'keep running' requirement. (c) expect only records/warns on violations but still keeps the bad rows in the target, so NULLs would land in silver. (d) a plain filter removes the rows but produces no expectation metrics, so the dropped count is not surfaced in the pipeline's data quality dashboard."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/expectations"
+      - "https://docs.databricks.com/aws/en/dlt/"
+    tags: [lakeflow, declarative-pipelines, expectations, data-quality, streaming]
+    source: original
+
+  - id: dbx-pro-0027
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Quarantine pattern"
+    difficulty: hard
+    question: "An engineer must implement a quarantine pattern in a Lakeflow Spark Declarative Pipeline: all incoming records flow into a bronze table, valid records flow into a clean silver table, and records failing validation must be routed to a separate quarantine table for later inspection. Neither downstream table may halt the pipeline. What is the most appropriate design?"
+    options:
+      - id: a
+        text: "Define a shared validity rule, then create two downstream tables: the clean table filters to rows that satisfy the rule, and the quarantine table filters to rows that violate it; use @dp.expect (warn-only) where applicable rather than drop/fail semantics."
+        correct: true
+      - id: b
+        text: "Apply @dp.expect_or_fail on the bronze table so invalid records throw, then catch the exception and write them to the quarantine table."
+        correct: false
+      - id: c
+        text: "Apply @dp.expect_or_drop on the silver table; the dropped rows are automatically written to a system-managed quarantine table you can query."
+        correct: false
+      - id: d
+        text: "Use a single table with @dp.expect_or_drop and rely on Delta time travel to recover the dropped invalid records into a quarantine table."
+        correct: false
+    answer: [a]
+    explanation: "The quarantine pattern keeps invalid rows by routing them, not dropping them: you define the rule once and build two derived datasets, one filtered to passing rows (clean) and one filtered to failing rows (quarantine), using warn-only @dp.expect so nothing is silently discarded or halted. (b) expect_or_fail stops the update; expectation violations are not catchable exceptions you redirect. (c) expect_or_drop discards the rows entirely and does not create any system-managed quarantine table. (d) time travel exposes prior table versions, not the specific rows an expectation dropped, so it cannot reliably reconstruct a quarantine set."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/expectations"
+      - "https://docs.databricks.com/aws/en/dlt/"
+    tags: [lakeflow, quarantine, expectations, data-quality, design-pattern]
+    source: original
+
+  - id: dbx-pro-0028
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "SQL expectations"
+    difficulty: medium
+    question: "In a SQL Lakeflow Spark Declarative Pipeline, the team needs a materialized view where any batch containing a row with a negative amount must cause the entire update to fail, so that no partially-bad batch is ever published. Which CONSTRAINT clause implements this?"
+    code_context: |
+      CREATE OR REFRESH MATERIALIZED VIEW orders_validated (
+        ___
+      ) AS SELECT * FROM STREAM(orders_raw)
+    options:
+      - id: a
+        text: "CONSTRAINT valid_amount EXPECT (amount >= 0) ON VIOLATION FAIL UPDATE"
+        correct: true
+      - id: b
+        text: "CONSTRAINT valid_amount EXPECT (amount >= 0) ON VIOLATION DROP ROW"
+        correct: false
+      - id: c
+        text: "CONSTRAINT valid_amount EXPECT (amount >= 0)"
+        correct: false
+      - id: d
+        text: "CONSTRAINT valid_amount CHECK (amount >= 0) ON VIOLATION FAIL UPDATE"
+        correct: false
+    answer: [a]
+    explanation: "ON VIOLATION FAIL UPDATE causes the pipeline update to fail when any row violates the expectation, guaranteeing no partially-bad batch is published. (b) DROP ROW would silently drop the offending rows and still publish the rest, violating the all-or-nothing requirement. (c) with no ON VIOLATION clause the constraint defaults to warn-only (records the violation but retains and publishes the bad rows). (d) CHECK is the Delta column-level constraint keyword for tables, not the EXPECT expectation syntax used for pipeline data quality, and CHECK does not take an ON VIOLATION clause."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/expectations"
+      - "https://docs.databricks.com/aws/en/dlt/"
+    tags: [lakeflow, expectations, sql, data-quality, constraints]
+    source: original
+
+  - id: dbx-pro-0029
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Window functions"
+    difficulty: hard
+    question: "An events table has columns user_id, event_time, and status. For each user you must keep only the single most recent event (by event_time), breaking ties deterministically by the highest event_id. Which PySpark approach is the most efficient and correct for this deduplication-to-latest requirement on a large static DataFrame?"
+    code_context: |
+      from pyspark.sql import Window
+      from pyspark.sql import functions as F
+    options:
+      - id: a
+        text: "Add row_number() over Window.partitionBy(\"user_id\").orderBy(F.col(\"event_time\").desc(), F.col(\"event_id\").desc()), then filter where the row number == 1 and drop the helper column."
+        correct: true
+      - id: b
+        text: "Use df.dropDuplicates([\"user_id\"]) after sorting the DataFrame by event_time descending, relying on sort order to keep the latest per user."
+        correct: false
+      - id: c
+        text: "Use rank() over the same window and filter where rank == 1, then drop the helper column."
+        correct: false
+      - id: d
+        text: "Group by user_id and select F.max(\"event_time\"), then join back to the original DataFrame on user_id and event_time."
+        correct: false
+    answer: [a]
+    explanation: "row_number() over a window partitioned by user_id and ordered by event_time desc then event_id desc assigns a strict 1..N ranking per user, so filtering to 1 yields exactly one deterministic latest row even when timestamps tie. (b) dropDuplicates ignores any preceding sort, keeps an arbitrary row per key, and Spark does not guarantee sort order survives the shuffle, so it is non-deterministic. (c) rank() assigns the same rank to tied rows, so a tie on event_time would return multiple rows for one user. (d) the max-then-join approach still returns duplicates when two rows share the max event_time and adds an extra expensive shuffle/join."
+    references:
+      - "https://docs.databricks.com/aws/en/transform/window-functions"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-functions-builtin"
+    tags: [window-functions, deduplication, pyspark, transformation]
+    source: original
+
+  - id: dbx-pro-0030
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Streaming deduplication"
+    difficulty: hard
+    question: "A Structured Streaming job reads clickstream events and must remove duplicate events that share the same event_id. Duplicates can arrive up to 2 hours apart, and the team wants to bound the state store so it does not grow unbounded over the lifetime of the stream. Which approach satisfies both correctness and bounded-state requirements?"
+    code_context: |
+      from pyspark.sql import functions as F
+    options:
+      - id: a
+        text: "events.withWatermark(\"event_time\", \"2 hours\").dropDuplicatesWithinWatermark([\"event_id\"])"
+        correct: true
+      - id: b
+        text: "events.dropDuplicates([\"event_id\"]) without a watermark"
+        correct: false
+      - id: c
+        text: "events.withWatermark(\"event_time\", \"2 hours\").groupBy(\"event_id\").count() and keep rows where count == 1"
+        correct: false
+      - id: d
+        text: "events.repartition(\"event_id\").dropDuplicates([\"event_id\"]) with a 2 hour processing-time trigger"
+        correct: false
+    answer: [a]
+    explanation: "Watermarked deduplication (dropDuplicatesWithinWatermark, or dropDuplicates combined with a watermark column) lets Spark expire dedup state older than the watermark, so the state store stays bounded while still catching duplicates within the 2-hour window. (b) dropDuplicates with no watermark must remember every key forever, so streaming state grows unbounded. (c) grouping and counting changes the semantics (it aggregates, dropping the original event payload) and a true duplicate would push count to 2, removing both copies instead of keeping one. (d) repartition controls data distribution, not state retention; without a watermark the dedup state is still unbounded, and a processing-time trigger does not expire keyed state."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
+      - "https://docs.databricks.com/aws/en/structured-streaming/watermarks"
+    tags: [structured-streaming, deduplication, watermark, transformation]
+    source: original
+
+  - id: dbx-pro-0031
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Semi-structured transformation"
+    difficulty: medium
+    question: "A bronze table has a column payload (STRING) holding a JSON array of line-item objects, e.g. [{\"sku\":\"A\",\"qty\":2},{\"sku\":\"B\",\"qty\":1}]. You need one output row per line item with sku and qty as typed columns. Which sequence of PySpark transformations produces this correctly?"
+    code_context: |
+      from pyspark.sql import functions as F
+      from pyspark.sql.types import ArrayType, StructType, StructField, StringType, IntegerType
+
+      item_schema = ArrayType(StructType([
+          StructField("sku", StringType()),
+          StructField("qty", IntegerType()),
+      ]))
+    options:
+      - id: a
+        text: "parse with F.from_json(\"payload\", item_schema), then F.explode() the resulting array column, then select item.sku and item.qty"
+        correct: true
+      - id: b
+        text: "F.explode(\"payload\") first to split the string, then F.from_json on each element"
+        correct: false
+      - id: c
+        text: "F.transform(\"payload\", lambda x: x) to convert the string to an array, then select sku and qty directly"
+        correct: false
+      - id: d
+        text: "F.get_json_object(\"payload\", \"$.sku\") and F.get_json_object(\"payload\", \"$.qty\") to extract both fields in a single pass"
+        correct: false
+    answer: [a]
+    explanation: "from_json parses the JSON string into a typed array<struct> using the supplied schema, explode produces one row per array element, and dot-access then projects the struct fields as typed columns. (b) explode operates on array columns, not on a raw JSON string, so calling it before parsing fails. (c) transform is a higher-order function over an existing array column and cannot parse a string into an array; the input is still a STRING. (d) get_json_object returns scalar strings and cannot fan out a JSON array into multiple rows, so it would only ever read the first element's path and lose the per-item rows."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/from_json"
+      - "https://docs.databricks.com/aws/en/semi-structured/json"
+    tags: [from_json, explode, semi-structured, transformation, pyspark]
+    source: original
+
+  # ========== DATA INGESTION & ACQUISITION (4) ==========
+  - id: dbx-pro-0032
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Auto Loader schema evolution"
+    difficulty: hard
+    question: "An Auto Loader stream ingests JSON files whose schema changes over time. The team requires that when a brand-new column appears in incoming files, the stream stops with a failure so the schema change can be reviewed and the target table altered intentionally before reprocessing. No data values may be silently captured in a rescue column. Which configuration meets this?"
+    code_context: |
+      (spark.readStream.format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .option("cloudFiles.schemaLocation", "/chk/schema")
+        ___
+        .load("/landing/events"))
+    options:
+      - id: a
+        text: ".option(\"cloudFiles.schemaEvolutionMode\", \"failOnNewColumns\")"
+        correct: true
+      - id: b
+        text: ".option(\"cloudFiles.schemaEvolutionMode\", \"addNewColumns\")"
+        correct: false
+      - id: c
+        text: ".option(\"cloudFiles.schemaEvolutionMode\", \"rescue\")"
+        correct: false
+      - id: d
+        text: ".option(\"cloudFiles.schemaEvolutionMode\", \"none\")"
+        correct: false
+    answer: [a]
+    explanation: "failOnNewColumns makes the stream fail when a previously unseen column is detected, which is exactly the 'stop and review intentionally' requirement; after updating the schema the stream can be restarted. (b) addNewColumns (the default) automatically adds the new column and restarts the stream, so the change is not gated by review. (c) rescue keeps the schema fixed and routes new/unexpected columns into the _rescued_data column, which the requirement explicitly forbids. (d) none keeps the schema fixed and ignores new columns without failing or rescuing, so the change passes silently with no signal to the team."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema"
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/"
+    tags: [auto-loader, cloudFiles, schema-evolution, ingestion]
+    source: original
+
+  - id: dbx-pro-0033
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Auto Loader file discovery"
+    difficulty: hard
+    question: "An Auto Loader pipeline ingests from a cloud storage path that already contains tens of millions of files and receives millions of new files per day. Directory listing has become a bottleneck, with each microbatch spending most of its time enumerating the bucket. Which change most directly addresses the file-discovery scalability problem?"
+    options:
+      - id: a
+        text: "Switch Auto Loader to file notification mode (cloudFiles.useNotifications / file-notification mode), which subscribes to storage event notifications instead of repeatedly listing the directory."
+        correct: true
+      - id: b
+        text: "Increase the trigger interval so directory listing runs less frequently, reducing the total listing cost."
+        correct: false
+      - id: c
+        text: "Replace Auto Loader with COPY INTO, which does not need to discover files."
+        correct: false
+      - id: d
+        text: "Enable cloudFiles.inferColumnTypes so Auto Loader reads fewer files during schema inference."
+        correct: false
+    answer: [a]
+    explanation: "File notification mode uses the cloud provider's event-notification/queue service to learn about new files, so discovery cost is independent of the total number of files in the directory; it is the recommended mode for very high file volumes where directory listing does not scale. (b) a longer trigger interval makes each listing larger and does not remove the O(number-of-files) listing cost, so the bottleneck remains. (c) COPY INTO still has to identify which files are new and is generally less efficient than Auto Loader for millions of files; it does not solve discovery at this scale. (d) inferColumnTypes only affects how column types are inferred during schema detection and has no bearing on per-microbatch file discovery cost."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/file-detection-modes"
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/"
+    tags: [auto-loader, file-notification, directory-listing, scalability, ingestion]
+    source: original
+
+  - id: dbx-pro-0034
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "COPY INTO idempotency"
+    difficulty: medium
+    question: "A nightly batch job uses COPY INTO to load CSV files from a landing zone into a Delta table. Occasionally the job is retried after a partial failure, and sometimes the same source files remain in the landing zone across runs. The team is worried about duplicate rows. What is the key property of COPY INTO that addresses this, and what is the correct expectation?"
+    options:
+      - id: a
+        text: "COPY INTO tracks which files it has already loaded and skips them on re-runs, so re-executing the same command over an unchanged set of files is idempotent and will not re-ingest already-loaded files."
+        correct: true
+      - id: b
+        text: "COPY INTO has no built-in tracking, so the team must delete source files after each load to avoid duplicates."
+        correct: false
+      - id: c
+        text: "COPY INTO always reloads every file in the source path on each run, so duplicates are unavoidable without a MERGE."
+        correct: false
+      - id: d
+        text: "COPY INTO requires force = 'true' to be idempotent; without it, every file is loaded twice."
+        correct: false
+    answer: [a]
+    explanation: "COPY INTO records the files it has ingested and, by default, skips files it has already loaded, which makes re-running the same command over the same files idempotent and safe against duplicates from retries. (b) is wrong because tracking is built in; deleting files is unnecessary for dedup. (c) is the opposite of the actual behavior. (d) inverts the semantics: force = 'true' (or COPY_OPTIONS 'force' = 'true') disables the skip-already-loaded behavior and forces reloading, which would create duplicates, so it is not what makes COPY INTO idempotent."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/copy-into/"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/delta-copy-into"
+    tags: [copy-into, idempotency, batch-ingestion, ingestion]
+    source: original
+
+  - id: dbx-pro-0035
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Ingestion tool selection"
+    difficulty: medium
+    question: "A team is choosing between Auto Loader and COPY INTO for an ingestion workload. The source produces a continuous, high-frequency stream of new files (hundreds of thousands per day) into cloud storage, and the team wants near-real-time, incremental, exactly-once processing with automatic schema evolution. Which choice and rationale is correct?"
+    options:
+      - id: a
+        text: "Use Auto Loader: it is designed for incremental, continuous ingestion of large numbers of new files, supports schema inference and evolution, and integrates with Structured Streaming for near-real-time exactly-once processing."
+        correct: true
+      - id: b
+        text: "Use COPY INTO: it is the recommended tool for continuous high-frequency streaming ingestion and provides automatic schema evolution out of the box."
+        correct: false
+      - id: c
+        text: "Use COPY INTO in a tight loop triggered every few seconds, because it scales to millions of files better than Auto Loader."
+        correct: false
+      - id: d
+        text: "Use Auto Loader only for one-time historical backfills; for ongoing ingestion COPY INTO is the streaming option."
+        correct: false
+    answer: [a]
+    explanation: "Auto Loader is the recommended tool for incremental, continuous ingestion of many new files, with schema inference/evolution and Structured Streaming integration for near-real-time, exactly-once semantics via checkpointing. (b) COPY INTO is a batch, idempotent SQL command best suited to smaller or periodic loads (thousands of files) and is not the continuous-streaming tool. (c) running COPY INTO in a tight loop does not give it streaming semantics and it does not scale to millions of files as well as Auto Loader's notification-based discovery. (d) reverses the roles: Auto Loader handles both backfill and ongoing incremental ingestion, while COPY INTO is the batch option, not a streaming one."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/"
+      - "https://docs.databricks.com/aws/en/ingestion/copy-into/"
+    tags: [auto-loader, copy-into, tool-selection, ingestion, streaming]
+    source: original

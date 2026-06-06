@@ -95,13 +95,19 @@ Shared fields (`id`, `domain`, `difficulty`, `explanation`, `exam`, `source`, `t
   3. Incremental Data Processing ~22%
   4. Production Pipelines ~16%
   5. Data Governance ~9%
-- **Professional** — ~60 scored MCQ, 120 min. Heavier PySpark/streaming/ops, scenario-based; assumes Python proficiency. Domain weights:
-  1. Databricks Tooling ~20%
-  2. Data Processing ~30%
-  3. Data Modeling ~20%
-  4. Security & Governance ~10%
-  5. Monitoring & Logging ~10%
-  6. Testing & Deployment ~10%
+- **Professional** — **59 scored MCQ, 120 min, $200, 2yr validity.** Heavier PySpark/streaming/ops, scenario-based; assumes Python proficiency + ~2yr Databricks experience. **Domain weights (2026 blueprint — VERIFIED 2026-06-06 against databricks.com/learn/certification/data-engineer-professional and corroborating study guides; supersedes the prior model-knowledge 6-domain list):**
+  1. Developing Code for Data Processing (Python & SQL) — **22%**
+  2. Cost & Performance Optimization — **13%**
+  3. Data Transformation, Cleansing, and Quality — **10%**
+  4. Monitoring and Alerting — **10%**
+  5. Ensuring Data Security and Compliance — **10%**
+  6. Debugging and Deploying — **10%**
+  7. Data Ingestion & Acquisition — **7%**
+  8. Data Governance — **7%** (shared with Associate)
+  9. Data Modelling — **6%**
+  10. Data Sharing and Federation — **5%**
+
+  Professional technical surface emphasized (per official page + study guides): Databricks Asset Bundles + CLI + REST API (CI/CD, IaC deploy), Git-based workflows, Lakeflow Spark Declarative Pipelines vs Structured Streaming, Auto Loader, Pandas/Python UDFs, **liquid clustering vs partitioning/Z-Order, deletion vectors, Change Data Feed**, system tables + Spark UI + Query Profiler (observability/cost), row filters & column masks, ACLs, PII masking/tokenization, Delta Sharing + Lakehouse Federation, Unity Catalog permission inheritance, serverless compute. `[NOTE: Reddit was not directly accessible to the research crawler; topic-focus signal came from aggregated exam-taker study guides/write-ups (Medium, passitexams, certifhub, certificationpractice, ExamTopics topic lists), not raw Reddit threads.]`
 
 > Passing score: pass/fail scaled score; ~70% is a commonly-reported *planning heuristic*, not an officially fixed per-domain cut. **Verify.**
 

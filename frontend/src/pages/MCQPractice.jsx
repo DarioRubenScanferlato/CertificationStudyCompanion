@@ -1,12 +1,25 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSession } from '../context/SessionContext'
+import { useRegisterExitConfirm } from '../App'
 import { EXERCISE_TYPES } from '../constants'
 import QuestionContent from '../components/QuestionContent'
+import ConfirmDialog from '../components/ConfirmDialog'
+import ProgressBar from '../components/ProgressBar'
 
 const DIFFICULTY_STYLES = {
   easy: 'bg-green-100 text-green-800',
   medium: 'bg-yellow-100 text-yellow-800',
   hard: 'bg-red-100 text-red-800',
 }
+
+// Focus ring shared by every interactive control on the Practice surface.
+const FOCUS_RING =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-databricks-500 focus-visible:ring-offset-1'
+
+// Neutral focus ring for the subordinate End-session control — it must stay
+// visually distinct from the primary databricks-500 actions (see Story 6.4).
+const FOCUS_RING_NEUTRAL =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-1'
 
 /**
  * Compute the CSS classes for an option row once feedback is shown:
@@ -20,11 +33,25 @@ function optionFeedbackClass({ isCorrectOption, isSelected }) {
   return 'border-gray-200'
 }
 
+// True when the keydown originated from a text field — we don't want our
+// single-key accelerators to hijack typing.
+function isFromTextInput(target) {
+  if (!target) return false
+  const tag = target.tagName
+  if (tag === 'INPUT') {
+    const type = (target.getAttribute('type') || 'text').toLowerCase()
+    // Radio/checkbox inputs are not "typing" targets; everything else is.
+    return type !== 'radio' && type !== 'checkbox'
+  }
+  return tag === 'TEXTAREA' || target.isContentEditable === true
+}
+
 export default function MCQPractice() {
   const {
     currentExercise,
     currentIndex,
     total,
+    exercises,
     selectedAnswers,
     submitting,
     submitErrors,
@@ -32,7 +59,135 @@ export default function MCQPractice() {
     setSelection,
     submitAnswer,
     next,
+    prev,
+    skip,
+    endToSummary,
+    reset,
   } = useSession()
+
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [hintsOpen, setHintsOpen] = useState(false)
+  const endButtonRef = useRef(null)
+
+  // Number of answered questions (those with retained feedback) — drives the
+  // Exit-confirm copy and the zero-answered shortcut.
+  const answeredCount = exercises.filter((e) => Boolean(feedback[e.exerciseId])).length
+  // Running correct count for the progress bar.
+  const correctCount = exercises.filter((e) => feedback[e.exerciseId]?.correct).length
+
+  // Open the Exit-confirm, unless nothing is answered — then exit straight to
+  // Start with no prompt. Shared with the header Home affordance.
+  const requestExit = useCallback(() => {
+    if (answeredCount === 0) {
+      reset()
+      return
+    }
+    setConfirmOpen(true)
+  }, [answeredCount, reset])
+
+  // Let the header Home affordance route through this same exit flow.
+  useRegisterExitConfirm(requestExit)
+
+  function closeConfirm() {
+    setConfirmOpen(false)
+  }
+
+  function handleSeeResults() {
+    setConfirmOpen(false)
+    endToSummary()
+  }
+
+  function handleDiscard() {
+    setConfirmOpen(false)
+    reset()
+  }
+
+  // --- Keyboard shortcuts --------------------------------------------------
+  // A single document-level keydown handler, scoped to this view (removed on
+  // unmount). It reads live state through a ref so the closure never goes
+  // stale, and every action it triggers also has a clickable equivalent.
+  const handlerRef = useRef(null)
+  handlerRef.current = (event) => {
+    // Defer to the modal's own Esc / focus trap while it's open, and never
+    // hijack typing in text fields.
+    if (confirmOpen) return
+    if (event.defaultPrevented) return
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+    if (isFromTextInput(event.target)) return
+
+    const ex = currentExercise
+    if (!ex) return
+    const options = Array.isArray(ex.displayedOptions) ? ex.displayedOptions : []
+    const isMcq =
+      ex.type !== EXERCISE_TYPES.CODE_COMPLETION && options.length === 4
+    const sel = selectedAnswers[ex.exerciseId]
+    const fb = feedback[ex.exerciseId]
+    const isSubmitted = Boolean(fb)
+    const inFlight = Boolean(submitting[ex.exerciseId])
+
+    const key = event.key
+    const targetTag = event.target?.tagName
+    const onRadio =
+      targetTag === 'INPUT' &&
+      (event.target.getAttribute('type') || '').toLowerCase() === 'radio'
+
+    if (key === 'Escape') {
+      event.preventDefault()
+      requestExit()
+      return
+    }
+
+    // Don't hijack ArrowLeft/Right when an answer radio has focus — native
+    // radiogroup navigation must select options (ARIA contract). Back/Skip
+    // arrows still work from anywhere else (e.g. focus on body or a button).
+    if (key === 'ArrowLeft') {
+      if (onRadio) return
+      event.preventDefault()
+      prev()
+      return
+    }
+
+    if (key === 'ArrowRight') {
+      if (onRadio) return
+      event.preventDefault()
+      if (isSubmitted) next()
+      else skip()
+      return
+    }
+
+    if (key === 'Enter') {
+      // If a button has focus, let its native activation handle Enter so we
+      // don't fire the action twice (global handler + button click).
+      if (targetTag === 'BUTTON') return
+      event.preventDefault()
+      if (isSubmitted) {
+        next()
+      } else if (isMcq && sel && !inFlight) {
+        submitAnswer(ex.exerciseId)
+      }
+      return
+    }
+
+    // Option selection: 1-4 or a-d. No-op once submitted / mid-flight, and only
+    // for a well-formed MCQ.
+    if (!isMcq || isSubmitted || inFlight) return
+    let idx = -1
+    if (key >= '1' && key <= '4') idx = Number(key) - 1
+    else {
+      const lower = key.toLowerCase()
+      if (lower >= 'a' && lower <= 'd') idx = lower.charCodeAt(0) - 97
+    }
+    if (idx >= 0 && idx < options.length) {
+      event.preventDefault()
+      setSelection(ex.exerciseId, options[idx].id)
+    }
+  }
+
+  useEffect(() => {
+    const onKeyDown = (event) => handlerRef.current?.(event)
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   if (!currentExercise) return null
 
@@ -43,6 +198,13 @@ export default function MCQPractice() {
   const isSubmitting = Boolean(submitting[exercise.exerciseId])
   const submitError = submitErrors[exercise.exerciseId]
   const isLast = currentIndex >= total - 1
+  const isFirst = currentIndex === 0
+
+  // Live announcement for the result + progress, read by aria-live below.
+  const progressPhrase = `Progress: ${currentIndex + 1} of ${total}, ${correctCount} correct.`
+  const announcement = submitted
+    ? `Answer ${result.correct ? 'correct' : 'incorrect'}. ${progressPhrase}`
+    : progressPhrase
 
   // Code-completion exercises get their own UI in a later epic. Until then,
   // degrade gracefully rather than rendering them as a broken MCQ.
@@ -78,12 +240,19 @@ export default function MCQPractice() {
 
   return (
     <div className="max-w-3xl mx-auto">
+      {/* aria-live announcer for correctness result + progress changes. */}
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+
       {/* Progress + metadata */}
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-gray-500">
-          Question {currentIndex + 1} of {total}
-        </span>
-        <div className="flex gap-2">
+      <div className="flex items-center gap-4 mb-4">
+        <ProgressBar
+          current={currentIndex + 1}
+          total={total}
+          correct={correctCount}
+        />
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs px-2 py-1 rounded bg-databricks-50 text-databricks-900">
             {exercise.domain}
           </span>
@@ -94,7 +263,55 @@ export default function MCQPractice() {
           >
             {exercise.difficulty}
           </span>
+          {/* Persistent, neutral End-session control — visually subordinate to
+              the databricks-500 Submit button so it never competes with it. */}
+          <button
+            ref={endButtonRef}
+            type="button"
+            onClick={requestExit}
+            className={`text-xs px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors ${FOCUS_RING_NEUTRAL}`}
+          >
+            End session
+          </button>
         </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="End this session?"
+        description={`You've answered ${answeredCount} of ${total}.`}
+        onDismiss={closeConfirm}
+        actions={[
+          { label: 'See results', onClick: handleSeeResults, variant: 'primary' },
+          { label: 'Discard & exit', onClick: handleDiscard, variant: 'danger' },
+          { label: 'Keep practicing', onClick: closeConfirm, variant: 'neutral' },
+        ]}
+      />
+
+      {/* Navigation + keyboard hints */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={prev}
+            disabled={isFirst}
+            aria-label="Back to previous question"
+            className={`text-sm px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
+          >
+            ← Back
+          </button>
+          {!submitted && (
+            <button
+              type="button"
+              onClick={skip}
+              aria-label="Skip this question"
+              className={`text-sm px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors ${FOCUS_RING}`}
+            >
+              Skip →
+            </button>
+          )}
+        </div>
+        <KeyboardHints open={hintsOpen} onToggle={() => setHintsOpen((o) => !o)} />
       </div>
 
       {/* Question */}
@@ -104,7 +321,7 @@ export default function MCQPractice() {
 
       {/* Options */}
       <div className="space-y-3" role="radiogroup" aria-label="Answer options">
-        {exercise.displayedOptions.map((opt) => {
+        {exercise.displayedOptions.map((opt, i) => {
           const isSelected = selected === opt.id
           const isCorrectOption = submitted && opt.id === result.correctOptionId
           const stateClass = submitted
@@ -127,8 +344,11 @@ export default function MCQPractice() {
                 checked={isSelected}
                 disabled={submitted || isSubmitting}
                 onChange={() => selectOption(opt.id)}
-                className="mt-1"
+                className={`mt-1 ${FOCUS_RING}`}
               />
+              <span aria-hidden="true" className="font-medium text-gray-400">
+                {i + 1}.
+              </span>
               <span className="text-gray-900">{opt.text}</span>
               {isCorrectOption && (
                 <span aria-hidden="true" className="ml-auto text-green-700 font-medium">
@@ -155,13 +375,55 @@ export default function MCQPractice() {
             type="button"
             onClick={() => submitAnswer(exercise.exerciseId)}
             disabled={!selected || isSubmitting}
-            className="mt-4 w-full bg-databricks-500 hover:bg-databricks-600 disabled:opacity-50 text-white font-medium py-2.5 rounded transition-colors"
+            className={`mt-4 w-full bg-databricks-500 hover:bg-databricks-600 disabled:opacity-50 text-white font-medium py-2.5 rounded transition-colors ${FOCUS_RING}`}
           >
             {isSubmitting ? 'Submitting…' : submitError ? 'Retry' : 'Submit'}
           </button>
         </>
       ) : (
         <Feedback result={result} isLast={isLast} onNext={next} />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Discoverable keyboard-shortcut affordance. A toggle button reveals the map;
+ * the map itself is just text so it never traps focus.
+ */
+function KeyboardHints({ open, onToggle }) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label="Keyboard shortcuts"
+        className={`text-xs px-2 py-1 rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition-colors ${FOCUS_RING}`}
+      >
+        ⌨ Shortcuts
+      </button>
+      {open && (
+        <div className="absolute right-0 z-10 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-lg">
+          <ul className="space-y-1">
+            <li>
+              <kbd className="font-mono">1–4</kbd> / <kbd className="font-mono">a–d</kbd>{' '}
+              — select an option
+            </li>
+            <li>
+              <kbd className="font-mono">Enter</kbd> — submit, then advance
+            </li>
+            <li>
+              <kbd className="font-mono">←</kbd> — back (read-only)
+            </li>
+            <li>
+              <kbd className="font-mono">→</kbd> — next / skip
+            </li>
+            <li>
+              <kbd className="font-mono">Esc</kbd> — end session
+            </li>
+          </ul>
+        </div>
       )}
     </div>
   )
@@ -208,7 +470,7 @@ function Feedback({ result, isLast, onNext }) {
       <button
         type="button"
         onClick={onNext}
-        className="mt-5 w-full bg-gray-900 hover:bg-gray-700 text-white font-medium py-2.5 rounded transition-colors"
+        className={`mt-5 w-full bg-gray-900 hover:bg-gray-700 text-white font-medium py-2.5 rounded transition-colors ${FOCUS_RING}`}
       >
         {isLast ? 'See Results' : 'Next'}
       </button>

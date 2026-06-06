@@ -1,0 +1,347 @@
+# Databricks DE Certification (Professional) - MCQs
+# Generated: 2026-06-06
+# Total Questions: 12
+# Domain Distribution:
+#   - Cost & Performance Optimization: 8
+#   - Data Modelling: 4
+# ID Range: dbx-pro-0014 .. dbx-pro-0025
+# Type: single_choice (exactly 1 correct + 3 incorrect)
+
+exercises:
+  # ========== COST & PERFORMANCE OPTIMIZATION (8 questions) ==========
+  - id: dbx-pro-0014
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Liquid clustering"
+    difficulty: hard
+    question: "A high-volume events table is currently partitioned by `event_date`. Analysts increasingly filter on high-cardinality columns like `user_id` and `device_id`, and many partitions are small, causing a small-file problem and slow queries. The team also expects access patterns to keep shifting. Which migration approach best addresses both the layout problem and the evolving query patterns with the least future maintenance?"
+    code_context: |
+      -- Current table
+      CREATE TABLE events (
+        event_id STRING,
+        user_id STRING,
+        device_id STRING,
+        event_date DATE,
+        payload STRING
+      ) PARTITIONED BY (event_date);
+    options:
+      - id: a
+        text: "Recreate the table with liquid clustering on the high-cardinality filter columns (CLUSTER BY (user_id, device_id)), since clustering keys can later be changed with ALTER TABLE ... CLUSTER BY without rewriting existing data"
+        correct: true
+      - id: b
+        text: "Keep the partitioning by event_date and additionally run Z-ORDER BY (user_id, device_id) on every OPTIMIZE so both layouts coexist"
+        correct: false
+      - id: c
+        text: "Repartition the table by user_id instead of event_date to align the physical layout with the new filters"
+        correct: false
+      - id: d
+        text: "Switch to liquid clustering but include event_date, user_id, device_id, payload, and event_id as clustering keys to cover any possible future query"
+        correct: false
+    answer: [a]
+    explanation: "Liquid clustering replaces both partitioning and Z-ORDER, handles high-cardinality columns and skew well, fixes small-file issues, and crucially lets you change clustering keys later via ALTER TABLE ... CLUSTER BY without rewriting data - ideal for evolving access patterns. B perpetuates the partition skew/small-file problem and you cannot combine partitioning with liquid clustering on the same table. C just trades one rigid partitioning scheme for another (and high-cardinality partitioning makes the small-file problem worse). D is invalid: liquid clustering supports at most 4 keys and you should cluster only on actual filter/join columns, not wide payload columns."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+    tags: [liquid-clustering, partitioning, optimization]
+    source: original
+
+  - id: dbx-pro-0015
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Liquid clustering"
+    difficulty: medium
+    question: "Your team enabled liquid clustering on a Unity Catalog managed table and runs a nightly scheduled `OPTIMIZE`. After several months, query performance has gradually degraded even though OPTIMIZE completes successfully each night. A new bulk backfill recently rewrote most of the table's history. What is the most appropriate action to fully re-establish clustering quality?"
+    options:
+      - id: a
+        text: "Run OPTIMIZE FULL to recluster all data, including previously clustered files, since plain OPTIMIZE only clusters incrementally and won't reorganize already-written data"
+        correct: true
+      - id: b
+        text: "Add a second OPTIMIZE call immediately after the first; running it twice forces a full reclustering pass"
+        correct: false
+      - id: c
+        text: "Run VACUUM with a zero-hour retention to remove the stale files so OPTIMIZE can rebuild clustering from scratch"
+        correct: false
+      - id: d
+        text: "Drop and recreate the table with the same CLUSTER BY keys, since liquid clustering cannot recluster data that was written by a bulk backfill"
+        correct: false
+    answer: [a]
+    explanation: "Plain OPTIMIZE on a liquid-clustered table is incremental - it only clusters newly written/unclustered data and leaves already-clustered files alone. After a large backfill, OPTIMIZE FULL reclusters all records (including previously clustered data) to restore layout quality. B is wrong: a second OPTIMIZE is still incremental and does no full reclustering. C is dangerous and incorrect - VACUUM removes unreferenced files for cleanup/time-travel retention, not to trigger reclustering, and zero retention can corrupt concurrent readers. D is unnecessary; OPTIMIZE FULL handles this without dropping the table."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+    tags: [liquid-clustering, optimize, optimization]
+    source: original
+
+  - id: dbx-pro-0016
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Deletion vectors"
+    difficulty: hard
+    question: "A GDPR-compliance job issues frequent small DELETE and MERGE statements against a large Delta table to remove individual user records. Each statement rewrites large Parquet files and is slow. After enabling `delta.enableDeletionVectors = true`, deletes become fast, but the storage team reports that the underlying Parquet files still physically contain the deleted rows. What sequence correctly enables fast deletes AND eventually removes the data physically for compliance?"
+    options:
+      - id: a
+        text: "Deletion vectors mark rows as deleted (merge-on-read) without rewriting files; to physically remove the data, run REORG TABLE ... APPLY (PURGE) to rewrite files without the soft-deleted rows, then VACUUM to delete the now-unreferenced old files"
+        correct: true
+      - id: b
+        text: "Deletion vectors mark rows as deleted (merge-on-read) without rewriting files; run only VACUUM to physically purge the soft-deleted rows, since VACUUM rewrites files in place"
+        correct: false
+      - id: c
+        text: "Disable deletion vectors again before running VACUUM, otherwise VACUUM will skip files that have associated deletion vectors"
+        correct: false
+      - id: d
+        text: "Run OPTIMIZE after the deletes; OPTIMIZE applies deletion vectors and physically removes deleted rows as part of file compaction"
+        correct: false
+    answer: [a]
+    explanation: "Deletion vectors implement merge-on-read: DELETE/UPDATE/MERGE mark rows as removed in a vector instead of rewriting the Parquet files, making writes fast. To physically purge the data you must materialize the deletions with REORG TABLE ... APPLY (PURGE) (which rewrites files excluding soft-deleted rows) and then VACUUM to remove the old, now-unreferenced files. B is wrong: VACUUM alone only removes unreferenced files; it does not rewrite files to drop rows still referenced via deletion vectors. C is incorrect - you do not disable deletion vectors to vacuum. D is incorrect - OPTIMIZE compacts files but PURGE via REORG is the documented mechanism to materialize deletion vectors for physical removal."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/deletion-vectors"
+    tags: [deletion-vectors, gdpr, vacuum, optimization]
+    source: original
+
+  - id: dbx-pro-0017
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Join strategy"
+    difficulty: medium
+    question: "A daily job joins a 2 TB fact table to a 40 MB dimension table. The Spark UI shows the query spends most of its time in a large shuffle-hash join with significant data movement across the cluster, and one stage has a few very large tasks. What is the most effective optimization?"
+    options:
+      - id: a
+        text: "Ensure the small dimension is broadcast so each executor gets a local copy and the large fact table is not shuffled across the network for the join"
+        correct: true
+      - id: b
+        text: "Increase the number of shuffle partitions so the shuffle-hash join spreads the fact table across more tasks"
+        correct: false
+      - id: c
+        text: "Repartition both tables by the join key so they are co-located, eliminating the need to broadcast"
+        correct: false
+      - id: d
+        text: "Cache the 2 TB fact table in memory before the join to avoid re-reading it from cloud storage"
+        correct: false
+    answer: [a]
+    explanation: "A 40 MB dimension is well within broadcast thresholds; broadcasting it turns the join into a broadcast (map-side) join, sending the small table to every executor and avoiding any shuffle of the 2 TB fact table - eliminating the network movement and the skewed shuffle stage. B keeps the expensive shuffle and only redistributes it. C still shuffles the huge fact table by key, which is exactly the cost a broadcast avoids. D wastes memory caching a 2 TB table read once per run and does nothing to remove the shuffle, which is the actual bottleneck."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/"
+    tags: [joins, broadcast, shuffle, spark-ui, optimization]
+    source: original
+
+  - id: dbx-pro-0018
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Skew diagnosis"
+    difficulty: hard
+    question: "An aggregation job groups a clickstream table by `country`. The Spark UI shows that out of 200 tasks in the aggregation stage, 198 finish in under a minute while 2 tasks run for over an hour, and those 2 tasks read far more shuffle data than the rest. What does this most likely indicate, and what is the appropriate first remedy?"
+    options:
+      - id: a
+        text: "Data skew on the group-by key (a few countries dominate the data); apply a skew mitigation such as salting the heavy keys or relying on adaptive query execution's skew join/partition handling"
+        correct: true
+      - id: b
+        text: "The cluster is under-provisioned; the fix is to add more worker nodes so the two long tasks get dedicated executors"
+        correct: false
+      - id: c
+        text: "The shuffle partition count is too high at 200; reducing it will balance the two slow tasks against the rest"
+        correct: false
+      - id: d
+        text: "Photon is disabled for this query; enabling Photon will redistribute the skewed keys evenly across tasks"
+        correct: false
+    answer: [a]
+    explanation: "A small number of tasks reading vastly more shuffle data and running far longer than the rest is the classic signature of data skew on the group-by key - a few high-frequency values land in the same partitions. The first remedies are skew-aware techniques like salting hot keys or leveraging adaptive query execution, which can split skewed partitions. B doesn't help because the work is concentrated in a couple of partitions, not spread thin across nodes. C reducing partitions would make skew worse by packing more data per task. D Photon accelerates execution but does not redistribute skewed keys; it won't fix uneven partition sizes."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/aqe"
+    tags: [skew, spark-ui, aqe, optimization]
+    source: original
+
+  - id: dbx-pro-0019
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Incremental processing"
+    difficulty: medium
+    question: "A downstream gold pipeline must process only the rows that changed in a large silver Delta table since its last run, including updates and deletes (not just inserts). The team currently re-reads the entire silver table each run and diffs it, which is expensive. Which Delta feature most directly and efficiently provides the row-level changes for incremental consumption?"
+    options:
+      - id: a
+        text: "Enable Change Data Feed (delta.enableChangeDataFeed = true) and read the table_changes feed to retrieve inserted, updated, and deleted rows between versions"
+        correct: true
+      - id: b
+        text: "Use Delta time travel to read the previous version and the current version, then keep diffing them in application code as before but with VERSION AS OF"
+        correct: false
+      - id: c
+        text: "Enable deletion vectors so the gold pipeline can read only the rows marked as changed in the deletion vector files"
+        correct: false
+      - id: d
+        text: "Turn on liquid clustering by the primary key so changed rows are clustered together and can be scanned cheaply"
+        correct: false
+    answer: [a]
+    explanation: "Change Data Feed (CDF) records row-level changes (inserts, updates as pre/post images, and deletes) and exposes them via table_changes(), letting downstream pipelines read exactly what changed between versions - the purpose-built feature for efficient incremental processing. B time travel still requires a full diff of two snapshots, which is the expensive pattern they want to avoid. C deletion vectors track soft-deleted rows for merge-on-read performance, not a consumable change feed of all DML. D liquid clustering optimizes data layout/scan pruning but does not identify which rows changed since the last run."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/delta-change-data-feed"
+    tags: [change-data-feed, incremental, optimization]
+    source: original
+
+  - id: dbx-pro-0020
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Cost monitoring"
+    difficulty: medium
+    question: "A platform team needs to attribute Databricks compute spend across business units and identify which jobs and SQL warehouses are driving cost growth month over month, programmatically and historically. Which approach is the most appropriate and lowest-overhead?"
+    options:
+      - id: a
+        text: "Query the system.billing.usage system table in Unity Catalog, joining usage records (with tags) to attribute DBU consumption by workspace, SKU, and tagged resource over time"
+        correct: true
+      - id: b
+        text: "Export the account console cost page to CSV each month and maintain a spreadsheet of the totals"
+        correct: false
+      - id: c
+        text: "Enable verbose cluster logging and parse the driver logs to sum up the DBUs each job consumed"
+        correct: false
+      - id: d
+        text: "Run OPTIMIZE on all tables and use the OPTIMIZE history metrics to estimate per-job compute cost"
+        correct: false
+    answer: [a]
+    explanation: "The system.billing.usage system table provides governed, queryable, historical billable usage (DBUs) that can be filtered and joined by workspace, SKU, and custom tags - the standard way to attribute and analyze cost programmatically with minimal overhead. B is manual, error-prone, and not programmatic or granular per job/warehouse. C driver logs do not contain reliable billing/DBU attribution and parsing them is brittle. D OPTIMIZE history reports file-compaction metrics, not compute cost, and running it everywhere just adds cost."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+    tags: [system-tables, cost-monitoring, billing, optimization]
+    source: original
+
+  - id: dbx-pro-0021
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Predictive optimization"
+    difficulty: medium
+    question: "An engineering team maintains dozens of hand-written scheduled jobs that periodically run OPTIMIZE and VACUUM across many Unity Catalog managed tables. Maintenance windows are growing and occasionally conflict with production reads. They want to reduce this operational burden while keeping tables well laid out. What is the recommended Databricks approach?"
+    options:
+      - id: a
+        text: "Enable predictive optimization, which lets Databricks automatically run maintenance operations like OPTIMIZE on Unity Catalog managed tables based on usage patterns, removing the need for hand-scheduled maintenance jobs"
+        correct: true
+      - id: b
+        text: "Convert all the tables to external tables so Databricks manages their optimization lifecycle automatically"
+        correct: false
+      - id: c
+        text: "Move OPTIMIZE and VACUUM into a single nightly job that locks each table to prevent read conflicts during maintenance"
+        correct: false
+      - id: d
+        text: "Disable Delta features like deletion vectors and liquid clustering so the tables no longer require any maintenance jobs"
+        correct: false
+    answer: [a]
+    explanation: "Predictive optimization automatically runs maintenance operations such as OPTIMIZE on Unity Catalog managed tables based on observed usage, eliminating manually scheduled maintenance jobs and reducing operational overhead while keeping data well organized. B is backwards - managed tables (not external) are what predictive optimization targets, and external tables get less automated lifecycle management. C still relies on hand-scheduled jobs and locking tables harms availability rather than helping. D disabling Delta features removes useful capabilities and does not eliminate the underlying need for compaction/cleanup."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+    tags: [predictive-optimization, unity-catalog, managed-tables, optimization]
+    source: original
+
+  # ========== DATA MODELLING (4 questions) ==========
+  - id: dbx-pro-0022
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Medallion architecture"
+    difficulty: medium
+    question: "A team is designing a medallion architecture for IoT telemetry. They want a layer that preserves the exact ingested records (including malformed and duplicate events) for full reprocessing and auditability, and a separate layer where data is deduplicated, type-cast, and conformed for use across multiple downstream products. Which layer assignment correctly reflects medallion design?"
+    options:
+      - id: a
+        text: "Bronze stores the raw, unaltered ingested records; Silver holds the cleaned, deduplicated, and conformed data; Gold holds business-level aggregates"
+        correct: true
+      - id: b
+        text: "Bronze holds cleaned and conformed data ready for consumption; Silver stores raw ingested records for audit; Gold holds malformed records quarantined for review"
+        correct: false
+      - id: c
+        text: "Bronze stores business aggregates for dashboards; Silver stores raw records; Gold stores deduplicated conformed data"
+        correct: false
+      - id: d
+        text: "All three layers store the same raw data at different retention periods, and cleaning happens only at query time"
+        correct: false
+    answer: [a]
+    explanation: "In the medallion architecture, Bronze is the raw landing layer that preserves source data exactly as ingested (enabling full reprocessing and audit), Silver is the cleaned/validated/deduplicated/conformed layer reused across products, and Gold holds aggregated, business-ready data. B, C invert or scramble these roles. D contradicts the whole purpose of the layered design, which is to progressively refine data, not store identical raw copies."
+    references:
+      - "https://docs.databricks.com/aws/en/lakehouse/medallion"
+    tags: [medallion, bronze-silver-gold, data-modelling]
+    source: original
+
+  - id: dbx-pro-0023
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Slowly changing dimensions"
+    difficulty: hard
+    question: "A gold-layer customer dimension must preserve full history: when a customer's address or segment changes, the old record should be retained (with effective date ranges) and a new current record created (SCD Type 2). The source is a CDC feed of customer changes ingested into a streaming pipeline. What is the most appropriate Databricks-native way to maintain this dimension?"
+    options:
+      - id: a
+        text: "Use APPLY CHANGES INTO in a declarative (DLT/Lakeflow) pipeline with STORED AS SCD TYPE 2, letting it manage out-of-order CDC events and maintain history with effective ranges"
+        correct: true
+      - id: b
+        text: "Overwrite the dimension table on every run with the latest snapshot of each customer, since the current state is all that matters for reporting"
+        correct: false
+      - id: c
+        text: "Append every CDC event directly to the dimension table without keys or sequencing, and let downstream queries pick the most recent row per customer"
+        correct: false
+      - id: d
+        text: "Enable Change Data Feed on the dimension table so it automatically generates SCD Type 2 history from the CDC events"
+        correct: false
+    answer: [a]
+    explanation: "APPLY CHANGES INTO with STORED AS SCD TYPE 2 in a declarative pipeline is the Databricks-native construct for building SCD dimensions: it handles upserts, out-of-order events via a sequence/ordering column, and maintains historical rows with effective date ranges automatically. B destroys history, which is the explicit requirement of SCD Type 2. C produces an unmanaged append log with no current-flag/effective-range modeling and pushes correctness onto every query. D Change Data Feed exposes changes from a table; it does not construct an SCD Type 2 dimension from a CDC source."
+    references:
+      - "https://docs.databricks.com/aws/en/lakehouse/medallion"
+      - "https://docs.databricks.com/aws/en/delta/delta-change-data-feed"
+    tags: [scd, apply-changes-into, dimensional-modelling, cdc, data-modelling]
+    source: original
+
+  - id: dbx-pro-0024
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Data layout"
+    difficulty: medium
+    question: "A gold-layer star schema has a large fact table queried with selective filters on a high-cardinality `order_id` and frequent range filters on `order_ts`, plus changing analytical filter patterns over the quarter. The team is deciding the physical layout. Which choice best fits modern Databricks guidance for a scalable Delta model?"
+    options:
+      - id: a
+        text: "Use liquid clustering on the fact table (e.g., CLUSTER BY (order_ts, order_id)), since it handles high-cardinality keys, supports key changes as patterns evolve, and replaces the need for partitioning and Z-ORDER"
+        correct: true
+      - id: b
+        text: "Partition the fact table by order_id to make the high-cardinality lookups fast"
+        correct: false
+      - id: c
+        text: "Partition by order_ts at the hour grain and Z-ORDER by order_id, combining both techniques for maximum pruning"
+        correct: false
+      - id: d
+        text: "Avoid any data layout strategy and rely solely on Photon and disk caching to accelerate the queries"
+        correct: false
+    answer: [a]
+    explanation: "Liquid clustering is the recommended layout for scalable Delta models: it efficiently handles high-cardinality columns like order_id, supports range-filtered columns, lets clustering keys evolve as access patterns change, and replaces both partitioning and Z-ORDER. B partitioning by a high-cardinality key creates a massive small-file/over-partitioning problem. C hour-grain partitioning produces tiny partitions and you cannot combine partitioning with liquid clustering; Z-ORDER is the legacy approach liquid clustering supersedes. D ignoring layout leaves queries scanning far more data than needed; Photon and caching accelerate execution but are not a substitute for data skipping via good layout."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+      - "https://docs.databricks.com/aws/en/lakehouse/medallion"
+    tags: [liquid-clustering, star-schema, data-layout, data-modelling]
+    source: original
+
+  - id: dbx-pro-0025
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Dimensional modelling"
+    difficulty: medium
+    question: "A reporting team is modeling sales data in the gold layer. They want fast, intuitive aggregations (total revenue by region, product category, and month) with conformed, reusable descriptive attributes, and they want to minimize the number of expensive wide joins at query time. Which gold-layer modeling choice best meets these goals?"
+    options:
+      - id: a
+        text: "Model a star schema: a central sales fact table holding measures and foreign keys, surrounded by conformed dimension tables (date, product, region) that store descriptive attributes"
+        correct: true
+      - id: b
+        text: "Keep the gold layer fully normalized into many small related tables to eliminate all redundancy, joining them at query time for each report"
+        correct: false
+      - id: c
+        text: "Store all sales data in a single bronze-style raw table and let each report parse and aggregate the raw payload as needed"
+        correct: false
+      - id: d
+        text: "Create one wide denormalized table per individual report, duplicating all dimensional attributes into each, with no shared conformed dimensions"
+        correct: false
+    answer: [a]
+    explanation: "A star schema - a central fact table of measures and foreign keys surrounded by conformed dimension tables - is the classic gold-layer dimensional model that gives intuitive, fast aggregations and reusable conformed attributes while limiting join complexity. B full normalization (snowflaking to the extreme) maximizes the number of joins at query time, the opposite of the goal. C raw bronze-style data in gold defeats the purpose of a curated, business-ready layer and forces costly per-report parsing. D per-report wide tables abandon conformed dimensions, causing duplication and inconsistent definitions across reports."
+    references:
+      - "https://docs.databricks.com/aws/en/lakehouse/medallion"
+    tags: [star-schema, dimensional-modelling, gold-layer, data-modelling]
+    source: original

@@ -1,0 +1,382 @@
+# Databricks DE Certification (Professional) - MCQ Batch
+# Topic: Security & Compliance, Data Governance, Data Sharing & Federation
+# Generated: 2026-06-06
+# Total Questions: 13
+# Domain Distribution:
+#   - Ensuring Data Security and Compliance: 6
+#   - Data Governance: 4
+#   - Data Sharing and Federation: 3
+# ID Range: dbx-pro-0048 .. dbx-pro-0060
+
+exercises:
+  # ========== ENSURING DATA SECURITY AND COMPLIANCE (6 questions) ==========
+  - id: dbx-pro-0048
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Row filters and column masks"
+    difficulty: medium
+    question: "A compliance team requires that analysts in the EU group can only see rows where `region = 'EU'` in the Unity Catalog table `prod.sales.orders`, while the global finance group must see all rows. The same physical table must serve both groups without creating separate copies or views. Which approach best satisfies this requirement?"
+    code_context: |
+      CREATE FUNCTION prod.sales.region_filter(region_col STRING)
+      RETURNS BOOLEAN
+      RETURN is_account_group_member('finance_global')
+             OR region_col = 'EU';
+    options:
+      - id: a
+        text: "Define a row filter function and attach it to the table with `ALTER TABLE prod.sales.orders SET ROW FILTER prod.sales.region_filter ON (region)`."
+        correct: true
+      - id: b
+        text: "Create one dynamic view per group and revoke SELECT on the base table; point each group at its own view."
+        correct: false
+      - id: c
+        text: "Apply a column mask to the `region` column so non-finance users see NULL for rows outside the EU."
+        correct: false
+      - id: d
+        text: "Use a table ACL `GRANT SELECT ... WHERE region = 'EU'` directly in the GRANT statement for the EU group."
+        correct: false
+    answer: [a]
+    explanation: "A Unity Catalog row filter is a UDF that returns a BOOLEAN; rows are returned only when it evaluates to TRUE. Attaching it with ALTER TABLE ... SET ROW FILTER lets a single physical table serve both groups based on group membership, with no copies. B works functionally but explicitly violates the 'single table without separate views' requirement (dynamic views are the legacy pattern UC row filters replace). C is wrong because a column mask alters individual column values (e.g. nulling/hashing), it does not remove whole rows. D is invalid syntax: GRANT does not support a WHERE/predicate clause for row-level filtering."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/row-and-column-filters"
+    tags: [row-filter, unity-catalog, rls, compliance]
+    source: original
+
+  - id: dbx-pro-0049
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Row filters and column masks"
+    difficulty: hard
+    question: "Auditors require that the `ssn` column in `prod.hr.employees` be fully redacted for everyone except members of the `hr_admins` group, who must see the real value. The table is queried by many downstream jobs and dashboards, and you cannot change their SQL. Which Unity Catalog mechanism meets this requirement with the least disruption?"
+    code_context: |
+      CREATE FUNCTION prod.hr.ssn_mask(ssn STRING)
+      RETURNS STRING
+      RETURN CASE
+        WHEN is_account_group_member('hr_admins') THEN ssn
+        ELSE '***-**-****'
+      END;
+    options:
+      - id: a
+        text: "Attach a column mask: `ALTER TABLE prod.hr.employees ALTER COLUMN ssn SET MASK prod.hr.ssn_mask`."
+        correct: true
+      - id: b
+        text: "Add a row filter that drops rows containing SSNs for non-admin users."
+        correct: false
+      - id: c
+        text: "Hash the `ssn` column at ingestion with `sha2()` and overwrite the source data so the plaintext is never stored."
+        correct: false
+      - id: d
+        text: "Revoke SELECT on the table from all non-admin groups and rely on workspace object ACLs to block access."
+        correct: false
+    answer: [a]
+    explanation: "A column mask is a UDF applied to a column with ALTER TABLE ... ALTER COLUMN ... SET MASK; it rewrites the returned value per-query based on the caller, so downstream SQL is unchanged and admins still see plaintext. B is wrong: a row filter removes entire rows, not just one column's value, so non-admins would lose whole employee records. C destroys the real value irreversibly, so hr_admins could never see the true SSN (and it changes data at rest, not access-based redaction). D blocks all access to the table, breaking the downstream jobs and dashboards entirely rather than masking one column."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/row-and-column-filters"
+    tags: [column-mask, pii, unity-catalog, redaction]
+    source: original
+
+  - id: dbx-pro-0050
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "PII handling"
+    difficulty: hard
+    question: "A pipeline ingests customer events containing an `email` field. Analysts need to join events to a customer dimension on email and produce per-customer aggregates, but raw email addresses must never be readable in the analytics layer, and the transformation must be deterministic across runs. Which PII-handling technique fits best?"
+    options:
+      - id: a
+        text: "Pseudonymize email with a deterministic keyed hash (e.g. salted SHA-256 / HMAC) and store only the hash in the analytics tables, keeping the salt/key in a secret."
+        correct: true
+      - id: b
+        text: "Apply a Unity Catalog column mask that returns NULL for the `email` column to all analysts."
+        correct: false
+      - id: c
+        text: "Encrypt email with a non-deterministic (randomized-IV) cipher so the value differs on every row."
+        correct: false
+      - id: d
+        text: "Generate a fresh random UUID for each event's email at ingestion time to tokenize it."
+        correct: false
+    answer: [a]
+    explanation: "A deterministic keyed hash (salted SHA-256 or HMAC) produces the same output for the same input every run, so joins still work, yet the raw email is irreversible without the key, satisfying the 'never readable' requirement. The salt/key belongs in a secret to resist dictionary attacks. B nulls the value so no join is possible. C uses a randomized IV, so the same email hashes differently each time and joins fail. D assigns a different UUID per event (not per distinct email), so the same customer's events get different tokens and cannot be aggregated together."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/row-and-column-filters"
+      - "https://docs.databricks.com/aws/en/security/secrets/"
+    tags: [pii, pseudonymization, hashing, deterministic]
+    source: original
+
+  - id: dbx-pro-0051
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Data retention and purge"
+    difficulty: hard
+    question: "A GDPR 'right to be forgotten' request requires that a specific customer's rows be permanently removed from a Delta table so the data cannot be recovered, including via time travel. After running `DELETE FROM prod.crm.customers WHERE customer_id = 12345`, a colleague notes the data may still be physically recoverable. What additional step is required to truly purge it?"
+    options:
+      - id: a
+        text: "Run `VACUUM prod.crm.customers` after the retention window so the underlying Parquet files containing the deleted rows are physically removed and no longer reachable by time travel."
+        correct: true
+      - id: b
+        text: "Run `OPTIMIZE prod.crm.customers` to compact files, which permanently erases the deleted records."
+        correct: false
+      - id: c
+        text: "Nothing further is needed; a Delta `DELETE` immediately and permanently removes the data from storage."
+        correct: false
+      - id: d
+        text: "Set the table to read-only with an ACL so no one can query the historical versions."
+        correct: false
+    answer: [a]
+    explanation: "A Delta DELETE is logical: it writes new files without the rows but old data files remain for time travel until VACUUM removes files older than the retention threshold. Running VACUUM (after the retention period expires) physically deletes those files, fulfilling the purge requirement. B (OPTIMIZE) compacts/reorganizes files but does not remove tombstoned data files; old versions are still time-travelable. C is false because DELETE only rewrites logically. D restricts access but the data still physically exists and could be recovered, which does not meet a true erasure requirement."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/vacuum"
+      - "https://docs.databricks.com/aws/en/delta/delete-from"
+    tags: [gdpr, vacuum, retention, purge, compliance]
+    source: original
+
+  - id: dbx-pro-0052
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Dynamic views vs UC masks"
+    difficulty: medium
+    question: "A team has a legacy Hive metastore table protected by a 'dynamic view' that uses `current_user()` and `is_member()` in a CASE expression to redact a column. They are migrating the table to Unity Catalog and want the most maintainable, table-level governed equivalent. What is the recommended Unity Catalog approach?"
+    options:
+      - id: a
+        text: "Replace the dynamic view with a Unity Catalog column mask UDF attached directly to the table column, using `is_account_group_member()` for the access logic."
+        correct: true
+      - id: b
+        text: "Keep the dynamic view exactly as-is, since `is_member()` is the recommended function in Unity Catalog."
+        correct: false
+      - id: c
+        text: "Use Delta Sharing to expose only the non-sensitive columns to the team."
+        correct: false
+      - id: d
+        text: "Replace the view logic with a Lakehouse Federation foreign catalog that hides the sensitive column."
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog row filters and column masks are the modern, table-level replacement for legacy dynamic views; a column mask UDF attached to the column governs redaction centrally and uses is_account_group_member() (the UC-aware function) rather than the legacy is_member(). B is wrong because is_member() checks workspace-local groups and is the legacy pattern UC supersedes. C (Delta Sharing) is for sharing data to recipients, not for in-place column redaction. D (Lakehouse Federation) is for querying external/remote source systems live, not for masking columns of a table already governed by UC."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/row-and-column-filters"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/"
+    tags: [dynamic-view, column-mask, migration, unity-catalog]
+    source: original
+
+  - id: dbx-pro-0053
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Workspace object ACLs"
+    difficulty: medium
+    question: "A platform engineer wants to ensure that only the data-engineering group can run and edit a specific production job, while a separate ops group may trigger it but must not modify its definition. Which security mechanism governs this?"
+    options:
+      - id: a
+        text: "Job (workspace object) access control lists: grant CAN MANAGE to data-engineering and CAN MANAGE RUN to ops."
+        correct: true
+      - id: b
+        text: "A Unity Catalog GRANT on the job object using `GRANT MODIFY ON JOB`."
+        correct: false
+      - id: c
+        text: "A row filter on the job's output table restricting which group can write."
+        correct: false
+      - id: d
+        text: "A column mask on the job's parameters so ops cannot read the configuration."
+        correct: false
+    answer: [a]
+    explanation: "Jobs are workspace objects secured by access control lists with permission levels such as CAN VIEW, CAN MANAGE RUN, and CAN MANAGE; granting CAN MANAGE to engineers and CAN MANAGE RUN to ops gives ops trigger rights without edit rights. B is wrong: jobs are not securable in the Unity Catalog data object grant model, and there is no GRANT MODIFY ON JOB statement. C and D describe data-layer controls (row filters/column masks apply to table rows and columns), which have nothing to do with who may run or edit a job."
+    references:
+      - "https://docs.databricks.com/aws/en/security/auth/access-control/"
+    tags: [acl, jobs, workspace-objects, permissions]
+    source: original
+
+  # ========== DATA GOVERNANCE (4 questions) ==========
+  - id: dbx-pro-0054
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Privilege inheritance"
+    difficulty: medium
+    question: "An admin runs `GRANT USE SCHEMA ON SCHEMA prod.analytics TO `analysts`` and `GRANT SELECT ON SCHEMA prod.analytics TO `analysts``. A new table `prod.analytics.daily_revenue` is created the next week. Which statement about the analysts' access to the new table is correct?"
+    options:
+      - id: a
+        text: "Analysts can SELECT the new table automatically, because a privilege granted at the schema level is inherited by all current and future tables in that schema (assuming USE CATALOG on prod is also held)."
+        correct: true
+      - id: b
+        text: "Analysts cannot query the new table until an explicit `GRANT SELECT ON TABLE prod.analytics.daily_revenue` is issued."
+        correct: false
+      - id: c
+        text: "Analysts can query it only if they are the table owner."
+        correct: false
+      - id: d
+        text: "Schema-level grants apply only to tables that existed at the time of the grant, not future tables."
+        correct: false
+    answer: [a]
+    explanation: "In Unity Catalog, privileges are inherited down the hierarchy: a SELECT granted on a schema applies to all current and future tables and views in that schema, provided the principal also has USE CATALOG on the parent catalog and USE SCHEMA on the schema. So analysts get access to the new table automatically. B and D contradict inheritance (no per-table grant is required, and future objects are covered). C is wrong: ownership is not required to be granted SELECT; the inherited privilege suffices."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/"
+    tags: [unity-catalog, privilege-inheritance, grant, governance]
+    source: original
+
+  - id: dbx-pro-0055
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Three-level namespace"
+    difficulty: medium
+    question: "A team migrating from the legacy two-level Hive metastore (`database.table`) to Unity Catalog asks how to reference a table named `orders` in schema `sales` that lives in catalog `prod`. Which fully-qualified reference is correct, and what does the extra level provide?"
+    options:
+      - id: a
+        text: "`prod.sales.orders` -- Unity Catalog adds a catalog level above schema, giving a three-level namespace (catalog.schema.table) that enables isolating data across environments/teams."
+        correct: true
+      - id: b
+        text: "`sales.orders` -- Unity Catalog keeps the two-level namespace; the catalog name is only metadata and not used in references."
+        correct: false
+      - id: c
+        text: "`prod.orders` -- the schema is optional in Unity Catalog and can be omitted."
+        correct: false
+      - id: d
+        text: "`hive_metastore.prod.sales.orders` -- all Unity Catalog references must be prefixed with the metastore name."
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog introduces a three-level namespace catalog.schema.table, so the correct reference is prod.sales.orders; the added catalog level lets organizations segregate data by environment, business unit, or team under one metastore. B is wrong because UC is explicitly three-level, not two. C is wrong because the schema is a required level, not optional. D is wrong: references are catalog.schema.table; the metastore is not part of the object name, and hive_metastore is only the special catalog mapping the legacy metastore."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/"
+    tags: [unity-catalog, namespace, three-level, governance]
+    source: original
+
+  - id: dbx-pro-0056
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Lineage and metadata"
+    difficulty: hard
+    question: "A data steward must answer two questions programmatically across the whole metastore: (1) which downstream tables consume a given table, and (2) a queryable list of all columns and their comments for documentation. Which combination of Unity Catalog capabilities should be used?"
+    options:
+      - id: a
+        text: "Use Unity Catalog data lineage (table/column lineage, queryable via system tables / lineage APIs) for (1), and query `INFORMATION_SCHEMA` (e.g. `system.information_schema.columns`) for (2)."
+        correct: true
+      - id: b
+        text: "Use `DESCRIBE HISTORY` on each table for (1), and `SHOW TABLES` for (2)."
+        correct: false
+      - id: c
+        text: "Use Delta time travel for (1), and table COMMENT properties read one table at a time for (2)."
+        correct: false
+      - id: d
+        text: "Use Lakehouse Federation foreign catalogs for (1), and Delta Sharing for (2)."
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog automatically captures table- and column-level lineage, which is queryable to find downstream consumers, and INFORMATION_SCHEMA exposes catalog metadata (including columns and their comments) as queryable relational views, ideal for documentation at scale. B is wrong: DESCRIBE HISTORY shows a single table's transaction history (not cross-table lineage) and SHOW TABLES lists names without column/comment metadata. C is wrong: time travel is about versions of one table, not lineage, and reading comments one table at a time is not a queryable metastore-wide solution. D conflates federation (querying external sources) and Delta Sharing (sharing data out) -- neither provides lineage or column-comment catalogs."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/information-schema/"
+    tags: [lineage, information-schema, metadata, governance]
+    source: original
+
+  - id: dbx-pro-0057
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Discoverability tags and comments"
+    difficulty: medium
+    question: "A governance lead wants every table that contains personal data to be discoverable and filterable in catalog search by a consistent classification (e.g. `pii=true`), and wants free-text descriptions to help analysts understand each column. Which Unity Catalog features should be applied?"
+    options:
+      - id: a
+        text: "Apply tags (key-value) to the tables/columns for classification-based search, and add COMMENT descriptions on tables and columns for human-readable context."
+        correct: true
+      - id: b
+        text: "Store the classification in a separate spreadsheet and link it by table name, since Unity Catalog has no tagging support."
+        correct: false
+      - id: c
+        text: "Encode the classification into the table name (e.g. `customers_pii`) since search only matches object names."
+        correct: false
+      - id: d
+        text: "Use row filters to tag PII rows so they appear in search results."
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog supports tags (key-value pairs) on securable objects, enabling classification and tag-based discovery/search, and COMMENT clauses provide human-readable descriptions on catalogs, schemas, tables, and columns. B is wrong because UC does support tags natively, so an external spreadsheet is unnecessary and ungoverned. C is a brittle naming hack that does not provide structured, filterable classification. D misuses row filters, which control row-level access at query time and have nothing to do with catalog search or classification."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/"
+    tags: [tags, comments, discoverability, governance, metadata]
+    source: original
+
+  # ========== DATA SHARING AND FEDERATION (3 questions) ==========
+  - id: dbx-pro-0058
+    type: single_choice
+    exam: professional
+    domain: "Data Sharing and Federation"
+    subdomain: "Delta Sharing"
+    difficulty: medium
+    question: "An organization must share several existing Delta tables with an external partner who does NOT use Databricks, without copying or duplicating the data, and using an open protocol. Which Databricks capability is designed for this, and what are the core objects involved?"
+    options:
+      - id: a
+        text: "Delta Sharing: create a share containing the tables and a recipient for the partner; the open protocol lets non-Databricks clients read the data live without copying it."
+        correct: true
+      - id: b
+        text: "Lakehouse Federation: create a connection and foreign catalog so the partner can query the tables."
+        correct: false
+      - id: c
+        text: "Export the tables to CSV and send them to the partner over SFTP on a schedule."
+        correct: false
+      - id: d
+        text: "Grant the partner a Unity Catalog SELECT privilege on your tables directly via their email."
+        correct: false
+    answer: [a]
+    explanation: "Delta Sharing is an open protocol for securely sharing existing Delta data, Databricks-to-Databricks and to non-Databricks recipients, without copying it; you publish a share (a collection of tables) and define recipients who consume it via open-protocol clients. B is the classic trap: Lakehouse Federation is for querying external source systems FROM Databricks, not for sharing your data OUT to others. C duplicates the data (copies to CSV) and abandons live, governed access. D is wrong: external non-Databricks partners are not principals in your Unity Catalog metastore, so you cannot simply GRANT SELECT to their email."
+    references:
+      - "https://docs.databricks.com/aws/en/delta-sharing/"
+    tags: [delta-sharing, share, recipient, open-protocol]
+    source: original
+
+  - id: dbx-pro-0059
+    type: single_choice
+    exam: professional
+    domain: "Data Sharing and Federation"
+    subdomain: "Lakehouse Federation"
+    difficulty: hard
+    question: "Analysts need to run live joins between Databricks Delta tables and operational data that lives in an external PostgreSQL database, without ETL-ing or migrating the Postgres data into the lakehouse, and the access must be governed by Unity Catalog. Which approach is correct?"
+    options:
+      - id: a
+        text: "Lakehouse Federation: create a connection holding the Postgres credentials, then a foreign catalog that exposes the Postgres schemas/tables; query them live, governed by Unity Catalog."
+        correct: true
+      - id: b
+        text: "Delta Sharing: create a share for the Postgres tables and add the analysts as recipients."
+        correct: false
+      - id: c
+        text: "Set up a nightly batch job that copies the Postgres tables into Delta so the analysts can join them."
+        correct: false
+      - id: d
+        text: "Mount the PostgreSQL data files into DBFS and register them as external Delta tables."
+        correct: false
+    answer: [a]
+    explanation: "Lakehouse Federation lets you query external sources (PostgreSQL, MySQL, Oracle, Redshift, Snowflake, BigQuery, etc.) live via JDBC without migrating data; you define a connection (credentials) and a foreign catalog that mirrors the remote schema, all governed by Unity Catalog. B is the trap: Delta Sharing shares Delta data OUT via an open protocol; it does not connect Databricks to a live external Postgres source, and Postgres tables are not Delta tables you own to share. C explicitly migrates the data via ETL, which the requirement forbids. D is invalid: PostgreSQL stores data in its own engine/format, not as files you can mount and read as Delta."
+    references:
+      - "https://docs.databricks.com/aws/en/query-federation/"
+    tags: [lakehouse-federation, connection, foreign-catalog, postgres, jdbc]
+    source: original
+
+  - id: dbx-pro-0060
+    type: single_choice
+    exam: professional
+    domain: "Data Sharing and Federation"
+    subdomain: "Delta Sharing vs Federation"
+    difficulty: hard
+    question: "Two requirements arrive in the same week: (1) a sister company on Databricks wants to consume your curated Delta tables without you duplicating them, and (2) your analysts need to read live from a Snowflake warehouse you do not own, without copying it in. Which pairing of Databricks features correctly addresses (1) and (2) respectively?"
+    options:
+      - id: a
+        text: "(1) Delta Sharing (share + recipient, Databricks-to-Databricks); (2) Lakehouse Federation (connection + foreign catalog to Snowflake)."
+        correct: true
+      - id: b
+        text: "(1) Lakehouse Federation (foreign catalog over your Delta tables); (2) Delta Sharing (recipient for the Snowflake data)."
+        correct: false
+      - id: c
+        text: "Use Delta Sharing for both (1) and (2), since it can read any external warehouse live."
+        correct: false
+      - id: d
+        text: "Use Lakehouse Federation for both (1) and (2), since it can publish your Delta tables to other accounts."
+        correct: false
+    answer: [a]
+    explanation: "These are the two distinct, complementary features. (1) Sharing your own Delta data to another Databricks org without copying is exactly Delta Sharing (a share consumed by a recipient). (2) Reading live from an external warehouse you do not own (Snowflake) without copying is Lakehouse Federation (a connection plus a foreign catalog). B swaps them: Federation does not share your data out, and Delta Sharing cannot ingest a Snowflake source. C is wrong because Delta Sharing shares existing Delta data, it does not query arbitrary external warehouses live. D is wrong because Lakehouse Federation queries remote sources INTO Databricks; it does not publish your Delta tables out to other accounts."
+    references:
+      - "https://docs.databricks.com/aws/en/delta-sharing/"
+      - "https://docs.databricks.com/aws/en/query-federation/"
+    tags: [delta-sharing, lakehouse-federation, distinction, governance]
+    source: original

@@ -37,12 +37,13 @@ development_status:
   5-6-single-select-mcq-runner-frontend: done
 
   # EPIC 6: Session Control & Study QoL (after Epic 5, before Epic 4)
-  6-1-match-count-endpoint-start-screen: ready-for-dev
-  6-2-session-by-ids-endpoint-replay: ready-for-dev
-  6-3-session-state-feedback-retention-back-skip: ready-for-dev
-  6-4-end-session-exit-confirm-home: ready-for-dev
-  6-5-progress-bar-navigation-keyboard: ready-for-dev
-  6-6-summary-review-and-replay: ready-for-dev
+  6-1-match-count-endpoint-start-screen: done
+  6-2-session-by-ids-endpoint-replay: done
+  6-3-session-state-feedback-retention-back-skip: done
+  6-4-end-session-exit-confirm-home: done
+  6-5-progress-bar-navigation-keyboard: done
+  6-6-summary-review-and-replay: done
+  6-7-exam-filter-session-scoping: done
 
   # EPIC 4: Code-Completion Practice (Phase 2 — after Epics 5 & 6)
   4-1-create-code-completion-page-template-display: ready-for-dev
@@ -60,15 +61,14 @@ development_status:
 # blocked         — Story blocked, reason documented in story file
 
 summary:
-  total_stories: 34
-  ready_for_dev: 11
+  total_stories: 35
+  ready_for_dev: 5
   in_progress: 0
   review: 0
   approved: 0
   merged: 10
-  done: 13
+  done: 20
   blocked: 0
   last_updated: 2026-06-06
-  completed: "23 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done, Epic 5: 5.1-5.6 done/verified)"
-  ready_for_dev_detail: "11 ready (Epic 6: 6.1-6.6, Epic 4: 4.1-4.5). Priority: Epic 6 → Epic 4."
-  notes: "Epic 5 (MCQ Variety & Randomization) implemented & verified 2026-06-06 (backend 158 tests green, frontend 28 green). Not yet committed."
+  completed: "30 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done, Epic 5: 5.1-5.6 done, Epic 6: 6.1-6.7 done)"
+  ready_for_dev_detail: "5 ready (Epic 4: 4.1-4.5, Code-Completion / Phase 2). Epic 6 (Session Control & Study QoL, incl. 6.7 exam filter) implemented & verified 2026-06-06: backend 200 tests, frontend 94 tests, ruff + eslint clean. Uncommitted."

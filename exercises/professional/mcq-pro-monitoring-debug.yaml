@@ -1,0 +1,337 @@
+# Databricks DE Certification (Professional) - Monitoring & Debugging MCQs
+# Generated: 2026-06-06
+# Total Questions: 12
+# Domain Distribution:
+#   - Monitoring and Alerting: 6 (dbx-pro-0036 .. dbx-pro-0041)
+#   - Debugging and Deploying: 6 (dbx-pro-0042 .. dbx-pro-0047)
+
+exercises:
+  # ========== MONITORING AND ALERTING (6 questions) ==========
+  - id: dbx-pro-0036
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "System tables - cost"
+    difficulty: medium
+    question: "A platform team needs a daily chargeback report attributing DBU cost per job and per SKU across the whole Databricks account, without instrumenting every workload manually. Which system table query is the most appropriate foundation for this report?"
+    code_context: |
+      -- Goal: attribute cost (USD) per usage record over the last 30 days.
+    options:
+      - id: a
+        text: "Join system.billing.usage to system.billing.list_prices on the SKU and price effective dates to compute USD cost per usage record, filtering on usage_date"
+        correct: true
+      - id: b
+        text: "Query system.compute.node_timeline, which already contains a per-node USD cost column for every interval"
+        correct: false
+      - id: c
+        text: "Query system.access.audit, which records the dollar amount billed for each API call"
+        correct: false
+      - id: d
+        text: "Query system.query.history, which stores the DBU and USD totals for every job run"
+        correct: false
+    explanation: "system.billing.usage records consumption in DBUs with metadata (workspace, SKU, tags, job/warehouse identifiers); to convert to currency you join system.billing.list_prices, which holds the price per SKU with effective-date ranges, so the join must respect those dates. That pairing is the documented basis for cost/chargeback reporting. B is wrong: node_timeline gives utilization (CPU/memory per node interval), not cost. C is wrong: access.audit captures audit events (who did what), with no billing amounts. D is wrong: query.history captures SQL query execution metrics and metadata, not billed dollar amounts."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/billing"
+    tags: [system-tables, billing, cost, chargeback, monitoring]
+    source: original
+
+  - id: dbx-pro-0037
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "System tables - access"
+    difficulty: medium
+    question: "After a sensitive table was accidentally exposed, governance asks you to trace every downstream table and view that read from it so they can assess blast radius. The lineage must be queryable programmatically and cover the whole metastore. Which system table best supports this?"
+    options:
+      - id: a
+        text: "system.access.table_lineage, which records upstream/downstream table-to-table read and write relationships captured by Unity Catalog"
+        correct: true
+      - id: b
+        text: "system.lakeflow.pipelines, which stores the full column-level lineage graph for all tables"
+        correct: false
+      - id: c
+        text: "system.compute.clusters, because lineage is derived from which cluster wrote the data"
+        correct: false
+      - id: d
+        text: "The Delta transaction log (_delta_log) of the sensitive table, which lists all readers"
+        correct: false
+    explanation: "Unity Catalog captures lineage and surfaces it in system.access.table_lineage (table-grain) and system.access.column_lineage (column-grain), which are queryable to find upstream/downstream relationships across the metastore. B is wrong: system.lakeflow.pipelines holds pipeline metadata, not the lineage graph. C is wrong: system.compute.clusters describes compute configuration/lifecycle, not data lineage. D is wrong: the _delta_log records the table's own commits (adds/removes), not which external tables or queries read from it."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/lineage"
+    tags: [system-tables, lineage, access, governance, monitoring]
+    source: original
+
+  - id: dbx-pro-0038
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Data quality alerting"
+    difficulty: medium
+    question: "Stakeholders want to be paged when the count of NULL customer_ids ingested in the last hour exceeds a threshold, using a result computed by a SQL query on the gold table. They want the simplest native Databricks mechanism that evaluates the query on a schedule and notifies a destination when the condition is met. What should you use?"
+    options:
+      - id: a
+        text: "A Databricks SQL Alert that runs the query on a schedule and triggers a notification when the result meets the configured condition"
+        correct: true
+      - id: b
+        text: "A Spark Structured Streaming foreachBatch sink that emails recipients on every microbatch"
+        correct: false
+      - id: c
+        text: "A row-level Delta constraint that sends an email when violated"
+        correct: false
+      - id: d
+        text: "The Spark UI, configured to push a notification when a stage reports null values"
+        correct: false
+    explanation: "Databricks SQL Alerts run a saved query on a schedule, evaluate a condition against a value in the result set, and send notifications to configured destinations when triggered. That is the native, low-effort mechanism for result-based data-quality alerting. B is wrong: it requires custom streaming code and fires per microbatch, not on a scheduled threshold evaluation. C is wrong: Delta CHECK constraints reject or quarantine rows but do not send notifications. D is wrong: the Spark UI is an interactive diagnostics tool, not an alerting service."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/user/alerts/"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+    tags: [sql-alerts, data-quality, alerting, monitoring]
+    source: original
+
+  - id: dbx-pro-0039
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Pipeline observability"
+    difficulty: hard
+    question: "A Lakeflow Declarative Pipeline intermittently drops a small number of records, and the team suspects an expectation is silently dropping rows. They need to programmatically audit how many records each expectation flagged per update, retained for analysis. What is the most appropriate source?"
+    options:
+      - id: a
+        text: "Query the pipeline's event log, where data quality results from expectations are emitted as structured events that can be queried"
+        correct: true
+      - id: b
+        text: "Read the driver's stdout log4j output, since expectation metrics are only printed there"
+        correct: false
+      - id: c
+        text: "Query system.billing.usage, which records the number of rows dropped per expectation"
+        correct: false
+      - id: d
+        text: "Inspect the Spark UI SQL tab, the only place expectation pass/fail counts are surfaced"
+        correct: false
+    explanation: "Lakeflow Declarative Pipelines write a structured event log capturing pipeline observability data, including data-quality metrics from expectations (records passed/failed/dropped) per flow and update, which you can query as a table for auditing and dashboards. B is wrong: stdout is unstructured and not the durable, queryable source for expectation metrics. C is wrong: billing.usage tracks consumption in DBUs, not data-quality row counts. D is wrong: the Spark UI shows execution metrics, not expectation pass/fail aggregates, and is ephemeral."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/observability"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+    tags: [lakeflow, event-log, expectations, observability, monitoring]
+    source: original
+
+  - id: dbx-pro-0040
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "System tables - jobs"
+    difficulty: hard
+    question: "An on-call engineer wants a centralized query that reports, across all jobs in the account, which job runs failed in the last 24 hours and their task-level failure status, so they can build a monitoring dashboard rather than scrape each job's UI. Which system tables should the query draw from?"
+    options:
+      - id: a
+        text: "system.lakeflow.jobs together with system.lakeflow.job_tasks (and the related job run timeline tables) to correlate job and task-level run outcomes"
+        correct: true
+      - id: b
+        text: "system.compute.warehouse_events, which records job task success/failure for all jobs"
+        correct: false
+      - id: c
+        text: "system.access.column_lineage, which records the failure status of each job task"
+        correct: false
+      - id: d
+        text: "system.billing.list_prices, which lists which jobs failed and their retry counts"
+        correct: false
+    explanation: "The system.lakeflow schema exposes jobs and job_tasks metadata (plus run timelines) so you can query job and task run outcomes across the whole account for monitoring dashboards. B is wrong: warehouse_events tracks SQL warehouse lifecycle events (start/stop/scaling), not job task outcomes. C is wrong: column_lineage records column-level data lineage, not run status. D is wrong: list_prices is a pricing reference table and has nothing to do with job runs."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/jobs"
+    tags: [system-tables, lakeflow, jobs, monitoring, dashboard]
+    source: original
+
+  - id: dbx-pro-0041
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Query performance diagnostics"
+    difficulty: medium
+    question: "A SQL warehouse query that normally finishes in seconds suddenly takes minutes. You need to identify whether the slowdown is caused by data skew, spilling, or a large shuffle in a specific operator of that one query. Which tool gives the most direct, per-operator diagnosis?"
+    options:
+      - id: a
+        text: "The Query Profile (query profiler) for that query, which breaks down execution time, rows, and memory/spill by operator"
+        correct: true
+      - id: b
+        text: "system.billing.usage filtered to the query's warehouse, to see the operator-level skew metrics"
+        correct: false
+      - id: c
+        text: "The account-level audit log, which records per-operator execution times"
+        correct: false
+      - id: d
+        text: "A Databricks SQL Alert on the query, which reports which operator spilled to disk"
+        correct: false
+    explanation: "The Query Profile (query profiler UI) visualizes a single query's execution plan with per-operator metrics (time spent, rows processed, memory, spill, shuffle bytes), making it the direct tool for diagnosing skew/spill/shuffle bottlenecks in one query; Spark UI serves the same purpose for Spark jobs. B is wrong: billing.usage is cost/consumption data with no operator metrics. C is wrong: the audit log records access events, not query operator metrics. D is wrong: SQL Alerts evaluate a result condition and notify; they do not expose execution plan internals."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/user/queries/query-profile"
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/debugging-spark-ui"
+    tags: [query-profile, spark-ui, performance, diagnostics, monitoring]
+    source: original
+
+  # ========== DEBUGGING AND DEPLOYING (6 questions) ==========
+  - id: dbx-pro-0042
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Jobs - repair run"
+    difficulty: medium
+    question: "A nightly multi-task job with 12 tasks failed on the 9th task because of a transient upstream outage. The first 8 tasks are expensive and already produced correct outputs. Once the outage is resolved, what is the most efficient way to complete the run?"
+    options:
+      - id: a
+        text: "Use Repair run, which re-executes only the failed task and its unrun downstream tasks while reusing the successful tasks' results"
+        correct: true
+      - id: b
+        text: "Trigger a brand-new run of the job from the start so every task executes again"
+        correct: false
+      - id: c
+        text: "Clone the job, delete the first 8 tasks, and run the clone"
+        correct: false
+      - id: d
+        text: "Edit the failed task to set retries to a higher value, which retroactively reruns it within the original run"
+        correct: false
+    explanation: "Repair run re-runs only the failed (and not-yet-run dependent) tasks within the same job run, reusing the outputs of tasks that already succeeded, which avoids recomputing the expensive first 8 tasks. B is wrong: a fresh run recomputes everything, wasting compute. C is wrong: cloning and editing tasks is error-prone, breaks the original run's lineage, and is unnecessary. D is wrong: changing the retry setting affects future executions; it does not retroactively repair the already-failed run."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/repair-run"
+      - "https://docs.databricks.com/aws/en/jobs/"
+    tags: [jobs, repair-run, debugging, recovery]
+    source: original
+
+  - id: dbx-pro-0043
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Asset bundles - CI/CD"
+    difficulty: medium
+    question: "Your team wants to define jobs and pipelines as code in a Git repo, validate them in CI, and deploy identical resources to dev, staging, and prod targets via GitHub Actions. Which Databricks feature is purpose-built for this?"
+    options:
+      - id: a
+        text: "Databricks Asset Bundles, configured via databricks.yml and deployed with the Databricks CLI (bundle validate/deploy/run), supporting multiple targets and Git-based CI/CD"
+        correct: true
+      - id: b
+        text: "Exporting each notebook as a .dbc archive and importing it manually into each workspace"
+        correct: false
+      - id: c
+        text: "Using Delta Sharing to replicate jobs and pipelines between workspaces"
+        correct: false
+      - id: d
+        text: "Cloning the production workspace with the system.access.audit table"
+        correct: false
+    explanation: "Databricks Asset Bundles (DABs) are the IaC approach: a databricks.yml describes jobs, pipelines, dashboards, serving endpoints, etc., per-target overrides handle dev/staging/prod, and the Databricks CLI (bundle init/validate/deploy/run) integrates with Git CI/CD such as GitHub Actions. B is wrong: manual .dbc import is not reproducible IaC and does not deploy jobs/pipelines as code. C is wrong: Delta Sharing shares data, not job/pipeline definitions. D is wrong: system.access.audit is a read-only monitoring table and cannot clone a workspace."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/"
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/"
+    tags: [asset-bundles, ci-cd, deploy, iac, databricks-cli]
+    source: original
+
+  - id: dbx-pro-0044
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Asset bundles - workflow"
+    difficulty: medium
+    question: "You changed the cluster size of a job defined in a Databricks Asset Bundle. Before pushing to the staging target in CI, you want to catch configuration/syntax errors without actually creating or modifying any resources in the workspace. Which CLI command should the CI step run first?"
+    code_context: |
+      databricks bundle ___ -t staging
+    options:
+      - id: a
+        text: "databricks bundle validate -t staging, which checks the bundle configuration and resolves the target without deploying resources"
+        correct: true
+      - id: b
+        text: "databricks bundle deploy -t staging, which is the only way to detect configuration errors"
+        correct: false
+      - id: c
+        text: "databricks bundle run -t staging, which dry-runs the job to surface config errors"
+        correct: false
+      - id: d
+        text: "databricks bundle destroy -t staging, to clear stale config before validating"
+        correct: false
+    explanation: "databricks bundle validate parses and resolves the bundle configuration for the chosen target, reporting schema/reference errors, without creating or modifying any workspace resources, making it the correct pre-deploy CI gate. B is wrong: deploy actually creates/updates resources, which is exactly what you want to avoid before validation passes. C is wrong: run executes a resource (e.g., triggers a job) and requires it to already be deployed; it is not a config validator. D is wrong: destroy deletes the bundle's deployed resources for the target, which is destructive and unrelated to validation."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/"
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/"
+    tags: [asset-bundles, databricks-cli, validate, ci-cd, deploy]
+    source: original
+
+  - id: dbx-pro-0045
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Diagnostics"
+    difficulty: hard
+    question: "A production Spark job intermittently fails with executor OutOfMemory errors that you cannot reproduce locally. You need to inspect the actual stage that ran out of memory, its task distribution, and shuffle/spill behavior for the failed run. Which diagnostic source is the most direct?"
+    options:
+      - id: a
+        text: "The Spark UI (and its event-log-backed history) for the failed run, examining the stages, task metrics, and shuffle/spill for the failing stage"
+        correct: true
+      - id: b
+        text: "system.billing.list_prices, to see which executor SKU caused the OOM"
+        correct: false
+      - id: c
+        text: "A Databricks SQL Alert, which captures the executor heap dump at failure"
+        correct: false
+      - id: d
+        text: "The databricks.yml bundle file, which logs the runtime memory usage of each executor"
+        correct: false
+    explanation: "The Spark UI exposes per-stage and per-task execution metrics including input/shuffle sizes, spill, and task duration distribution, which is the direct way to diagnose executor OOM and skew; for completed clusters this is accessible via the Spark history backed by the cluster's event/driver logs. B is wrong: list_prices is pricing reference data, unrelated to memory diagnostics. C is wrong: SQL Alerts evaluate query results and notify; they do not capture heap dumps. D is wrong: databricks.yml is declarative deployment config, not a runtime metrics source."
+    references:
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/debugging-spark-ui"
+      - "https://docs.databricks.com/aws/en/compute/configure"
+    tags: [spark-ui, oom, debugging, diagnostics, logs]
+    source: original
+
+  - id: dbx-pro-0046
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Jobs - parameters and task values"
+    difficulty: hard
+    question: "You are repairing a failed run of a multi-task job. The failed task takes a date parameter, and you want to re-run just that task with a corrected date value for this repair only, without permanently changing the job definition. What is the correct approach?"
+    options:
+      - id: a
+        text: "Use Repair run and supply a parameter override for the failed task, which applies the new value to the repaired run only"
+        correct: true
+      - id: b
+        text: "Permanently edit the job's task parameter, since repair always reuses the stored job definition"
+        correct: false
+      - id: c
+        text: "Delete the job and recreate it with the corrected parameter, then run it"
+        correct: false
+      - id: d
+        text: "Change the cluster's Spark config to inject the date, because tasks cannot accept parameter overrides on repair"
+        correct: false
+    explanation: "Repair run lets you re-run failed/selected tasks and supply parameter overrides that apply only to that repaired run, so you can correct the date for the retry without mutating the job definition. B is wrong: editing the job permanently changes future runs and is unnecessary for a one-off repair. C is wrong: deleting and recreating the job is destructive and loses history. D is wrong: tasks do accept parameter overrides on repair, and abusing Spark config is an incorrect, non-targeted hack."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/repair-run"
+      - "https://docs.databricks.com/aws/en/jobs/"
+    tags: [jobs, repair-run, parameters, task-values, debugging]
+    source: original
+
+  - id: dbx-pro-0047
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Deployment automation"
+    difficulty: medium
+    question: "A platform team must integrate Databricks job deployment into an existing Jenkins pipeline that runs on a Linux build agent with no interactive UI access. They need to script the creation and triggering of jobs reproducibly. Which combination is the intended Databricks-native automation surface?"
+    options:
+      - id: a
+        text: "The Databricks CLI and/or the Databricks REST API, which expose job and pipeline create/update/run operations for scripted, non-interactive automation"
+        correct: true
+      - id: b
+        text: "Manually clicking through the Jobs UI and recording a macro to replay on the build agent"
+        correct: false
+      - id: c
+        text: "Editing the _delta_log of the job's output table to register the new job"
+        correct: false
+      - id: d
+        text: "Querying system.lakeflow.jobs with an INSERT statement to create the new job"
+        correct: false
+    explanation: "The Databricks CLI and REST API are the documented automation surfaces for managing and triggering jobs/pipelines from CI tools like Jenkins; both are non-interactive and scriptable (and Asset Bundles build on the CLI). B is wrong: UI clicking/macros are not reproducible CI automation and require a UI session. C is wrong: the _delta_log records table transactions and cannot register jobs. D is wrong: system tables are read-only views for monitoring; you cannot INSERT to create a job."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/"
+      - "https://docs.databricks.com/aws/en/jobs/"
+    tags: [databricks-cli, rest-api, deploy, automation, ci-cd]
+    source: original

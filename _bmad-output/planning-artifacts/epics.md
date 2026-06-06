@@ -219,7 +219,7 @@ Give the learner control over the practice session: end/exit/restart, navigation
 
 **What users accomplish:** End a session and return home (with a confirm and optional partial results), restart or re-drill missed questions, move back/skip/by-keyboard, see a progress bar + running score, and preview how many questions match before starting.
 
-**FRs/ARs covered:** UX-DR1–UX-DR12; backend `GET /api/exercises/count` (G1) and `POST /api/sessions {exerciseIds}` (G2); frontend feedback-retention + reducer actions/states (G3).
+**FRs/ARs covered:** UX-DR1–UX-DR12; backend `GET /api/exercises/count` (G1) and `POST /api/sessions {exerciseIds}` (G2); frontend feedback-retention + reducer actions/states (G3); **exam filter / session scoping (Story 6.7 — added after Professional content landed so sessions don't mix exams).**
 
 **Priority:** After Epic 5, before Epic 4. Builds on Epic 5's refactored single-select runner (clean dependency; Epic 5 stands alone). Source: EXPERIENCE.md (final).
 
@@ -807,5 +807,25 @@ So that **I can target my weak spots and re-drill**.
 **And** a partial Summary surfaces answered and skipped counts
 **And** the existing "Start a new session" action is retained
 **And** tests cover review-incorrect, practice-again, restart, and partial counts
+
+---
+
+### Story 6.7: Exam Filter & Session Scoping
+
+As a **a student**,
+I want **to choose which exam (Associate or Professional) I'm practicing and have domains scoped to it**,
+So that **a session never mixes Associate and Professional questions now that both content sets exist**.
+
+**Acceptance Criteria:**
+
+**Given** the corpus now contains both Associate (72) and Professional (60) exercises
+**When** I open the Start screen (`frontend/src/pages/SessionSelect.jsx`)
+**Then** I can select an **exam** (Associate | Professional), and the Domain dropdown lists only that exam's domains
+**And** `GET /api/sessions` and `GET /api/exercises/count` accept an `exam` query param that filters the corpus by exam
+**And** starting a session with `exam=associate` yields only Associate exercises (and likewise for professional)
+**And** with no exam selected the behavior is defined and documented (default to one exam rather than silently mixing)
+**And** the match count (Story 6.1) reflects the selected exam
+**And** backend filtering reuses the existing `filter_exercises` exam support; the frontend `DOMAINS` constant is organized per-exam
+**And** tests cover exam filtering on both endpoints and the per-exam domain UI
 
 ---
