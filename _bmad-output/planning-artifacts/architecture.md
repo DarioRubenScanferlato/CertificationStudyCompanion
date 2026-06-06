@@ -3,6 +3,11 @@ stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 status: 'complete'
 completedAt: '2026-06-05'
 lastStep: 8
+revisions:
+  - date: '2026-06-05'
+    summary: 'PRD rev 2 — randomness & variety: Option Pool (FR-19), server-side Displayed-Option sampling + position shuffle (FR-20), randomized session order (FR-21); single-select only (FR-9 removed). Added GET /api/sessions, revised POST /api/feedback contract, session randomizer decision, re-study variety cross-cutting concern.'
+  - date: '2026-06-05'
+    summary: 'UX QoL pass (EXPERIENCE.md) — closed 3 gaps: G1 GET /api/exercises/count (leak-free Start-screen match count); G2 POST /api/sessions {exerciseIds} for replay (Restart-same / Practice-incorrect, keeps FR-20/21 freshness); G3 frontend feedback-retention + new reducer actions/states (prev, skip, endToSummary, replay) for Back/Review-incorrect/partial-Summary. See ux-designs/ux-DataBricks-DE-cert-study-companion-2026-06-05/EXPERIENCE.md.'
 inputDocuments:
   - /Users/dariorubenscanferlato/Documents/Projects/DataBricks-DE-cert-study-companion/_bmad-output/planning-artifacts/prds/prd-DataBricks-DE-cert-study-companion-2026-06-05/prd.md
   - /Users/dariorubenscanferlato/Documents/Projects/DataBricks-DE-cert-study-companion/_bmad-output/planning-artifacts/prds/prd-DataBricks-DE-cert-study-companion-2026-06-05/addendum.md
@@ -23,11 +28,11 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Requirements Overview
 
-**Functional Requirements (18 total, across 4 features):**
+**Functional Requirements (21 total, across 4 features; FR-9 removed/tombstoned per PRD rev 2):**
 
 1. **Exercise Content Format & Loading (FR-1 through FR-4, FR-18):** Portable, standardized, human-authorable exercise format (YAML-authored, optionally JSON-served). Runtime file loading from a designated directory. Blueprint-aligned Domain tagging. Anki export support.
 
-2. **Multiple-Choice Practice (FR-5 through FR-12):** Exam-realistic MCQ runner — domain/difficulty filtering, single-question-at-a-time view, immediate feedback, per-distractor explanations with doc links, end-of-session summary. Supports both single-select and multi-select (all-or-nothing scoring).
+2. **Multiple-Choice Practice (FR-5 through FR-12, FR-19 through FR-21):** Exam-realistic MCQ runner — domain/difficulty filtering, single-question-at-a-time view, immediate feedback, per-distractor explanations with doc links, end-of-session summary. **Single-select only** (multi-select removed, PRD rev 2). Each MCQ is an **Option Pool** (≥1 correct, ≥3 incorrect, no upper bound — FR-19); the runner samples **4 Displayed Options** (1 correct + 3 distractors) in **shuffled positions** per presentation (FR-20) and presents Exercises in **randomized order** per session (FR-21). Sampling/shuffle/order randomization are computed **server-side** (correct flags never leave the backend).
 
 3. **Code-Completion "Wordle" Practice (FR-13 through FR-17, Phase 2):** Novel syntax-drilling exercise type with token-level positional feedback (green/yellow/grey). Single-line/fill-in-blank scope. Whitespace-insensitive. Accepts alternative correct answers. Critical design: playfulness and delight are load-bearing, not incidental.
 
@@ -89,6 +94,10 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Not app beauty; time-to-passing-exam is the real constraint.
 - Architectural implication: Minimize app complexity, maximize content authoring velocity. Prefer borrowing table-stakes features (MCQ runner) to building them.
 
+**6. Re-study Variety / Freshness (Randomness)**
+- An MCQ should feel new on the 2nd/3rd view rather than memorized-by-position. Driven by the Option Pool (≥1 correct, ≥3 incorrect, no upper bound) plus per-presentation sampling/shuffle (FR-20) and per-session question-order randomization (FR-21).
+- Architectural implication: the runner is **stateless and non-deterministic per request** — sampling and ordering happen **server-side** at session-build / presentation time, with no anti-repeat memory in MVP (uniform-at-random). The full pool and `correct` flags stay on the backend; the client only ever receives 4 flag-less Displayed Options, so it cannot pre-compute the answer. This concern only touches the MCQ runner and its API contract; the content schema (FR-19) and validation absorb the rest.
+
 ### Scale & Complexity Assessment
 
 **Project Complexity: Medium (but timeline-constrained)**
@@ -102,8 +111,8 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 **Estimated Architectural Components:**
 - Content loader (file → parsed exercises in memory)
-- Exercise filtering/session builder (domain, difficulty, type)
-- MCQ renderer & input handler (single-select, multi-select)
+- Exercise filtering/session builder (domain, difficulty, type) + **session randomizer** (option-pool sampling, option-position shuffle, exercise-order randomization — server-side)
+- MCQ renderer & input handler (**single-select only**; renders 4 server-supplied Displayed Options)
 - Code-Completion renderer, tokenizer, feedback engine
 - Anki export converter (separate utility script)
 - (Optional) Lean session runner UI
@@ -279,6 +288,13 @@ Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing 
 - CodeCompletion page (Phase 2) → holds attempt, feedback, attempt count
 - Session wrapper → provides session context (exercises list, user progress)
 
+**QoL additions (UX rev — EXPERIENCE.md):** the session reducer expands to support the quality-of-life behaviors:
+- **Feedback retention (G3):** with grading server-side and `correct` flags stripped, the client must persist each `POST /api/feedback` response in `feedback[exerciseId]` as `{ correct, correctOptionId, explanation, references }`. This powers **Back/Previous read-only revisit** and the **Review-incorrect** list with no re-grade; revisiting a submitted question must **not** re-POST (answers are final).
+- **New actions:** `prev` (decrement index; revisit read-only), `skip` (advance without grading; records the question as *unanswered*, not incorrect), `endToSummary` (exit Practice early → Summary over the answered subset), and an `exit`/`reset` to Start (existing `reset`). Replay actions `restartSession` / `practiceIncorrect(ids)` call `POST /api/sessions {exerciseIds}` for a fresh-sampled set.
+- **Per-question state:** `unanswered | answered | skipped`, plus a furthest-reached pointer so Back/Next can't overrun; session-level `active | ended-early | completed`.
+- **Partial Summary:** `computeResults` already scores only answered exercises, so the early-exit Summary needs no backend change; it surfaces answered/skipped counts.
+- **New behavioral components:** progress bar (position + running correct count), persistent End-session control, Exit-confirm modal (focus-trapped), Review-incorrect list. Visual tokens inherited from DESIGN.md.
+
 ---
 
 **Decision: Syntax Highlighting & Code Display**
@@ -331,12 +347,16 @@ const tokens = code.match(sqlTokenPattern);
 **Choice:** Simple REST endpoints, JSON request/response, standard HTTP status codes.
 
 **Endpoints (Backend):**
-- `GET /api/exercises` → list all exercises (with filters: domain, difficulty, type)
-- `GET /api/exercises/{id}` → retrieve single exercise (MCQ or Code-Completion template)
+- `GET /api/sessions` → **build a Practice Session** (filters: domain, difficulty, type). Returns Exercises in **randomized order** (FR-21), each MCQ carrying its **4 sampled, shuffled Displayed Options without `correct` flags** (FR-20). This is the primary MCQ-runner entry point; the randomness lives here.
+  - Response `data`: `[{ exerciseId, domain, difficulty, question, codeContext?, displayedOptions: [{ id, text } × 4] }, ...]`
+- `POST /api/sessions` → **build a session from an explicit exercise-id set** (UX "Restart same session" / "Practice these N again" — EXPERIENCE.md). Request: `{ exerciseIds: [...] }`. Same response shape as `GET /api/sessions`, with **freshly sampled + shuffled Displayed Options and re-randomized order** so replays keep FR-20/21 freshness (the client cannot re-sample — it holds only flag-less options). Unknown ids are dropped (logged), not fatal.
+- `GET /api/exercises/count` → **lightweight match count** for the Start screen "{n} questions match" (filters: domain, difficulty, type). Response `data`: `{ count }`. Returns **no pools/options/flags** — so the practice client never receives `correct` flags (preserves the FR-20 non-leakage rule that `GET /api/exercises` would violate).
+- `GET /api/exercises` → list/inspect exercises (admin/debug, filters). Note: this returns authored exercises incl. pools/flags; the **runner uses `/api/sessions` + `/api/exercises/count`**, never this, so pools/correct flags aren't shipped to the practice UI.
 - `POST /api/feedback` → submit answer, get correctness + explanation
-  - Request: `{ exerciseId, answer, type: "mcq" | "code-completion" }`
-  - Response: `{ correct: bool, explanation: string, references: [...] }`
-- `GET /api/export/anki` → trigger Anki export (returns download or JSON)
+  - Request (MCQ): `{ exerciseId, displayedOptionIds: [...], selectedId, type: "mcq" }` — `displayedOptionIds` echoes the 4 shown so the backend scores against exactly what the user saw
+  - Request (Code-Completion, Phase 2): `{ exerciseId, attempt, type: "code-completion" }`
+  - Response: `{ correct: bool, correctOptionId, explanation: string, references: [...] }`
+- `GET /api/export/anki` → trigger Anki export (returns download or JSON). Note: export flattens each pool to one correct + distractors; runner-only sampling/shuffle/order (FR-20/21) do not apply to the export.
 
 **Response Format (Standard):**
 ```json
@@ -371,10 +391,10 @@ or on error:
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Exercise file parse error: unexpected field 'answer' in multi_choice. Expected one of: options, correct_id, explanation.",
+    "message": "Option Pool invalid for single_choice exercise: needs >=1 correct and >=3 incorrect options, found 1 correct / 2 incorrect.",
     "details": {
       "file": "exercises/associate/incremental-processing.yaml",
-      "exerciseId": "dbx-code-0007"
+      "exerciseId": "dbx-de-0142"
     }
   }
 }
@@ -422,10 +442,31 @@ or on error:
 
 **Backend Validation:**
 - Parse YAML → validate against schema (id, domain, type, required fields)
+- **Option Pool rule (FR-19):** every MCQ (`single_choice`) must have **≥1 correct and ≥3 incorrect** options; otherwise it can't yield a 1-correct + 3-distractor display. Multiple `correct: true` options are allowed and treated as **interchangeable alternatives** (the Pydantic validator's old "single_choice ⇒ exactly one correct" rule is relaxed accordingly). The removed `multi_choice` type is rejected.
 - If any Exercise is invalid, log error with file + id + what's wrong, skip that Exercise
 - If entire file fails to parse, raise error (halt startup? or skip file with warning?)
 
 **Decision sub-choice:** On file parse failure → **skip file with warning** (allows partial launch; easier dev iteration). On Exercise schema failure → **skip Exercise with error log** (don't crash entire content load for one bad question).
+
+---
+
+**Decision: MCQ Session Randomizer (Option Pool sampling, shuffle, order)**
+
+**Choice:** A server-side session randomizer, invoked when `GET /api/sessions` builds a session. It is stateless and non-deterministic per request.
+
+**Responsibilities:**
+- **Exercise-order randomization (FR-21):** shuffle the full filtered Exercise set fresh each session; no resume-in-order or SRS weighting in MVP.
+- **Displayed-Option sampling (FR-20):** for each MCQ, sample **1** correct option from the pool's correct set and **3** incorrect options from the pool's incorrect set (uniform-at-random, no anti-repeat memory in MVP).
+- **Option-position shuffle (FR-20):** randomize the slot order of the 4 Displayed Options so the correct answer isn't position-stable.
+- **Answer non-leakage:** strip `correct` flags; the response carries only `{ id, text }` per Displayed Option.
+
+**Rationale:**
+- Coheres with the existing pattern: correctness is already evaluated server-side via `POST /api/feedback`. Keeping sampling server-side means the full pool and correct flags never reach the browser, so the client cannot pre-compute the answer (the failure mode of a client-side tier).
+- Stateless RNG per request gives the re-study "freshness" effect for free with no persistence — aligned with the no-persistence NFR.
+
+**Scoring contract:** `POST /api/feedback` receives `displayedOptionIds` + `selectedId` and scores against exactly the 4 options the user saw (single-select: correct iff `selectedId` is the displayed correct option). The former multi-select all-or-nothing path (old FR-9) is removed.
+
+**Implementation note:** lives in `content.py` (or a small `session.py` helper) alongside filtering; `feedback.py` owns scoring. RNG is standard-library; no seed in MVP (vary naturally per request).
 
 ---
 
@@ -809,15 +850,17 @@ project-root/
 ### Architectural Boundaries
 
 **API Boundaries:**
-- `GET /api/exercises` → Returns filtered Exercise list (FR-5, domain/difficulty filtering)
-- `GET /api/exercises/{id}` → Returns single Exercise detail (FR-6)
-- `POST /api/feedback` → MCQ answer submission; returns `{correct, explanation, references}` (FR-8, FR-10)
+- `GET /api/sessions` → Builds a Practice Session: filtered (FR-5), **order-randomized** (FR-21) Exercises, each MCQ carrying **4 sampled + shuffled, flag-less Displayed Options** (FR-20). Primary runner entry point.
+- `POST /api/sessions` → Builds a session from an explicit `exerciseIds[]` (UX replay: "Restart same session" / "Practice these N again"); freshly sampled/shuffled/reordered so replays stay fresh.
+- `GET /api/exercises/count` → Match count `{count}` for the Start-screen filter preview; no pools/options/flags (leak-free).
+- `GET /api/exercises` → Inspect/list authored exercises (admin/debug, FR-5 filtering); not used by the practice UI.
+- `POST /api/feedback` → MCQ answer submission `{exerciseId, displayedOptionIds, selectedId}`; returns `{correct, correctOptionId, explanation, references}` (FR-8, FR-10). Single-select scoring only.
 - `POST /api/feedback/code-completion` → (Phase 2) Code submission + token-level feedback (FR-14)
-- `GET /api/export/anki` → Anki export (FR-18)
+- `GET /api/export/anki` → Anki export (FR-18; runner-only FR-20/21 randomness not applied)
 
 **Component Boundaries:**
-- **SessionSelect** (Frontend) → User selects domain/difficulty → calls `GET /api/exercises?domain=...&difficulty=...` → routes to MCQPractice
-- **MCQPractice** (Frontend) → Holds current Exercise from SessionContext → user selects answer → calls `POST /api/feedback` → renders Feedback component
+- **SessionSelect** (Frontend) → User selects domain/difficulty → calls `GET /api/sessions?domain=...&difficulty=...` → receives order-randomized exercises with pre-sampled, shuffled Displayed Options → routes to MCQPractice
+- **MCQPractice** (Frontend) → Holds current Exercise from SessionContext → renders the 4 Displayed Options as single-select (radio) → user selects one → calls `POST /api/feedback` with `displayedOptionIds` + `selectedId` → renders Feedback component. No client-side sampling/shuffle — the backend already did it.
 - **CodeCompletion** (Frontend, Phase 2) → Tokenizes user input → calls `POST /api/feedback/code-completion` on keystroke → renders green/yellow/grey feedback
 - **SessionContext** (Frontend) → Global session state; shared across pages
 - **content.py** (Backend) → Sole authority on Exercise loading, parsing, filtering; all API routes call it
@@ -830,8 +873,9 @@ project-root/
 - No inter-process communication; single process per service
 
 **Data Boundaries:**
-- **Content flow:** `exercises/*.yaml` → `content.py` (loads at startup) → in-memory list → `GET /api/exercises` filters/returns → Frontend SessionContext
-- **Feedback flow:** Frontend `POST /api/feedback` → `feedback.py` evaluates → response → `Feedback` component renders
+- **Content flow:** `exercises/*.yaml` → `content.py` (loads at startup) → in-memory list (full pools incl. `correct` flags, server-only)
+- **Session flow:** `GET /api/sessions` → session randomizer filters + order-randomizes + samples 1-correct/3-distractor + shuffles positions + strips `correct` flags → Frontend SessionContext (flag-less Displayed Options only)
+- **Feedback flow:** Frontend `POST /api/feedback` (`displayedOptionIds` + `selectedId`) → `feedback.py` single-select scoring → response (`correct`, `correctOptionId`, explanation) → `Feedback` component renders
 - **Export flow:** `export.py` reads `exercises/*.yaml` → generates Anki format → downloads
 - **No persistence** in MVP; session is ephemeral (memory-only)
 
@@ -839,8 +883,9 @@ project-root/
 
 | FR Group | Feature | Frontend Files | Backend Files | Content |
 |----------|---------|---|---|---|
-| **FR-1–4, FR-18** | Exercise format, loading, portability | `api.js` (calls endpoints) | `content.py`, `export.py`, `models.py` | `exercises/` (YAML) |
-| **FR-5–12** | MCQ Practice (MVP priority) | `SessionSelect.jsx`, `MCQPractice.jsx`, `Feedback.jsx`, `SessionSummary.jsx` | `main.py` (/api endpoints), `feedback.py` (correctness) | `associate/` YAML MCQs |
+| **FR-1–4, FR-18, FR-19** | Exercise format (incl. Option Pool ≥1/≥3), loading, validation, portability | `api.js` (calls endpoints) | `content.py`, `export.py`, `models.py` (Option Pool validation) | `exercises/` (YAML) |
+| **FR-5–12** | MCQ Practice (MVP priority) | `SessionSelect.jsx`, `MCQPractice.jsx`, `Feedback.jsx`, `SessionSummary.jsx` | `main.py` (/api endpoints), `feedback.py` (single-select correctness) | `associate/` YAML MCQs |
+| **FR-20, FR-21** | Server-side sampling, option shuffle, randomized session order | `SessionSelect.jsx`/`MCQPractice.jsx` (consume `/api/sessions`) | `content.py` / `session.py` (session randomizer), `main.py` (`GET /api/sessions`) | — |
 | **FR-13–17** | Code-Completion (Phase 2) | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js` | `feedback.py` (code variant), `models.py` (CodeCompletion schema) | `associate/` code exercises |
 
 ### Integration Points
@@ -940,12 +985,13 @@ Project structure (`exercises/` at root, `frontend/` and `backend/` as peer dire
 
 ### Requirements Coverage Validation ✅
 
-**Functional Requirements (18 total):**
+**Functional Requirements (21 total; FR-9 tombstoned):**
 
 | Group | FRs | Architectural Support |
 |-------|-----|----------------------|
-| Content format & loading | FR-1–4, FR-18 | `exercises/` YAML + `content.py` parser + Pydantic models + `export.py` Anki export ✓ |
-| MCQ practice (MVP) | FR-5–12 | `SessionSelect.jsx`, `MCQPractice.jsx`, REST endpoints, Context state, `Feedback.jsx` ✓ |
+| Content format & loading | FR-1–4, FR-18, FR-19 | `exercises/` YAML + `content.py` parser + Pydantic models (Option Pool ≥1/≥3 validation) + `export.py` Anki export ✓ |
+| MCQ practice (MVP) | FR-5–12 | `SessionSelect.jsx`, `MCQPractice.jsx`, REST endpoints, Context state, `Feedback.jsx` (single-select) ✓ |
+| Re-study variety / randomness | FR-20, FR-21 | Server-side session randomizer in `content.py`/`session.py` + `GET /api/sessions`; sampling, option shuffle, order randomization; flag-less Displayed Options ✓ |
 | Code-Completion (Phase 2) | FR-13–17 | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js`, `feedback.py` code variant ✓ |
 | Exercise generation (deferred) | FR-4.4 | Format is generation-ready; authoring path is agent-skill (separate workstream) ✓ |
 
@@ -1041,16 +1087,16 @@ This architecture document is **ready to guide implementation**. AI agents or te
 **Golden Path (Recommended Order):**
 1. Initialize project structure (create all directories listed above; create empty files)
 2. Implement Backend Phase 1:
-   - `models.py` (Pydantic models: Exercise, Session, Feedback)
-   - `content.py` (YAML loading, filtering, validation)
-   - `main.py` (FastAPI app + `/api/exercises` endpoint)
+   - `models.py` (Pydantic models: Exercise/MCQ with Option Pool ≥1/≥3 validation, Session, Feedback)
+   - `content.py` (YAML loading, filtering, validation) + session randomizer (sampling, option shuffle, order randomization — FR-19/20/21)
+   - `main.py` (FastAPI app + `GET /api/sessions` endpoint returning flag-less Displayed Options)
 3. Implement Frontend Phase 1:
    - `SessionContext.jsx` + `useSession.js` (context provider + consumer hook)
    - `SessionSelect.jsx` (domain/difficulty filter UI)
-   - `api.js` (HTTP wrapper + `/api/exercises` call)
+   - `api.js` (HTTP wrapper + `GET /api/sessions` call)
 4. Implement Backend Phase 1b:
-   - `feedback.py` (MCQ correctness evaluation)
-   - `main.py` `/api/feedback` endpoint
+   - `feedback.py` (single-select MCQ correctness; scores `selectedId` against the displayed correct option)
+   - `main.py` `POST /api/feedback` endpoint (`displayedOptionIds` + `selectedId`)
 5. Implement Frontend Phase 1b:
    - `MCQPractice.jsx` (exercise display + answer selection)
    - `Feedback.jsx` (correctness + explanation rendering)

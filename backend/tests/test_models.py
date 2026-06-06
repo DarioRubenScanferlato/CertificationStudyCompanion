@@ -9,7 +9,7 @@ class TestMCQModel:
     """Tests for MCQ model."""
 
     def test_create_valid_mcq(self):
-        """Test creating a valid MCQ."""
+        """Test creating a valid Option Pool MCQ (1 correct + 3 incorrect)."""
         mcq = MCQ(
             id="dbx-de-0001",
             type=ExerciseType.SINGLE_CHOICE,
@@ -20,13 +20,93 @@ class TestMCQModel:
             options=[
                 Option(id="a", text="A data format", correct=True),
                 Option(id="b", text="A database", correct=False),
+                Option(id="c", text="A notebook", correct=False),
+                Option(id="d", text="A cluster", correct=False),
             ],
             answer=["a"],
             explanation="Delta Lake is a storage format with ACID guarantees.",
         )
         assert mcq.id == "dbx-de-0001"
         assert mcq.type == ExerciseType.SINGLE_CHOICE
-        assert len(mcq.options) == 2
+        assert len(mcq.options) == 4
+        assert mcq.answer == ["a"]
+
+    def test_create_valid_mcq_multiple_correct_alternatives(self):
+        """An Option Pool may have >1 correct option (interchangeable)."""
+        mcq = MCQ(
+            id="dbx-de-alt",
+            type=ExerciseType.SINGLE_CHOICE,
+            exam=ExamType.ASSOCIATE,
+            domain=Domain.LAKEHOUSE_PLATFORM,
+            difficulty=Difficulty.EASY,
+            question="Which command creates a managed table?",
+            options=[
+                Option(id="a", text="CREATE TABLE t", correct=True),
+                Option(id="b", text="CREATE TABLE t USING delta", correct=True),
+                Option(id="c", text="DROP TABLE t", correct=False),
+                Option(id="d", text="SELECT * FROM t", correct=False),
+                Option(id="e", text="DELETE FROM t", correct=False),
+            ],
+            explanation="Both A and B create a managed Delta table.",
+        )
+        assert sorted(mcq.answer) == ["a", "b"]
+
+    def test_mcq_requires_at_least_three_incorrect(self):
+        """An Option Pool must have at least 3 incorrect distractors."""
+        with pytest.raises(ValueError, match="at least 3 incorrect"):
+            MCQ(
+                id="dbx-de-few-distractors",
+                type=ExerciseType.SINGLE_CHOICE,
+                exam=ExamType.ASSOCIATE,
+                domain=Domain.LAKEHOUSE_PLATFORM,
+                difficulty=Difficulty.EASY,
+                question="Test?",
+                options=[
+                    Option(id="a", text="Right", correct=True),
+                    Option(id="b", text="Wrong 1", correct=False),
+                    Option(id="c", text="Wrong 2", correct=False),
+                ],
+                explanation="Only 2 distractors.",
+            )
+
+    def test_mcq_rejects_multi_choice(self):
+        """A multi_choice exercise is rejected (type removed from product)."""
+        with pytest.raises(ValueError, match="multi_choice"):
+            MCQ(
+                id="dbx-de-multi",
+                type=ExerciseType.MULTI_CHOICE,
+                exam=ExamType.ASSOCIATE,
+                domain=Domain.ELT_SPARK,
+                difficulty=Difficulty.MEDIUM,
+                question="Which are true? (Select all)",
+                options=[
+                    Option(id="a", text="First", correct=True),
+                    Option(id="b", text="Second", correct=True),
+                    Option(id="c", text="Third", correct=False),
+                    Option(id="d", text="Fourth", correct=False),
+                    Option(id="e", text="Fifth", correct=False),
+                ],
+                explanation="multi_choice is no longer supported.",
+            )
+
+    def test_mcq_rejects_duplicate_option_ids(self):
+        """Duplicate option ids are rejected (they would collapse and mis-grade)."""
+        with pytest.raises(ValueError, match="duplicate option id"):
+            MCQ(
+                id="dbx-de-dup",
+                type=ExerciseType.SINGLE_CHOICE,
+                exam=ExamType.ASSOCIATE,
+                domain=Domain.LAKEHOUSE_PLATFORM,
+                difficulty=Difficulty.EASY,
+                question="Which one?",
+                options=[
+                    Option(id="a", text="Correct", correct=True),
+                    Option(id="a", text="Dup id, wrong", correct=False),
+                    Option(id="c", text="Wrong", correct=False),
+                    Option(id="d", text="Wrong", correct=False),
+                ],
+                explanation="Duplicate id 'a' must be rejected.",
+            )
 
     def test_mcq_requires_at_least_one_option(self):
         """Test that MCQ requires at least one option."""
@@ -44,14 +124,19 @@ class TestMCQModel:
 
     def test_mcq_requires_at_least_one_correct_option(self):
         """Test that MCQ requires at least one option marked correct."""
-        with pytest.raises(ValueError, match="at least one option marked correct"):
+        with pytest.raises(ValueError, match="at least 1 correct option"):
             MCQ(
                 id="test",
                 exam=ExamType.ASSOCIATE,
                 domain=Domain.LAKEHOUSE_PLATFORM,
                 difficulty=Difficulty.EASY,
                 question="Test?",
-                options=[Option(id="a", text="Option", correct=False)],
+                options=[
+                    Option(id="a", text="Option", correct=False),
+                    Option(id="b", text="Option", correct=False),
+                    Option(id="c", text="Option", correct=False),
+                    Option(id="d", text="Option", correct=False),
+                ],
                 explanation="Test",
             )
 
@@ -66,48 +151,13 @@ class TestMCQModel:
             options=[
                 Option(id="a", text="Right", correct=True),
                 Option(id="b", text="Wrong", correct=False),
+                Option(id="c", text="Wrong", correct=False),
+                Option(id="d", text="Wrong", correct=False),
             ],
             answer=["x", "b"],  # bogus/author-supplied input, must be ignored
             explanation="Test",
         )
         assert mcq.answer == ["a"]
-
-    def test_single_choice_rejects_multiple_correct(self):
-        """A single_choice exercise must have exactly one correct option."""
-        with pytest.raises(ValueError, match="exactly one correct option"):
-            MCQ(
-                id="test",
-                type=ExerciseType.SINGLE_CHOICE,
-                exam=ExamType.ASSOCIATE,
-                domain=Domain.LAKEHOUSE_PLATFORM,
-                difficulty=Difficulty.EASY,
-                question="Test?",
-                options=[
-                    Option(id="a", text="One", correct=True),
-                    Option(id="b", text="Two", correct=True),
-                ],
-                explanation="Test",
-            )
-
-    def test_mcq_multi_choice(self):
-        """Test creating a multi-choice MCQ."""
-        mcq = MCQ(
-            id="dbx-de-0002",
-            type=ExerciseType.MULTI_CHOICE,
-            exam=ExamType.ASSOCIATE,
-            domain=Domain.ELT_SPARK,
-            difficulty=Difficulty.MEDIUM,
-            question="Which are true? (Select all)",
-            options=[
-                Option(id="a", text="First", correct=True),
-                Option(id="b", text="Second", correct=True),
-                Option(id="c", text="Third", correct=False),
-            ],
-            answer=["a", "b"],
-            explanation="Both A and B are correct.",
-        )
-        assert mcq.type == ExerciseType.MULTI_CHOICE
-        assert len(mcq.answer) == 2
 
 
 class TestCodeCompletionModel:
@@ -211,7 +261,12 @@ class TestExerciseFromYAML:
             domain=Domain.DATA_GOVERNANCE,
             difficulty=Difficulty.HARD,
             question="Advanced governance question?",
-            options=[Option(id="a", text="Yes", correct=True)],
+            options=[
+                Option(id="a", text="Yes", correct=True),
+                Option(id="b", text="No", correct=False),
+                Option(id="c", text="Maybe", correct=False),
+                Option(id="d", text="Never", correct=False),
+            ],
             answer=["a"],
             explanation="Full explanation here.",
             references=["https://docs.databricks.com/"],
@@ -230,7 +285,12 @@ class TestExerciseFromYAML:
             domain=Domain.LAKEHOUSE_PLATFORM,
             difficulty=Difficulty.MEDIUM,
             question="Q?",
-            options=[Option(id="a", text="A", correct=True)],
+            options=[
+                Option(id="a", text="A", correct=True),
+                Option(id="b", text="B", correct=False),
+                Option(id="c", text="C", correct=False),
+                Option(id="d", text="D", correct=False),
+            ],
             answer=["a"],
             explanation="Explained.",
         )
@@ -251,7 +311,12 @@ class TestExerciseValidation:
             domain=Domain.LAKEHOUSE_PLATFORM,
             difficulty=Difficulty.EASY,
             question="Q?",
-            options=[Option(id="a", text="A", correct=True)],
+            options=[
+                Option(id="a", text="A", correct=True),
+                Option(id="b", text="B", correct=False),
+                Option(id="c", text="C", correct=False),
+                Option(id="d", text="D", correct=False),
+            ],
             answer=["a"],
             explanation="E",
         )

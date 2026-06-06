@@ -108,6 +108,15 @@ exercises:
       - id: a
         text: "Option A"
         correct: true
+      - id: b
+        text: "Option B"
+        correct: false
+      - id: c
+        text: "Option C"
+        correct: false
+      - id: d
+        text: "Option D"
+        correct: false
     answer: [a]
 """)
 
@@ -386,6 +395,15 @@ exercises:
       - id: a
         text: "Option A"
         correct: true
+      - id: b
+        text: "Option B"
+        correct: false
+      - id: c
+        text: "Option C"
+        correct: false
+      - id: d
+        text: "Option D"
+        correct: false
 """)
 
             exercises, error_count, error_log = load_exercises_from_directory(tmpdir)
@@ -441,6 +459,12 @@ exercises:
         correct: true
       - id: b
         text: "Option B"
+        correct: false
+      - id: c
+        text: "Option C"
+        correct: false
+      - id: d
+        text: "Option D"
         correct: false
     answer: [c]
 """)
@@ -683,6 +707,12 @@ exercises:
       - id: b
         text: "Only a data lake"
         correct: false
+      - id: c
+        text: "Only a data warehouse"
+        correct: false
+      - id: d
+        text: "A BI dashboard tool"
+        correct: false
     answer: [a]
   - id: test-002
     type: invalid_type
@@ -748,6 +778,9 @@ exercises:
       - id: c
         text: "Only a data warehouse"
         correct: false
+      - id: d
+        text: "A proprietary file format"
+        correct: false
     answer: [a]
 """)
 
@@ -784,8 +817,8 @@ exercises:
             assert exercises[0].id == "test-001"
             assert exercises[0].type.value == "code_completion"
 
-    def test_multi_choice_mcq(self):
-        """Test successfully loading a multi-choice MCQ."""
+    def test_multi_choice_rejected(self):
+        """multi_choice is removed (PRD rev 2): loading one is a validation error."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yaml_file = Path(tmpdir) / "multi_choice.yaml"
             yaml_file.write_text("""
@@ -815,6 +848,7 @@ exercises:
 
             exercises, error_count, error_log = load_exercises_from_directory(tmpdir)
 
-            assert error_count == 0
-            assert len(exercises) == 1
-            assert len(exercises[0].answer) == 3
+            # multi_choice is no longer a supported type.
+            assert error_count == 1
+            assert len(exercises) == 0
+            assert error_log[0].error_type in ("validation_error", "unknown_type")

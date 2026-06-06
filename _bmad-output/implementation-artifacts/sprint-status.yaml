@@ -1,7 +1,8 @@
 # Sprint Status — DataBricks DE Cert Study Companion
 # Tracks story development progress across all epics
 # Date: 2026-06-05
-# Current Focus: Epic 1 — Project Setup & Infrastructure
+# Current Focus: Epic 5 — MCQ Variety & Randomization (TOP PRIORITY)
+# Priority order for remaining work: Epic 5 → Epic 6 → Epic 4 (Phase 2)
 
 development_status:
   # EPIC 1: Project Setup & Infrastructure (COMPLETE)
@@ -27,7 +28,23 @@ development_status:
   3-6-implement-session-navigation-summary: done
   3-7-add-syntax-highlighting-prism: done
 
-  # EPIC 4: Code-Completion Practice (Phase 2)
+  # EPIC 5: MCQ Variety & Randomization (TOP PRIORITY — next to implement)
+  5-1-option-pool-model-validation: done
+  5-2-migrate-legacy-multi-choice-content: done
+  5-3-server-side-session-randomizer: done
+  5-4-get-api-sessions-endpoint: done
+  5-5-post-api-feedback-single-select-scoring: done
+  5-6-single-select-mcq-runner-frontend: done
+
+  # EPIC 6: Session Control & Study QoL (after Epic 5, before Epic 4)
+  6-1-match-count-endpoint-start-screen: ready-for-dev
+  6-2-session-by-ids-endpoint-replay: ready-for-dev
+  6-3-session-state-feedback-retention-back-skip: ready-for-dev
+  6-4-end-session-exit-confirm-home: ready-for-dev
+  6-5-progress-bar-navigation-keyboard: ready-for-dev
+  6-6-summary-review-and-replay: ready-for-dev
+
+  # EPIC 4: Code-Completion Practice (Phase 2 — after Epics 5 & 6)
   4-1-create-code-completion-page-template-display: ready-for-dev
   4-2-implement-code-tokenizer: ready-for-dev
   4-3-implement-positional-feedback-algorithm: ready-for-dev
@@ -43,13 +60,15 @@ development_status:
 # blocked         — Story blocked, reason documented in story file
 
 summary:
-  total_stories: 25
-  ready_for_dev: 5
+  total_stories: 34
+  ready_for_dev: 11
   in_progress: 0
   review: 0
   approved: 0
   merged: 10
-  done: 7
+  done: 13
   blocked: 0
-  last_updated: 2026-06-05
-  completed: "17 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done/reviewed)"
+  last_updated: 2026-06-06
+  completed: "23 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done, Epic 5: 5.1-5.6 done/verified)"
+  ready_for_dev_detail: "11 ready (Epic 6: 6.1-6.6, Epic 4: 4.1-4.5). Priority: Epic 6 → Epic 4."
+  notes: "Epic 5 (MCQ Variety & Randomization) implemented & verified 2026-06-06 (backend 158 tests green, frontend 28 green). Not yet committed."

@@ -93,26 +93,68 @@ class MCQ(BaseExercise):
             raise ValueError("Must have at least one option")
         return v
 
+    @validator("options")
+    def options_unique_ids(cls, v):
+        """Reject duplicate option ids within the pool.
+
+        Option ids are the identity used for sampling, display, and grading;
+        duplicates would collapse in id-keyed lookups and silently mis-grade.
+        """
+        ids = [opt.id for opt in v]
+        dupes = sorted({i for i in ids if ids.count(i) > 1})
+        if dupes:
+            raise ValueError(
+                f"[option_pool_duplicate_id] duplicate option id(s): {', '.join(dupes)}"
+            )
+        return v
+
     @root_validator(skip_on_failure=True)
     def derive_answer_from_correct(cls, values):
-        """Derive ``answer`` from the options marked correct.
+        """Validate the Option Pool and derive ``answer`` from correct flags.
 
-        Enforces that at least one option is correct, and that a
-        ``single_choice`` exercise has exactly one correct option.
+        An MCQ is an Option Pool that must always be able to yield a
+        1-correct + 3-distractor display, so it must have:
+
+        * at least 1 option with ``correct: true`` (multiple correct options
+          are allowed and treated as interchangeable alternatives), and
+        * at least 3 options with ``correct: false`` (distractors).
+
+        The ``multi_choice`` type has been removed from the product
+        (single-select only); a ``multi_choice`` exercise is rejected here
+        with a clear error.
+
+        ``answer`` is derived from the options flagged ``correct: true`` and
+        may contain more than one id when multiple alternatives are correct.
         """
         options = values.get("options")
         if not options:
             return values
 
-        correct_ids = [opt.id for opt in options if opt.correct]
-        if not correct_ids:
-            raise ValueError("MCQ must have at least one option marked correct")
-
+        exercise_id = values.get("id", "<unknown>")
         exercise_type = values.get("type")
-        if exercise_type == ExerciseType.SINGLE_CHOICE and len(correct_ids) != 1:
+
+        if exercise_type == ExerciseType.MULTI_CHOICE:
             raise ValueError(
-                f"single_choice exercise must have exactly one correct option, "
-                f"found {len(correct_ids)}"
+                f"[multi_choice_removed] exercise '{exercise_id}': the "
+                f"'multi_choice' type is no longer supported (MCQ practice is "
+                f"single-select only); use 'single_choice'"
+            )
+
+        correct_ids = [opt.id for opt in options if opt.correct]
+        incorrect_ids = [opt.id for opt in options if not opt.correct]
+
+        if len(correct_ids) < 1:
+            raise ValueError(
+                f"[option_pool_min_correct] exercise '{exercise_id}': Option "
+                f"Pool must have at least 1 correct option, found "
+                f"{len(correct_ids)}"
+            )
+
+        if len(incorrect_ids) < 3:
+            raise ValueError(
+                f"[option_pool_min_incorrect] exercise '{exercise_id}': Option "
+                f"Pool must have at least 3 incorrect options (distractors), "
+                f"found {len(incorrect_ids)}"
             )
 
         values["answer"] = correct_ids

@@ -118,6 +118,8 @@ class TestExportToAnki:
                 options=[
                     Option(id="a", text="Option A", correct=True),
                     Option(id="b", text="Option B", correct=False),
+                    Option(id="c", text="Option C", correct=False),
+                    Option(id="d", text="Option D", correct=False),
                 ],
                 answer=["a"],
             )
@@ -128,21 +130,22 @@ class TestExportToAnki:
         assert os.path.getsize(temp_output_file) > 0
 
     def test_export_with_multiple_correct_answers(self, temp_output_file):
-        """Test exporting MCQ with multiple correct answers."""
+        """Test exporting a single_choice MCQ with multiple interchangeable correct alternatives."""
         exercises = [
             MCQ(
                 id="mcq-multi-answer",
-                type=ExerciseType.MULTI_CHOICE,
+                type=ExerciseType.SINGLE_CHOICE,
                 exam=ExamType.ASSOCIATE,
                 domain=Domain.LAKEHOUSE_PLATFORM,
                 difficulty=Difficulty.MEDIUM,
-                question="Which are correct?",
-                explanation="Both A and B are correct.",
+                question="Which is a correct answer?",
+                explanation="A and B are each individually valid (interchangeable alternatives).",
                 options=[
                     Option(id="a", text="Option A", correct=True),
                     Option(id="b", text="Option B", correct=True),
                     Option(id="c", text="Option C", correct=False),
                     Option(id="d", text="Option D", correct=False),
+                    Option(id="e", text="Option E", correct=False),
                 ],
                 answer=["a", "b"],
             )
@@ -210,6 +213,8 @@ class TestAnkiTags:
                 options=[
                     Option(id="a", text="A", correct=True),
                     Option(id="b", text="B", correct=False),
+                    Option(id="c", text="C", correct=False),
+                    Option(id="d", text="D", correct=False),
                 ],
                 answer=["a"],
             )
@@ -234,6 +239,8 @@ class TestAnkiTags:
                 options=[
                     Option(id="a", text="A", correct=True),
                     Option(id="b", text="B", correct=False),
+                    Option(id="c", text="C", correct=False),
+                    Option(id="d", text="D", correct=False),
                 ],
                 answer=["a"],
             )
@@ -256,6 +263,8 @@ class TestAnkiTags:
                 options=[
                     Option(id="a", text="A", correct=True),
                     Option(id="b", text="B", correct=False),
+                    Option(id="c", text="C", correct=False),
+                    Option(id="d", text="D", correct=False),
                 ],
                 answer=["a"],
                 source="training",
@@ -279,6 +288,8 @@ class TestAnkiTags:
                 options=[
                     Option(id="a", text="A", correct=True),
                     Option(id="b", text="B", correct=False),
+                    Option(id="c", text="C", correct=False),
+                    Option(id="d", text="D", correct=False),
                 ],
                 answer=["a"],
                 tags=["custom_tag_1", "custom_tag_2"],

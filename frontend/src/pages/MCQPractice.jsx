@@ -10,11 +10,11 @@ const DIFFICULTY_STYLES = {
 
 /**
  * Compute the CSS classes for an option row once feedback is shown:
- * - correct options -> green
+ * - the correct option -> green
  * - user-selected but wrong -> red
  * - everything else -> neutral
  */
-function optionFeedbackClass(optionId, { isCorrectOption, isSelected }) {
+function optionFeedbackClass({ isCorrectOption, isSelected }) {
   if (isCorrectOption) return 'border-green-500 bg-green-50'
   if (isSelected) return 'border-red-500 bg-red-50'
   return 'border-gray-200'
@@ -26,6 +26,8 @@ export default function MCQPractice() {
     currentIndex,
     total,
     selectedAnswers,
+    submitting,
+    submitErrors,
     feedback,
     setSelection,
     submitAnswer,
@@ -35,10 +37,11 @@ export default function MCQPractice() {
   if (!currentExercise) return null
 
   const exercise = currentExercise
-  const isMulti = exercise.type === EXERCISE_TYPES.MULTI_CHOICE
-  const selected = selectedAnswers[exercise.id] || []
-  const result = feedback[exercise.id]
+  const selected = selectedAnswers[exercise.exerciseId]
+  const result = feedback[exercise.exerciseId]
   const submitted = Boolean(result)
+  const isSubmitting = Boolean(submitting[exercise.exerciseId])
+  const submitError = submitErrors[exercise.exerciseId]
   const isLast = currentIndex >= total - 1
 
   // Code-completion exercises get their own UI in a later epic. Until then,
@@ -53,28 +56,24 @@ export default function MCQPractice() {
     )
   }
 
-  // Defensive guard: a malformed exercise with no options would otherwise throw
-  // in the options.map below and white-screen the whole app (no error boundary).
-  if (!Array.isArray(exercise.options) || exercise.options.length === 0) {
+  // Defensive guard: a malformed exercise without exactly 4 displayed options
+  // would otherwise render as a broken question. Degrade instead of crashing.
+  if (
+    !Array.isArray(exercise.displayedOptions) ||
+    exercise.displayedOptions.length !== 4
+  ) {
     return (
       <UnsupportedExercise
-        message="This exercise is malformed (no answer options)."
+        message="This exercise is malformed (expected 4 answer options)."
         isLast={isLast}
         onNext={next}
       />
     )
   }
 
-  function toggleOption(optionId) {
-    if (submitted) return
-    if (isMulti) {
-      const nextSel = selected.includes(optionId)
-        ? selected.filter((id) => id !== optionId)
-        : [...selected, optionId]
-      setSelection(exercise.id, nextSel)
-    } else {
-      setSelection(exercise.id, [optionId])
-    }
+  function selectOption(optionId) {
+    if (submitted || isSubmitting) return
+    setSelection(exercise.exerciseId, optionId)
   }
 
   return (
@@ -101,18 +100,15 @@ export default function MCQPractice() {
       {/* Question */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-5">
         <QuestionContent text={exercise.question} />
-        {isMulti && (
-          <p className="mt-3 text-sm italic text-gray-500">Select all that apply.</p>
-        )}
       </div>
 
       {/* Options */}
-      <div className="space-y-3" role="group" aria-label="Answer options">
-        {exercise.options.map((opt) => {
-          const isSelected = selected.includes(opt.id)
-          const isCorrectOption = submitted && opt.correct
+      <div className="space-y-3" role="radiogroup" aria-label="Answer options">
+        {exercise.displayedOptions.map((opt) => {
+          const isSelected = selected === opt.id
+          const isCorrectOption = submitted && opt.id === result.correctOptionId
           const stateClass = submitted
-            ? optionFeedbackClass(opt.id, { isCorrectOption, isSelected })
+            ? optionFeedbackClass({ isCorrectOption, isSelected })
             : isSelected
               ? 'border-databricks-500 bg-databricks-50'
               : 'border-gray-200 hover:border-gray-300'
@@ -125,12 +121,12 @@ export default function MCQPractice() {
               }`}
             >
               <input
-                type={isMulti ? 'checkbox' : 'radio'}
-                name={`answer-${exercise.id}`}
+                type="radio"
+                name={`answer-${exercise.exerciseId}`}
                 value={opt.id}
                 checked={isSelected}
-                disabled={submitted}
-                onChange={() => toggleOption(opt.id)}
+                disabled={submitted || isSubmitting}
+                onChange={() => selectOption(opt.id)}
                 className="mt-1"
               />
               <span className="text-gray-900">{opt.text}</span>
@@ -146,22 +142,32 @@ export default function MCQPractice() {
 
       {/* Submit / Feedback */}
       {!submitted ? (
-        <button
-          type="button"
-          onClick={() => submitAnswer(exercise.id)}
-          disabled={selected.length === 0}
-          className="mt-6 w-full bg-databricks-500 hover:bg-databricks-600 disabled:opacity-50 text-white font-medium py-2.5 rounded transition-colors"
-        >
-          Submit
-        </button>
+        <>
+          {submitError && (
+            <div
+              role="alert"
+              className="mt-6 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3"
+            >
+              {submitError} Please try again.
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => submitAnswer(exercise.exerciseId)}
+            disabled={!selected || isSubmitting}
+            className="mt-4 w-full bg-databricks-500 hover:bg-databricks-600 disabled:opacity-50 text-white font-medium py-2.5 rounded transition-colors"
+          >
+            {isSubmitting ? 'Submitting…' : submitError ? 'Retry' : 'Submit'}
+          </button>
+        </>
       ) : (
-        <Feedback exercise={exercise} result={result} isLast={isLast} onNext={next} />
+        <Feedback result={result} isLast={isLast} onNext={next} />
       )}
     </div>
   )
 }
 
-function Feedback({ exercise, result, isLast, onNext }) {
+function Feedback({ result, isLast, onNext }) {
   return (
     <div className="mt-6">
       <div
@@ -176,13 +182,13 @@ function Feedback({ exercise, result, isLast, onNext }) {
 
       <div className="mt-4 bg-white border border-gray-200 rounded-lg p-5">
         <h3 className="text-sm font-semibold text-gray-700 mb-1">Explanation</h3>
-        <p className="text-gray-800 whitespace-pre-wrap">{exercise.explanation}</p>
+        <p className="text-gray-800 whitespace-pre-wrap">{result.explanation}</p>
 
-        {exercise.references && exercise.references.length > 0 && (
+        {result.references && result.references.length > 0 && (
           <div className="mt-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-1">References</h3>
             <ul className="list-disc list-inside space-y-1">
-              {exercise.references.map((ref, i) => (
+              {result.references.map((ref, i) => (
                 <li key={`${ref}-${i}`}>
                   <a
                     href={ref}

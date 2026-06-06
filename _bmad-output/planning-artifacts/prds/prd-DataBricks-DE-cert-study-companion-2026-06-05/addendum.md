@@ -21,10 +21,12 @@ The user explicitly deferred stack decisions to the architecture phase. Constrai
 
 Authoring in **YAML** (multiline code, comments, readable); the app may serve/store **JSON**. Two record types share a set of common fields.
 
-**MCQ:**
+**MCQ — Option Pool model (updated 2026-06-05, PRD rev 2):**
+Each MCQ is authored as an **Option Pool**: **≥1 correct and ≥3 incorrect** Options, no upper bound — extra correct *alternatives* and/or distractors are encouraged so the runner can show a different 1-correct + 3-distractor combination on each view (PRD FR-19/FR-20). MCQ practice is **single-select only**; the `multi_choice` "select all that apply" variant is removed (PRD decision 2026-06-05). Multiple `correct: true` Options in a pool are **interchangeable alternatives** (any one is valid alone), never a jointly-required set.
+
 ```yaml
 - id: dbx-de-0142
-  type: single_choice            # single_choice | multi_choice
+  type: single_choice            # single_choice only (multi_choice removed)
   exam: associate                # associate | professional
   domain: "Incremental Data Processing"
   subdomain: "Auto Loader"
@@ -33,20 +35,26 @@ Authoring in **YAML** (multiline code, comments, readable); the app may serve/st
     Which option configures Auto Loader to infer and evolve schema?
   code_context: |                # optional snippet shown with the question
     spark.readStream.format("cloudFiles")...
-  options:
+  options:                       # Option Pool: >=1 correct, >=3 incorrect, no upper bound
     - id: a
       text: "cloudFiles.schemaLocation"
       correct: true
-    - id: b
+    - id: b                      # extra correct ALTERNATIVE (interchangeable, not jointly required)
+      text: "Set cloudFiles.schemaLocation to a writable path"
+      correct: true
+    - id: c
       text: "cloudFiles.format"
       correct: false
-    - id: c
+    - id: d
       text: "checkpointLocation"
       correct: false
-  answer: [a]                    # list → supports multi-select uniformly
+    - id: e                      # extra distractor — deepens the pool for freshness
+      text: "mergeSchema"
+      correct: false
+  answer: [a, b]                 # derived from correct:true flags; the runner shows ONE correct + 3 distractors
   explanation: |
     schemaLocation stores the inferred schema and enables evolution.
-    Why not b/c: ...             # per-distractor rationale
+    Why not c/d/e: ...           # per-distractor rationale
   references:
     - "https://docs.databricks.com/.../auto-loader"
   tags: [streaming, ingestion]
@@ -81,7 +89,7 @@ Shared fields (`id`, `domain`, `difficulty`, `explanation`, `exam`, `source`, `t
 
 **Two role-based certs.** Identified by name + version date (no AWS-style codes). Online proctored (Kryterion/Webassessor). Both ~$200/attempt, valid 2 years; retake the current exam to renew. **No hands-on/coding-execution items** — code appears *inside* questions (read snippet, pick answer), which is exactly the surface the app mimics.
 
-- **Associate** — ~45 scored MCQ, 90 min. SQL-leaning. Predominantly single-best-answer with a minority "select all that apply." Domain weights (most recent published guide):
+- **Associate** — ~45 scored MCQ, 90 min. SQL-leaning. Predominantly single-best-answer with a minority "select all that apply." *(The app deliberately simplifies to single-select only — PRD rev 2; real-exam "select all" items are reworked into single-correct questions or pooled alternatives.)* Domain weights (most recent published guide):
   1. Databricks Lakehouse Platform ~24%
   2. ELT with Spark SQL and Python ~29%
   3. Incremental Data Processing ~22%

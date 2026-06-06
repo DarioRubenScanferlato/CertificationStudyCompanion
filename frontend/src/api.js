@@ -75,24 +75,54 @@ export async function isBackendAvailable() {
 }
 
 /**
- * Fetch exercises, optionally filtered.
- * @param {object} filters - { domain, difficulty, exam, exercise_type }
- * @returns {Promise<Array>} list of exercise objects
+ * Start a practice session: fetch a randomized, anti-leak list of questions.
+ * The session payload contains NO correct flag / explanation / references —
+ * those are revealed only by submitFeedback after the user answers.
+ *
+ * @param {object} filters - { domain, difficulty }
+ * @returns {Promise<Array>} list of session entries, each:
+ *   { exerciseId, type, domain, difficulty, question, codeContext,
+ *     displayedOptions: [{ id, text } x4] }
  * @throws {APIError} on network/parse error or when the API reports failure
  */
-export async function fetchExercises(filters = {}) {
+export async function getSession({ domain, difficulty } = {}) {
   const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(filters)) {
-    if (value) params.append(key, value)
-  }
+  if (domain) params.append('domain', domain)
+  if (difficulty) params.append('difficulty', difficulty)
   const query = params.toString()
-  const url = `/api/exercises${query ? `?${query}` : ''}`
+  const url = `/api/sessions${query ? `?${query}` : ''}`
 
   const result = await apiRequest(url)
   if (!result.success) {
-    throw new APIError(result.error || 'Failed to load exercises', null, result)
+    throw new APIError(result.error || 'Failed to load session', null, result)
   }
   // Guard against a "successful" response with missing/non-array data so a
   // malformed payload can't corrupt session state downstream.
   return Array.isArray(result.data) ? result.data : []
+}
+
+/**
+ * Grade a single-select answer on the backend.
+ *
+ * @param {object} args
+ * @param {string} args.exerciseId
+ * @param {string[]} args.displayedOptionIds - the option ids that were shown
+ * @param {string} args.selectedId - the option id the user chose
+ * @returns {Promise<{correct, correctOptionId, explanation, references}>}
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function submitFeedback({ exerciseId, displayedOptionIds, selectedId }) {
+  const result = await apiRequest('/api/feedback', {
+    method: 'POST',
+    body: JSON.stringify({
+      exerciseId,
+      displayedOptionIds,
+      selectedId,
+      type: 'mcq',
+    }),
+  })
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to grade answer', null, result)
+  }
+  return result.data
 }

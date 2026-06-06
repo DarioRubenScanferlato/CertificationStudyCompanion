@@ -10,7 +10,7 @@ export function computeResults(exercises, feedback) {
   const byDomain = {}
 
   for (const ex of exercises) {
-    const result = feedback[ex.id]
+    const result = feedback[ex.exerciseId]
     if (!result) continue
     answered += 1
     const bucket = byDomain[ex.domain] || { correct: 0, total: 0 }

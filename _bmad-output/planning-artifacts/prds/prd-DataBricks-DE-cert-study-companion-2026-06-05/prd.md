@@ -3,6 +3,7 @@ title: Databricks DE Cert Study Companion
 status: final
 created: 2026-06-05
 updated: 2026-06-05
+revision: 2 (option-pool + randomization update)
 ---
 
 # PRD: Databricks DE Cert Study Companion
@@ -42,7 +43,7 @@ This reframes the build: **borrow for the deadline, build for the novelty.** Exa
 *Single operator (the builder). Journeys kept light per scope; they exist to pin down the core loop, not to drive heavy UX.*
 
 - **UJ-1. Dario drills a weak domain over coffee.**
-  Dario has ~15 minutes and knows Incremental Data Processing is his weak spot. He opens the app (running locally), picks a practice set filtered to that domain, and works through multiple-choice questions one at a time. For each, he selects an answer, submits, and immediately sees whether he was right, a rationale for the correct answer and why the distractors are wrong, and a link to the relevant Databricks doc. At the end he sees a simple score for the session. Realizes FR-5 through FR-12. **Edge case:** a question is a "select all that apply" — he can pick multiple options before submitting, and partial-credit/all-or-nothing scoring behaves predictably (see FR-9).
+  Dario has ~15 minutes and knows Incremental Data Processing is his weak spot. He opens the app (running locally), picks a practice set filtered to that domain, and works through multiple-choice questions one at a time, in randomized order. For each, he sees four options (one correct, three distractors) in shuffled positions, selects an answer, submits, and immediately sees whether he was right, a rationale for the correct answer and why the distractors are wrong, and a link to the relevant Databricks doc. At the end he sees a simple score for the session. Realizes FR-5 through FR-12 and FR-20/FR-21. **Re-study behavior:** when Dario revisits this domain the next day, questions appear in a different order (FR-21), and a previously-seen question may show a different correct option and/or different distractors drawn from its Option Pool (FR-19/FR-20) — so it feels fresh rather than memorized-by-position.
 
 - **UJ-2. Dario rehearses PySpark syntax he keeps forgetting.** *(Phase 2)*
   Dario can never remember the exact Auto Loader options. He opens a code-completion exercise: a short prompt ("Configure Auto Loader to infer and evolve schema") and a code template with a blank. He types his attempt; the app gives Wordle-style positional feedback (correct tokens highlighted) and lets him try again within a guess limit. When he solves it (or runs out of guesses), he sees the canonical answer and a short explanation. Realizes FR-13 through FR-17. **Edge case:** he types a *valid alternative* phrasing (`df.where` vs `df.filter`) — the exercise accepts it rather than marking it wrong (FR-16).
@@ -55,12 +56,14 @@ This reframes the build: **borrow for the deadline, build for the novelty.** Exa
 - **Domain** — An official exam-blueprint topic area with a weight (e.g. "Incremental Data Processing"). Every Exercise is tagged with exactly one Domain. The canonical Domain list per Exam is defined by Databricks' current exam guide.
 - **Subdomain** — An optional finer topic tag within a Domain (e.g. "Auto Loader" within "Incremental Data Processing").
 - **Exercise** — A single practice item the user attempts. Two **Exercise Types** exist: **MCQ** and **Code-Completion**. Every Exercise has a stable `id`, a Domain, a difficulty, and an explanation.
-- **MCQ (Multiple-Choice Question)** — An Exercise presenting a question (optionally with a code snippet) and a set of Options; the user selects one or more and submits. Supports **single-select** and **multi-select** variants.
+- **MCQ (Multiple-Choice Question)** — An Exercise presenting a question (optionally with a code snippet) and an **Option Pool**; at each presentation the runner shows four **Displayed Options** (one correct, three incorrect) and the user selects one and submits. **Single-select only** — the multi-select ("select all that apply") variant is removed (decision 2026-06-05; see §4.2 and decision log).
 - **Code-Completion Exercise** — The "Wordle-style" Exercise Type: a code template with a blank (or a prompt) that the user completes by typing, receiving positional feedback. (Phase 2.)
 - **Option** — One selectable answer choice in an MCQ, with text, a `correct` flag, and optionally per-Option rationale.
+- **Option Pool** — The full set of Options authored for an MCQ: **at least one** flagged correct and **at least three** flagged incorrect, with **no upper bound** on either. Extra correct alternatives and/or extra distractors are encouraged — they let the runner show a different combination each time so the Exercise feels new on re-view.
+- **Displayed Options** — The four Options actually shown for one presentation of an MCQ: exactly **one** correct Option sampled from the pool's correct Options plus **three** incorrect Options sampled from the pool's incorrect Options, presented in **randomized positions**.
 - **Explanation** — The teaching text shown after an Exercise is answered: why the correct answer is correct, why distractors are wrong, and reference link(s) to official docs.
 - **Exercise Set** — A named, parseable file (or collection of files) containing Exercises, loaded by the app. The unit the user authors or generates.
-- **Practice Session** — A single run-through of a selected group of Exercises (filtered by Domain / difficulty / type), ending in a summary.
+- **Practice Session** — A single run-through of a selected group of Exercises (filtered by Domain / difficulty / type), presented in **randomized order**, ending in a summary.
 - **Positional Feedback** — In a Code-Completion Exercise, per-token (or per-character) coloring indicating correct content in the correct place vs. correct content in the wrong place vs. absent — the Wordle mechanic, adapted for code.
 
 ## 4. Features
@@ -78,7 +81,7 @@ The format defines, for each Exercise: stable `id`, Exercise Type, Domain (and o
 
 **Consequences (testable):**
 - A hand-authored Exercise Set file conforming to the documented schema loads with zero code changes.
-- Both single-select and multi-select MCQs are expressible in one format (e.g. `answer` is a list).
+- An MCQ is authored as an **Option Pool** (FR-19): each Option carries a `correct` flag, with no fixed option count — the format permits more than the minimum of either correct or incorrect Options.
 - MCQ and Code-Completion share common fields (`id`, `domain`, `difficulty`, `explanation`) so analytics/session logic can treat them uniformly later.
 
 #### FR-2: App loads Exercise Sets from files
@@ -101,6 +104,14 @@ Domains (and the per-Exam canonical Domain list) align with Databricks' official
 - Every Exercise resolves to exactly one Domain from the canonical list for its Exam.
 - An Exercise tagged with an unknown Domain is flagged in validation.
 
+#### FR-19: MCQ Option Pool (≥1 correct, ≥3 incorrect)
+Each MCQ is authored as an **Option Pool**: at least one Option flagged `correct` and at least three flagged incorrect, with **no upper bound** on either. Authors are encouraged to add extra correct alternatives and/or extra distractors beyond the minimum; the runner samples a four-Option display from the pool (FR-20), so a richer pool makes a question feel new on re-view without authoring a separate question. *(Decided 2026-06-05.)*
+
+**Consequences (testable):**
+- Validation rejects any MCQ with fewer than 1 correct or fewer than 3 incorrect Options (a pool must always be able to yield a 1-correct + 3-incorrect display).
+- An MCQ may carry more than one correct Option and/or more than three incorrect Options; such pools load without error.
+- `[ASSUMPTION: a pool's multiple correct Options are mutually-exclusive *alternatives* — any single one is a valid answer on its own — not a set that must be selected together. This is what makes single-select sampling sound; see FR-20 and the multi-select removal in §4.2.]`
+
 #### FR-18: Portable / exportable content
 The Exercise format is portable enough that MCQ content can be consumed by an existing study tool, so studying is not gated on the bespoke app being finished. *(This is what makes the Build-vs-Borrow decision in §6 viable.)*
 
@@ -112,7 +123,9 @@ The Exercise format is portable enough that MCQ content can be consumed by an ex
 
 ### 4.2 Multiple-Choice Practice *(lean built-in runner — or borrow; see §6)*
 
-**Description:** Exam-realistic MCQ practice — the core study loop. The user selects a group of Exercises (a Practice Session), works through MCQs one at a time in an exam-like single-question view, selects answer(s), submits, and gets immediate correctness feedback plus the Explanation. At session end they see a simple score summary. Realizes UJ-1.
+**Description:** Exam-realistic MCQ practice — the core study loop. The user selects a group of Exercises (a Practice Session); the session presents MCQs one at a time in **randomized order** (FR-21), exam-style. Each MCQ shows **four Displayed Options** — one correct, three distractors — sampled from the question's Option Pool and shown in **shuffled positions** (FR-20). The user selects one Option, submits, and gets immediate correctness feedback plus the Explanation. At session end they see a simple score summary. Realizes UJ-1.
+
+*MCQ practice is **single-select only**. The earlier multi-select ("select all that apply") variant is removed (decision 2026-06-05): every display is exactly one correct Option plus three distractors. A question's Option Pool may still carry multiple correct Options, but they are treated as interchangeable alternatives (FR-19), only one of which is shown per display.*
 
 *Build-vs-Borrow stance (see §6): this loop is **table-stakes, not novel** — every cert tool has it. The built-in runner is therefore deliberately **lean**, and a borrowed tool (Anki via FR-18) is an acceptable substitute for v1 studying. The FRs below specify the lean built-in runner if/when built; they are NOT a reason to delay studying.*
 
@@ -126,17 +139,18 @@ The user can start a Practice Session over a filtered subset of Exercises — at
 - An empty filter result is communicated clearly (no crash, no empty silent screen).
 
 #### FR-6: Present one MCQ at a time, exam-style
-The session shows a single MCQ at a time: the question text, any associated code snippet rendered legibly (monospace, preserved formatting), and the selectable Options.
+The session shows a single MCQ at a time: the question text, any associated code snippet rendered legibly (monospace, preserved formatting), and the four Displayed Options (FR-20).
 
 **Consequences (testable):**
 - Code snippets in questions render in monospace with whitespace/indentation preserved.
+- Exactly four Options are shown per MCQ display (one correct, three distractors — see FR-20).
 - The user can navigate forward through the session; `[ASSUMPTION: backward navigation within a session is allowed but not required for MVP — confirm.]`
 
-#### FR-7: Select answer(s) and submit
-The user selects one Option (single-select) or multiple Options (multi-select) and submits. The UI makes the variant obvious (radio vs. checkbox affordance).
+#### FR-7: Select one answer and submit
+The user selects exactly one Option (single-select) and submits. The UI uses a single-choice affordance (radio).
 
 **Consequences (testable):**
-- Single-select permits exactly one selection; multi-select permits several.
+- Exactly one Option can be selected at a time; selecting another replaces the prior selection.
 - Submission is an explicit action (the user can change selection before submitting).
 
 #### FR-8: Immediate correctness feedback
@@ -146,12 +160,10 @@ On submit, the app immediately indicates whether the answer was correct and whic
 - Correct/incorrect state is shown without navigating away.
 - The correct Option(s) are visually identifiable after submit, including when the user was wrong.
 
-#### FR-9: Defined multi-select scoring
-Multi-select MCQs are scored **all-or-nothing** (every correct Option selected and no incorrect Option selected = correct; otherwise incorrect), matching typical exam scoring. *(Decided 2026-06-05.)*
+#### FR-9: ~~Defined multi-select scoring~~ — REMOVED
+*Superseded 2026-06-05. The multi-select MCQ variant (and its all-or-nothing scoring) is removed; MCQ practice is single-select only (see FR-7 and §4.2). An answer is correct iff the single selected Option is the Displayed Options' correct Option. ID retained as a tombstone so downstream references don't dangle.*
 
-**Consequences (testable):**
-- A multi-select answer is marked correct only if the selected Option set exactly equals the correct Option set.
-- Selecting a strict subset of the correct Options scores incorrect (no partial credit).
+`[NOTE FOR PM] Existing authored content includes a few genuine "select all that apply" items (jointly-correct sets, not interchangeable alternatives). Under the single-select decision these must be reworked — rewrite as single-correct questions or convert their correct set into pooled alternatives — or excluded from the runner. Validation should flag any MCQ whose correct Options are not interchangeable. Tracked as a content-migration follow-up.]`
 
 #### FR-10: Show Explanation after answering
 After submit, the app shows the Explanation: why the correct answer is correct, ideally why distractors are wrong, and any reference link(s).
@@ -170,8 +182,25 @@ The user can move to the next Exercise after reviewing feedback, until the sessi
 At session end, the app shows a simple summary: number correct / total, and a per-Domain breakdown when the session spans multiple Domains.
 
 **Consequences (testable):**
-- Score reflects the FR-9 scoring rule.
+- Score reflects single-select correctness (one selected Option vs. the Displayed Options' correct Option; see FR-7).
 - A single-Domain session still shows a meaningful summary.
+
+#### FR-20: Sample and shuffle Displayed Options per presentation
+When presenting an MCQ, the runner builds the four Displayed Options by sampling **one** correct Option from the question's Option Pool and **three** incorrect Options from the pool, then renders them in **randomized positions**.
+
+**Consequences (testable):**
+- Every MCQ display shows exactly four Options: one correct, three incorrect.
+- For a pool with extra correct alternatives and/or extra distractors, two presentations of the same question can show a different correct Option and/or a different distractor set.
+- The correct Option does not occupy a fixed slot across presentations (position is shuffled).
+- `[ASSUMPTION: sampling is uniform-at-random per presentation, with no memory of prior presentations in MVP (no guaranteed distractor rotation / no anti-repeat). Sampling is independent of FR-21's question-order shuffle.]`
+
+#### FR-21: Randomize Exercise order within a Practice Session
+The Exercises in a Practice Session are presented in randomized order, so starting a session on the same filter does not surface the same questions in the same sequence each time.
+
+**Consequences (testable):**
+- Two sessions over the same filtered set present the Exercises in (generally) different orders.
+- Randomization spans the full filtered set, not just a fixed first page.
+- `[ASSUMPTION: order is re-randomized fresh each session; no seed/resume-in-order guarantee, and no spaced-repetition weighting in MVP — that's the later SRS phase (§6.2).]`
 
 **Out of Scope (this feature, MVP):**
 - Persisting session history across runs (that's the analytics phase — see §6.2).
@@ -257,10 +286,10 @@ With an exam ~1–2 months out and a solo builder, **time spent building is time
 This makes the **content bank the primary MVP deliverable** and the app shell secondary.
 
 ### 6.1 In Scope (MVP — the exam-critical core)
-- **Content bank — the primary deliverable.** A committed starter bank of **~50–75 original, blueprint-aligned MCQs**, distributed across the 5 **Associate** Domains roughly by their official weights (per addendum §C). Each with correct answer(s), per-distractor Explanation, and a reference link.
+- **Content bank — the primary deliverable.** A committed starter bank of **~50–75 original, blueprint-aligned MCQs**, distributed across the 5 **Associate** Domains roughly by their official weights (per addendum §C). Each authored as an **Option Pool** (FR-19: ≥1 correct, ≥3 incorrect, extra alternatives/distractors encouraged), with per-distractor Explanation and a reference link.
 - **Committed agent-skill authoring track.** A lightweight Claude agent skill that authors Exercises into the standardized format (4.1) is a committed parallel workstream, runnable independent of app progress (resolves former OQ-5). `[ASSUMPTION: the authoring skill is specced/built as its own small workstream; exact spec TBD.]`
 - **Portable, parseable Exercise format** (4.1: FR-1, FR-2, FR-3-lean, FR-4, **FR-18 export to Anki**) — enough that the content above is studiable *today*.
-- **A study path that works now:** either Anki import (FR-18) **or** the lean built-in MCQ runner (4.2: FR-5–FR-12). At least one must be usable well before the exam; the lean runner is not a prerequisite for studying.
+- **A study path that works now:** either Anki import (FR-18) **or** the lean built-in MCQ runner (4.2: FR-5–FR-12, plus the freshness features FR-20 option sampling/shuffle and FR-21 randomized question order). At least one must be usable well before the exam; the lean runner is not a prerequisite for studying. `[NOTE FOR PM] FR-20 (per-display option sampling/shuffle) and FR-21 (randomized order) are **runner** behaviors and do not survive a one-shot Anki export — Anki provides its own shuffle/scheduling, and the export flattens each pool to a single correct Option + distractors. The Option Pool's full freshness benefit (FR-19/FR-20) is realized only in the built-in runner.]`
 
 ### 6.2 Out of Scope for MVP (phased)
 - **Code-Completion ("Wordle") Practice (4.3)** — *Phase 2.* The build-worthy novel feature, but sequenced after the exam-critical content + study path. Begin with a throwaway design spike (tokenizer + rendering).
@@ -301,6 +330,9 @@ This makes the **content bank the primary MVP deliverable** and the app shell se
 
 - §4.1 — Authoring format is YAML, one Exercise Set per file, loaded from a known content directory.
 - §4.1 / FR-2 — Content is read from files at runtime, not compiled into the app.
+- §4.1 / FR-19 — Multiple correct Options in an Option Pool are interchangeable *alternatives* (any one is valid alone), not a jointly-required set.
+- §4.2 / FR-20 — Displayed-Option sampling is uniform-at-random per presentation, with no anti-repeat memory in MVP.
+- §4.2 / FR-21 — Exercise order is re-randomized fresh each session; no resume-in-order or spaced-repetition weighting in MVP.
 - §4.1 / FR-18 — Anki is the borrow/export target; a one-shot converter (script) is acceptable rather than live two-way sync.
 - §4.2 / FR-6 — Backward navigation within a session is allowed but not required for MVP.
 - §4.2 / FR-10 — Reference links open externally in the browser.

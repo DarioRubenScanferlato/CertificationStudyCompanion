@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { computeResults } from './Summary'
 
 const EXERCISES = [
-  { id: 'q1', domain: 'Data Governance' },
-  { id: 'q2', domain: 'Data Governance' },
-  { id: 'q3', domain: 'Production Pipelines' },
+  { exerciseId: 'q1', domain: 'Data Governance' },
+  { exerciseId: 'q2', domain: 'Data Governance' },
+  { exerciseId: 'q3', domain: 'Production Pipelines' },
 ]
 
 describe('computeResults', () => {

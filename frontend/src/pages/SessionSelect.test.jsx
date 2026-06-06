@@ -28,7 +28,7 @@ describe('SessionSelect', () => {
   })
 
   it('fetches exercises with the chosen filters on Start', async () => {
-    api.fetchExercises.mockResolvedValue([{ id: 'q1' }])
+    api.getSession.mockResolvedValue([{ id: 'q1' }])
     renderPage()
 
     fireEvent.change(screen.getByLabelText('Domain'), {
@@ -40,7 +40,7 @@ describe('SessionSelect', () => {
     fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
 
     await waitFor(() =>
-      expect(api.fetchExercises).toHaveBeenCalledWith({
+      expect(api.getSession).toHaveBeenCalledWith({
         domain: 'Data Governance',
         difficulty: 'easy',
       })
@@ -48,14 +48,14 @@ describe('SessionSelect', () => {
   })
 
   it('shows an error when no exercises match', async () => {
-    api.fetchExercises.mockResolvedValue([])
+    api.getSession.mockResolvedValue([])
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/no exercises match/i)
   })
 
   it('shows an error when the request fails', async () => {
-    api.fetchExercises.mockRejectedValue(new Error('Network error: down'))
+    api.getSession.mockRejectedValue(new Error('Network error: down'))
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/network error/i)

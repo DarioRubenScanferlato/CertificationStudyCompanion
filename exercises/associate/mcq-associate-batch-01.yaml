@@ -219,11 +219,11 @@ exercises:
     source: original
 
   - id: dbx-de-0009
-    type: multi_choice
+    type: single_choice
     exam: associate
     domain: "Databricks Lakehouse Platform"
     difficulty: medium
-    question: "Which of the following are valid parameters for the OPTIMIZE command? (Select all that apply)"
+    question: "Which clause can be used with the OPTIMIZE command on a Delta table?"
     options:
       - id: a
         text: "ZORDER BY column_name"
@@ -232,13 +232,16 @@ exercises:
         text: "PARTITION BY column_name"
         correct: false
       - id: c
-        text: "WHERE clause for filtering data"
+        text: "WHERE clause for filtering which partitions to compact"
         correct: true
       - id: d
         text: "CACHE AS temporary view"
         correct: false
+      - id: e
+        text: "SORT BY column_name"
+        correct: false
     answer: [a, c]
-    explanation: "OPTIMIZE can be used with ZORDER BY to reorder data by a column for better clustering, and you can filter which partitions to optimize with WHERE. PARTITION BY is used at table creation, not in OPTIMIZE. CACHE AS is a separate caching command."
+    explanation: "OPTIMIZE supports a ZORDER BY clause to co-locate related data via multi-dimensional clustering, and an optional WHERE clause to restrict compaction to specific partitions; either is a valid clause for the command. PARTITION BY is part of table creation (e.g. CREATE TABLE ... PARTITIONED BY), not OPTIMIZE. CACHE AS is a separate caching statement. SORT BY is a query-level clause and is not used with OPTIMIZE."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-optimize.html"
     tags: [optimize, performance]
@@ -688,26 +691,26 @@ exercises:
     source: original
 
   - id: dbx-de-0027
-    type: multi_choice
+    type: single_choice
     exam: associate
     domain: "ELT with Spark SQL and Python"
     difficulty: medium
-    question: "Which of the following are valid ways to create a DataFrame in PySpark? (Select all that apply)"
+    question: "Which of the following is NOT a valid way to create a DataFrame in PySpark?"
     options:
       - id: a
         text: "spark.read.format('delta').load('path')"
-        correct: true
+        correct: false
       - id: b
         text: "spark.table('table_name')"
-        correct: true
+        correct: false
       - id: c
         text: "spark.createDataFrame(data, schema)"
-        correct: true
+        correct: false
       - id: d
         text: "spark.DataFrame(data)"
-        correct: false
-    answer: [a, b, c]
-    explanation: "Valid methods: read.format('delta').load() for external data, spark.table() for registered tables, and spark.createDataFrame() for in-memory data. spark.DataFrame() is not a valid constructor."
+        correct: true
+    answer: [d]
+    explanation: "spark.DataFrame() is not a valid constructor; SparkSession exposes no DataFrame() method. The other three are valid: spark.read.format('delta').load() reads external data, spark.table() loads a registered table, and spark.createDataFrame() builds a DataFrame from in-memory data."
     references:
       - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
     tags: [pyspark, creating-dataframes]

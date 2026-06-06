@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSession } from '../context/SessionContext'
-import { fetchExercises } from '../api'
+import { getSession } from '../api'
 import { DOMAINS, DIFFICULTIES } from '../constants'
 
 /**
@@ -17,15 +17,15 @@ export default function SessionSelect() {
     setLoading(true)
     setError(null)
     try {
-      const exercises = await fetchExercises({
+      const sessionEntries = await getSession({
         domain: domain || undefined,
         difficulty: difficulty || undefined,
       })
-      if (!exercises || exercises.length === 0) {
+      if (!sessionEntries || sessionEntries.length === 0) {
         setError('No exercises match those filters. Try broadening your selection.')
         return
       }
-      startSession(exercises)
+      startSession(sessionEntries)
     } catch (e) {
       setError(e.message || 'Failed to load exercises. Is the backend running?')
     } finally {
