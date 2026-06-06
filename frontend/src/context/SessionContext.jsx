@@ -144,6 +144,11 @@ function sessionReducer(state, action) {
       }
     }
 
+    case 'GO_STATS':
+      // Navigate to the read-only Stats dashboard. Clears any active session so
+      // returning to Start lands on a fresh select screen.
+      return { ...initialState, view: 'stats' }
+
     case 'END_TO_SUMMARY':
       // End the session early -> Summary over the answered subset. Feedback and
       // questionState are preserved so computeResults scores what was answered.
@@ -213,6 +218,7 @@ export function SessionProvider({ children }) {
       prev: () => dispatch({ type: 'PREV' }),
       skip: () => dispatch({ type: 'SKIP', exerciseId: currentExercise?.exerciseId }),
       endToSummary: () => dispatch({ type: 'END_TO_SUMMARY' }),
+      goStats: () => dispatch({ type: 'GO_STATS' }),
       reset: () => dispatch({ type: 'RESET' }),
     }
   }, [state])

@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of Epic 7 (2026-06-07)
+
+- **Timestamp format is brittle if write paths diverge** (`backend/app/store.py`) — `daily_stats`/`rolling_accuracy` rely on lexicographic ISO-string ordering + SQLite `date()`. All current writes use `datetime.now(timezone.utc).isoformat()` (uniform `+00:00`), so it's correct today; a future write path with a `Z` suffix or local offset would mis-sort/mis-bucket. Normalize to a canonical UTC form if/when another writer appears. Also: `date()` buckets by UTC day, not the user's local day (fine for a solo local user).
+
 ## Deferred from: code review of Epic 6 (2026-06-06)
 
 - **Replay exam-scope is convention-only (defense-in-depth)** — `frontend/src/api.js` `getSessionByIds` never sends `exam`, so the backend `POST /api/sessions` `exam` scoping is unused by the UI. Harmless today (session id sets are single-exam), but the "never mix corpora" guarantee on the replay path rests on the id set being homogeneous. Proper fix needs tracking the active session's `exam` in context. Low practical risk now.

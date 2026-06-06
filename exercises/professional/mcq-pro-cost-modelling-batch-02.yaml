@@ -1,0 +1,262 @@
+# Databricks DE Certification (Professional) - MCQs
+# Generated: 2026-06-07
+# Total Questions: 8
+# Domain Distribution:
+#   - Cost & Performance Optimization: 8
+# ID Range: dbx-pro-0074 .. dbx-pro-0081
+# Type: single_choice (exactly 1 correct + >=3 incorrect)
+# Subtopics: liquid clustering / OPTIMIZE FULL, predictive optimization,
+#            deletion vectors / REORG PURGE / VACUUM, file sizing / auto compaction,
+#            serverless compute cost, system.billing cost attribution, AQE / skew / broadcast.
+
+exercises:
+  - id: dbx-pro-0074
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Liquid clustering"
+    difficulty: hard
+    question: "A liquid-clustered fact table has had its clustering keys changed twice over the last quarter via ALTER TABLE ... CLUSTER BY. Predictive optimization runs incremental OPTIMIZE regularly, but queries that filter on the newest clustering keys are still slow because most historical data was written under the older keys and was never reclustered. The team needs to force a full recluster of the entire table to the current keys. Which command accomplishes this in Databricks Runtime 16.0+?"
+    options:
+      - id: a
+        text: "OPTIMIZE table_name FULL"
+        correct: true
+      - id: b
+        text: "OPTIMIZE table_name ZORDER BY (the current clustering keys)"
+        correct: false
+      - id: c
+        text: "OPTIMIZE table_name (the standard incremental form, which already reclusters all historical files)"
+        correct: false
+      - id: d
+        text: "VACUUM table_name FULL to rewrite the data files against the new clustering keys"
+        correct: false
+      - id: e
+        text: "ALTER TABLE table_name CLUSTER BY AUTO, which immediately rewrites all existing files to the chosen keys"
+        correct: false
+    answer: [a]
+    explanation: "OPTIMIZE ... FULL forces a full recluster of all data to the current liquid clustering keys (available in DBR 16.0 and above), which is exactly what is needed after clustering keys change because changing keys does not rewrite existing data. Standard incremental OPTIMIZE only clusters new or recently written files in a best-effort, eventual manner and does not rewrite all the historical files written under prior keys, so it leaves the old layout in place. ZORDER is mutually exclusive with liquid clustering and cannot be applied to a clustered table. VACUUM only removes unreferenced data files past the retention threshold; it never reorganizes or reclusters live data. Enabling CLUSTER BY AUTO lets Databricks choose keys over time but, like any key change, it does not immediately rewrite existing files."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/delta-optimize"
+    tags: [liquid-clustering, optimize, performance]
+    source: original
+
+  - id: dbx-pro-0075
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Predictive optimization"
+    difficulty: medium
+    question: "A platform team wants to stop manually scheduling Jobs that run OPTIMIZE, VACUUM, and ANALYZE on hundreds of Unity Catalog managed tables, and wants the maintenance cost itemized for chargeback. They enable predictive optimization. Which statement about predictive optimization is correct?"
+    options:
+      - id: a
+        text: "Predictive optimization automatically runs OPTIMIZE, VACUUM, and ANALYZE on eligible Unity Catalog managed tables using serverless compute, and its operations are observable via the system.storage.predictive_optimization_operations_history system table"
+        correct: true
+      - id: b
+        text: "Predictive optimization only runs OPTIMIZE; VACUUM and statistics collection still require manually scheduled maintenance jobs"
+        correct: false
+      - id: c
+        text: "Predictive optimization works on any Delta table registered in Unity Catalog, including external tables, by running maintenance on the classic cluster that last wrote to the table"
+        correct: false
+      - id: d
+        text: "Predictive optimization replaces liquid clustering, so tables it manages must not have clustering keys defined"
+        correct: false
+      - id: e
+        text: "Predictive optimization runs maintenance for free because it reuses idle capacity on existing all-purpose clusters rather than billing separately"
+        correct: false
+    answer: [a]
+    explanation: "Predictive optimization automatically runs ANALYZE, OPTIMIZE, and VACUUM for eligible Unity Catalog managed tables on serverless compute, and its operations (including cost) are exposed through the predictive optimization operations history system table for chargeback. The claim that it only handles OPTIMIZE is wrong because it also runs VACUUM and ANALYZE. It targets Unity Catalog managed tables, not arbitrary external tables, and it uses serverless compute rather than the classic cluster that last wrote the table. It complements liquid clustering rather than replacing it; clustered managed tables are still maintained. And it is not free: maintenance is billed under the serverless jobs SKU, which is why the history table tracks its cost."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/predictive-optimization"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/predictive-optimization"
+    tags: [predictive-optimization, unity-catalog, maintenance, cost]
+    source: original
+
+  - id: dbx-pro-0076
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Deletion vectors"
+    difficulty: hard
+    question: "A GDPR erasure process issues DELETEs against a large Delta table that has deletion vectors enabled. After the deletes complete, an auditor confirms the rows are no longer returned by queries, but the underlying Parquet files still physically contain the deleted records on cloud storage. The team must guarantee the bytes are physically removed to satisfy the right-to-be-forgotten request. Which sequence achieves this?"
+    options:
+      - id: a
+        text: "Run REORG TABLE ... APPLY (PURGE) to rewrite the files with soft-deleted rows, then run VACUUM with a retention threshold at or after the PURGE completion timestamp to physically delete the now-unreferenced old files"
+        correct: true
+      - id: b
+        text: "Run VACUUM alone; because deletion vectors marked the rows as deleted, VACUUM will rewrite the affected files to strip those rows"
+        correct: false
+      - id: c
+        text: "Run OPTIMIZE on the table; compaction rewrites the files and excludes the soft-deleted rows recorded in deletion vectors"
+        correct: false
+      - id: d
+        text: "Run REORG TABLE ... APPLY (PURGE) alone; PURGE both rewrites the data files and physically deletes the old files in one operation"
+        correct: false
+      - id: e
+        text: "Disable deletion vectors with ALTER TABLE, which retroactively materializes all prior deletes into the data files"
+        correct: false
+    answer: [a]
+    explanation: "With deletion vectors, a DELETE only records a soft delete (merge-on-read) and leaves the original bytes in place. REORG TABLE ... APPLY (PURGE) rewrites the affected files so the live version no longer references the deleted rows, but the old files still exist in history until VACUUM removes them; to fully purge the bytes the VACUUM retention threshold must be set at or after the PURGE completion timestamp. VACUUM alone never rewrites file contents, it only deletes unreferenced files, so the deleted rows remain inside still-referenced files. OPTIMIZE compacts files for layout but does not materialize deletion vectors with the intent of physical erasure and does not delete the old files. PURGE alone creates a new version but does not physically delete the prior files, which VACUUM must do. Disabling deletion vectors changes future write behavior; it does not retroactively rewrite existing files."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/deletion-vectors"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/delta-reorg-table"
+      - "https://docs.databricks.com/aws/en/delta/vacuum"
+    tags: [deletion-vectors, reorg, vacuum, gdpr]
+    source: original
+
+  - id: dbx-pro-0077
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "File sizing"
+    difficulty: medium
+    question: "A streaming pipeline writes many small files into a Delta table, producing a small-file problem that slows downstream reads. The engineer wants files written closer to a target size as they are produced, without depending on a separate scheduled OPTIMIZE job, and wants new files to aim for roughly 128 MB. Which configuration best meets this?"
+    options:
+      - id: a
+        text: "Enable optimized writes (delta.autoOptimize.optimizeWrite) and auto compaction (delta.autoOptimize.autoCompact) on the table, and set delta.targetFileSize = '128mb' so layout operations target that size"
+        correct: true
+      - id: b
+        text: "Set spark.sql.files.maxPartitionBytes = 128m, which controls the size of files Delta writes on each commit"
+        correct: false
+      - id: c
+        text: "Increase the number of shuffle partitions so each task writes a larger file, then rely on VACUUM to consolidate them"
+        correct: false
+      - id: d
+        text: "Set delta.targetFileSize = '128mb' only; this alone causes streaming writes to coalesce output into 128 MB files at write time"
+        correct: false
+      - id: e
+        text: "Disable autotuning and run ANALYZE TABLE so the optimizer rewrites small files into larger ones during query planning"
+        correct: false
+    answer: [a]
+    explanation: "Optimized writes shape file sizes as data is written, auto compaction combines small files within partitions synchronously after a successful write, and delta.targetFileSize gives both operations (plus OPTIMIZE and liquid clustering) a best-effort target, so together they reduce the small-file problem without a separate scheduled job. spark.sql.files.maxPartitionBytes controls read-side input partition sizing, not the size of files Delta writes. Adding shuffle partitions generally produces more, smaller files, and VACUUM never consolidates files. Setting targetFileSize alone is only a target hint; without optimized writes or auto compaction enabled, streaming micro-batches still emit many small files. ANALYZE TABLE only computes statistics; it never rewrites or compacts data files."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/tune-file-size"
+      - "https://docs.databricks.com/aws/en/delta/table-properties"
+    tags: [file-sizing, auto-compaction, optimized-writes, streaming]
+    source: original
+
+  - id: dbx-pro-0078
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Serverless compute"
+    difficulty: medium
+    question: "A team migrates a nightly batch Lakeflow Job from a classic autoscaling job cluster to serverless compute for workflows. Some tasks are latency-tolerant and the team wants to minimize DBU consumption for those. Which statement correctly characterizes serverless compute for jobs cost behavior?"
+    options:
+      - id: a
+        text: "Photon and autoscaling are always enabled on serverless compute, the serverless DBU rate already includes the underlying VM cost, and selecting standard performance mode (Performance optimized disabled) consumes fewer DBUs at the cost of higher startup latency"
+        correct: true
+      - id: b
+        text: "Serverless compute lets you disable Photon to save DBUs, since Photon-enabled instances always cost more for batch jobs"
+        correct: false
+      - id: c
+        text: "With serverless compute you are billed separately for DBUs and the cloud VM instances, just like classic clusters, so you must still right-size the instance type"
+        correct: false
+      - id: d
+        text: "Serverless compute does not autoscale; you set a fixed worker count, which is why it is cheaper than classic autoscaling clusters"
+        correct: false
+      - id: e
+        text: "Standard performance mode reduces cost by running on spot instances that may be reclaimed, whereas Performance optimized mode uses on-demand instances"
+        correct: false
+    answer: [a]
+    explanation: "On serverless compute Photon and autoscaling are always on, the DBU rate already bundles the VM cost (so there is no separate instance bill to right-size), and choosing standard performance mode (Performance optimized disabled) uses fewer DBUs while accepting higher startup latency, which is ideal for latency-tolerant tasks. You cannot disable Photon on serverless, so the option about turning Photon off does not apply. Billing is a single bundled serverless DBU rate, not separate DBU plus VM charges as on classic compute. Serverless does autoscale automatically rather than using a fixed worker count. The performance modes differ in compute used and startup latency under the same SKU; they are not defined by spot-versus-on-demand instance procurement, which serverless abstracts away from the user."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/run-serverless-jobs"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/serverless-billing"
+      - "https://docs.databricks.com/aws/en/compute/photon"
+    tags: [serverless, photon, autoscaling, cost]
+    source: original
+
+  - id: dbx-pro-0079
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Cost attribution"
+    difficulty: hard
+    question: "A FinOps analyst needs an estimated USD cost per team for last month's compute, including serverless usage, broken down by a custom 'team' tag. They will join system.billing.usage to system.billing.list_prices. Which approach correctly attributes and prices the usage?"
+    options:
+      - id: a
+        text: "Group usage by usage.custom_tags['team'], join to list_prices on sku_name where usage.usage_date is between price_start_time and price_end_time (treating an open-ended price as still effective), and multiply usage_quantity by pricing.default"
+        correct: true
+      - id: b
+        text: "Join usage to list_prices on sku_name only, ignoring the price validity window, and sum usage_quantity as the cost since list_prices values are already in dollars per record"
+        correct: false
+      - id: c
+        text: "Read the team attribution from usage.identity_metadata, since custom_tags only carries system tags and never propagates to serverless usage records"
+        correct: false
+      - id: d
+        text: "Use the cloud provider's billing console grouped by tag, because system.billing.usage does not record DBU quantities for serverless workloads"
+        correct: false
+      - id: e
+        text: "Multiply usage_quantity by pricing.default but filter to the single most recent row in list_prices per SKU, because only the latest price is ever stored"
+        correct: false
+    answer: [a]
+    explanation: "Cost attribution by team comes from the custom_tags map on usage (custom_tags also carries tags applied by serverless usage policies, so serverless usage is attributable), the join key to list_prices is sku_name, and because list_prices keeps a historical log with price_start_time/price_end_time you must select the price effective on the usage date and multiply usage_quantity by pricing.default. Ignoring the validity window is wrong because multiple price rows per SKU exist over time, and usage_quantity is measured in DBUs, not dollars, so summing it is not a cost. identity_metadata attributes to a user or service principal, not a team tag, and custom_tags does propagate to serverless usage. system.billing.usage does record DBU quantities for serverless. Filtering to only the latest price per SKU misprices historical usage, since list_prices retains prior prices precisely so you can match each usage date to its effective price."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/billing"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/pricing"
+      - "https://docs.databricks.com/aws/en/admin/usage/system-tables"
+    tags: [system-tables, billing, cost-attribution, tags]
+    source: original
+
+  - id: dbx-pro-0080
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Skew handling"
+    difficulty: hard
+    question: "A large sort-merge join between two big fact tables runs slowly: the Spark UI shows one shuffle stage where a few tasks process far more data than the median while the rest finish quickly. Both inputs are far larger than the broadcast threshold. With Adaptive Query Execution enabled (the default), what is the recommended way to address this?"
+    options:
+      - id: a
+        text: "Rely on AQE skew join handling, which at runtime detects skewed partitions (using the skew factor and threshold) and splits them into roughly even-sized subtasks; it is automatic and generally outperforms the manual skew hint"
+        correct: true
+      - id: b
+        text: "Raise spark.sql.autoBroadcastJoinThreshold above the size of the larger table so Spark broadcasts it and eliminates the shuffle"
+        correct: false
+      - id: c
+        text: "Disable AQE so the static optimizer can apply a deterministic skew strategy based on table statistics"
+        correct: false
+      - id: d
+        text: "Add a /*+ SKEW */ hint, which is the only mechanism that can split skewed partitions when both sides exceed the broadcast threshold"
+        correct: false
+      - id: e
+        text: "Lower spark.sql.shuffle.partitions to a small number so the skewed key lands in fewer, larger partitions that finish together"
+        correct: false
+    answer: [a]
+    explanation: "The symptom is a skewed shuffle, and AQE skew join handling automatically detects skewed partitions at runtime (a partition is skewed when it exceeds both the skew factor times the median and the byte threshold) and splits them into evenly sized subtasks; Databricks recommends relying on it because it is automatic and generally beats the manual hint. Broadcasting will not help because both inputs are far larger than the broadcast threshold; forcing a broadcast of a huge table risks driver and executor memory failures. Disabling AQE removes exactly the runtime statistics that enable skew handling and is counterproductive. The SKEW hint is not the only mechanism and is no longer recommended over AQE. Lowering shuffle partitions makes skew worse by concentrating the hot key into fewer, larger partitions."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/aqe"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-hints"
+    tags: [aqe, skew, join, performance]
+    source: original
+
+  - id: dbx-pro-0081
+    type: single_choice
+    exam: professional
+    domain: "Cost & Performance Optimization"
+    subdomain: "Broadcast joins"
+    difficulty: medium
+    question: "A query joins a 4 TB transactions table to a 30 MB dimension table, but the Spark plan shows a sort-merge join with an expensive shuffle of the large table instead of a broadcast hash join. The engineer wants to guarantee the small dimension is broadcast. Which approach is most reliable?"
+    options:
+      - id: a
+        text: "Add a broadcast hint on the small dimension (e.g. /*+ BROADCAST(dim) */), because a side with a broadcast hint is broadcast regardless of spark.sql.autoBroadcastJoinThreshold"
+        correct: true
+      - id: b
+        text: "Set spark.sql.autoBroadcastJoinThreshold = -1 to force Spark to broadcast whichever side is smaller"
+        correct: false
+      - id: c
+        text: "Add a broadcast hint on the 4 TB transactions table so the join can avoid shuffling the dimension"
+        correct: false
+      - id: d
+        text: "Run ANALYZE TABLE on the large transactions table; once its statistics are current, Spark will automatically switch the dimension to a broadcast join"
+        correct: false
+      - id: e
+        text: "Repartition both tables by the join key to co-locate matching rows, which converts the sort-merge join into a broadcast join"
+        correct: false
+    answer: [a]
+    explanation: "A broadcast hint on the small side forces a broadcast hash join: a side carrying the broadcast hint is broadcast regardless of the autoBroadcastJoinThreshold, so stale or missing statistics on the large table cannot prevent it. Setting the threshold to -1 disables automatic broadcasting entirely rather than forcing it. Hinting the 4 TB table to broadcast is wrong and dangerous because broadcasting a multi-terabyte table would overwhelm executor memory; you broadcast the small side. Computing statistics on the large table may or may not change the planner's choice and is not a guarantee. Repartitioning by the join key produces a (shuffle/sort-merge) co-located join, not a broadcast join, and still shuffles the 4 TB table."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-hints"
+      - "https://docs.databricks.com/aws/en/optimizations/aqe"
+    tags: [broadcast-join, hints, performance]
+    source: original

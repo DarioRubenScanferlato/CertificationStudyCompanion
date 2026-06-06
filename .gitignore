@@ -67,3 +67,6 @@ Thumbs.db
 .env
 .cache/
 *.tmp
+
+# Local SQLite attempt store (AR-16 / Story 7.1)
+backend/data/

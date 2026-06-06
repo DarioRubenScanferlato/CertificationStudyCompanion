@@ -1,0 +1,351 @@
+# Databricks DE Certification (Professional) - Monitoring & Debugging MCQs (Batch 02)
+# Generated: 2026-06-07
+# Total Questions: 12
+# Domain Distribution:
+#   - Monitoring and Alerting: 6 (dbx-pro-0092 .. dbx-pro-0097)
+#   - Debugging and Deploying: 6 (dbx-pro-0098 .. dbx-pro-0103)
+# Source: original. Documentation-first: each item cites the docs.databricks.com page(s) reviewed.
+
+exercises:
+  # ========== MONITORING AND ALERTING (6 questions) ==========
+  - id: dbx-pro-0092
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "System tables - jobs"
+    difficulty: medium
+    question: "You need an account-wide report of how long each individual task within multi-task Lakeflow Jobs ran and which specific tasks failed, queryable in SQL without scraping the Jobs UI. Which system table is the correct grain to start from?"
+    options:
+      - id: a
+        text: "system.lakeflow.job_task_run_timeline, which records each task run within a job run, including its result state and active time periods"
+        correct: true
+      - id: b
+        text: "system.lakeflow.job_run_timeline, which only emits one row per overall job run and has no task-level breakdown"
+        correct: false
+      - id: c
+        text: "system.lakeflow.jobs, which is a slowly changing dimension of job definitions and contains no run history"
+        correct: false
+      - id: d
+        text: "system.query.history, which captures SQL query executions but not job task runs"
+        correct: false
+    explanation: "system.lakeflow.job_task_run_timeline records one row per task run inside a job run, with the task's result state and active period_start_time/period_end_time, so it is the right grain for per-task duration and failure analysis. The job-run timeline is wrong because it captures the overall job run outcome, not the individual tasks within it. The jobs table is wrong because it tracks job definitions/metadata (a dimension), not run history. system.query.history is wrong because it covers SQL warehouse query executions, not job task runs."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/jobs"
+      - "https://docs.databricks.com/aws/en/jobs/monitor"
+    tags: [system-tables, lakeflow, jobs, task-monitoring, monitoring]
+    source: original
+
+  - id: dbx-pro-0093
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "System tables - audit"
+    difficulty: medium
+    question: "A compliance auditor asks you to produce, in SQL, who downloaded query results and who altered grants on a specific schema over the last 90 days, account-wide. Which system table is the authoritative source?"
+    options:
+      - id: a
+        text: "system.access.audit, which records audit events (actor identity, action name, request parameters, timestamp) across workspaces"
+        correct: true
+      - id: b
+        text: "system.access.table_lineage, which records read/write relationships between tables but not who performed governance actions"
+        correct: false
+      - id: c
+        text: "system.billing.usage, which records DBU consumption per usage record but no actor-level actions"
+        correct: false
+      - id: d
+        text: "system.query.history, which records SQL query metrics but not grant changes or result downloads"
+        correct: false
+    explanation: "system.access.audit is the audit log surfaced as a system table; it captures the actor, the action (such as a grant change or a results download), request parameters, and timestamps across workspaces, which is exactly what an access audit needs. The table-lineage table is wrong because it captures data flow between tables, not governance actions or identities. system.billing.usage is wrong because it tracks consumption/cost, not user actions. system.query.history is wrong because it captures query execution telemetry, not grant modifications or download events."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/audit-logs"
+    tags: [system-tables, audit, access, compliance, monitoring]
+    source: original
+
+  - id: dbx-pro-0094
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Databricks SQL Alerts"
+    difficulty: medium
+    question: "You want to be notified whenever a freshness query returns a row whose lag value exceeds 60 minutes. You build a Databricks SQL alert. Which configuration correctly produces the alert behavior?"
+    code_context: |
+      -- The alert query returns one row with a column named max_lag_minutes.
+    options:
+      - id: a
+        text: "Attach the query to a SQL alert, set a schedule, and define a condition comparing the max_lag_minutes column to the threshold 60 with a 'greater than' operator, then assign a notification destination"
+        correct: true
+      - id: b
+        text: "Schedule the query itself; Databricks SQL automatically emails the owner whenever any returned numeric value is non-zero, so no alert object is needed"
+        correct: false
+      - id: c
+        text: "Create the alert but leave the condition empty; alerts fire on every refresh and the recipient inspects the result manually"
+        correct: false
+      - id: d
+        text: "Configure the alert to trigger only when the underlying SQL warehouse auto-stops, since that is the only event alerts can observe"
+        correct: false
+    explanation: "A Databricks SQL alert periodically runs a query on a schedule, evaluates a condition comparing a chosen result column against a threshold using an operator (for example, greater than 60), and notifies users or notification destinations when the condition is met. Relying on a scheduled query alone is wrong because a scheduled query does not evaluate a condition or notify on its own; the alert object provides that logic. Leaving the condition empty so it 'fires on every refresh' is wrong because an alert evaluates a defined condition and triggers only when met. Triggering on warehouse auto-stop is wrong because alerts evaluate query result conditions, not compute lifecycle events."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/user/alerts/"
+      - "https://docs.databricks.com/api/workspace/alerts/create"
+    tags: [databricks-sql, alerts, threshold, notification, monitoring]
+    source: original
+
+  - id: dbx-pro-0095
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Pipeline event log - data quality"
+    difficulty: hard
+    question: "A Lakeflow Declarative Pipeline defines expectations using EXPECT ... ON VIOLATION DROP ROW. You must build a trend dashboard counting how many records were dropped per dataset per update, programmatically. Where do these data quality metrics live?"
+    options:
+      - id: a
+        text: "In the pipeline event log, in flow_progress events whose details contain a data_quality object with per-expectation pass/fail (dropped) counts"
+        correct: true
+      - id: b
+        text: "Only in the pipeline UI's data quality panel, which is rendered live and cannot be queried after the update completes"
+        correct: false
+      - id: c
+        text: "In the _delta_log of each target table, which stores per-expectation failure counts as commit metadata"
+        correct: false
+      - id: d
+        text: "In system.access.audit, which logs one audit event per dropped record"
+        correct: false
+    explanation: "Expectation metrics are emitted to the pipeline event log as flow_progress events, and the details column holds a data_quality object with the passing and failing (dropped) record counts per expectation, so querying the event log gives queryable, historical quality metrics. Claiming the data is only in the UI panel is wrong because the UI is a view over the same event log, which is itself queryable. The Delta transaction log is wrong because _delta_log records file add/remove commits and table protocol metadata, not expectation counts. system.access.audit is wrong because it logs governance/access events, not row-level data quality results, and it does not emit per-dropped-record entries."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/expectations"
+      - "https://docs.databricks.com/aws/en/ldp/monitor-event-log-schema"
+    tags: [lakeflow, declarative-pipelines, event-log, expectations, data-quality, monitoring]
+    source: original
+
+  - id: dbx-pro-0096
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Query diagnosis"
+    difficulty: hard
+    question: "A Databricks SQL query intermittently runs slowly. Opening the Spark UI stage details, you see the Max task duration is roughly four times the 75th-percentile duration for a shuffle stage. What does this most directly indicate, and what is the appropriate next action?"
+    options:
+      - id: a
+        text: "Data skew: one or a few tasks process far more data than the rest; mitigate by addressing the skewed key (for example salting or letting AQE skew-join handling repartition the heavy partition)"
+        correct: true
+      - id: b
+        text: "A healthy, well-balanced stage; the large Max-vs-75th-percentile gap is the expected signature of even partitioning"
+        correct: false
+      - id: c
+        text: "Disk spill caused by Photon being disabled; the fix is to lower spark.sql.shuffle.partitions to a single partition"
+        correct: false
+      - id: d
+        text: "A driver-side bottleneck; the fix is to increase the driver node size so the slow task finishes faster"
+        correct: false
+    explanation: "When Max task duration is much higher than the 75th-percentile duration (the docs flag roughly a 50%+ gap), a few tasks are doing disproportionate work, which is the classic skew signature; mitigations target the skewed key, such as salting or relying on AQE skew-join handling to split the heavy partition. Calling it healthy balanced work is wrong because even partitioning would show Max close to the percentiles, not far above. Attributing it to spill from disabled Photon and collapsing to one shuffle partition is wrong: spill is shown separately as memory/disk spilled bytes, and reducing to a single partition would worsen, not fix, a skewed shuffle. Blaming the driver is wrong because per-task duration variance is an executor-side data-distribution issue, not a driver constraint."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage-page"
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/"
+    tags: [spark-ui, query-profile, skew, diagnosis, monitoring]
+    source: original
+
+  - id: dbx-pro-0097
+    type: single_choice
+    exam: professional
+    domain: "Monitoring and Alerting"
+    subdomain: "Lineage"
+    difficulty: medium
+    question: "Governance needs column-level lineage to know exactly which downstream columns derive from a sensitive PII column, queryable account-wide in SQL. Which system table provides this?"
+    options:
+      - id: a
+        text: "system.access.column_lineage, which records column-to-column lineage relationships captured by Unity Catalog"
+        correct: true
+      - id: b
+        text: "system.access.table_lineage, which records lineage only at table grain and cannot resolve individual columns"
+        correct: false
+      - id: c
+        text: "system.lakeflow.pipelines, which stores pipeline metadata rather than any lineage graph"
+        correct: false
+      - id: d
+        text: "system.information_schema.columns, which lists column definitions but not data-flow relationships"
+        correct: false
+    explanation: "Unity Catalog captures column-level lineage and surfaces it in system.access.column_lineage, giving queryable column-to-column relationships across the metastore, which is what PII derivation tracing requires. The table-lineage table is wrong here because it is table-grain and cannot identify which specific columns derive from the source column. system.lakeflow.pipelines is wrong because it holds pipeline definitions/metadata, not a lineage graph. information_schema.columns is wrong because it is a catalog of column definitions (names, types), not data-flow lineage."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/lineage"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/"
+    tags: [system-tables, lineage, column-lineage, governance, monitoring]
+    source: original
+
+  # ========== DEBUGGING AND DEPLOYING (6 questions) ==========
+  - id: dbx-pro-0098
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Databricks Asset Bundles"
+    difficulty: medium
+    question: "Working with a Databricks Asset Bundle, you want to confirm the bundle configuration is syntactically valid and that variable substitutions resolve before pushing anything to a workspace. Which command does this without creating or modifying workspace resources?"
+    options:
+      - id: a
+        text: "databricks bundle validate"
+        correct: true
+      - id: b
+        text: "databricks bundle deploy, which is the only way to surface configuration errors and which always creates resources first"
+        correct: false
+      - id: c
+        text: "databricks bundle run, which executes a resource and reports config errors as a side effect"
+        correct: false
+      - id: d
+        text: "databricks bundle init, which scaffolds a new project from a template"
+        correct: false
+    explanation: "databricks bundle validate checks the resolved bundle configuration (including variable substitutions and target settings) for correctness without deploying anything, making it the safe pre-flight check. databricks bundle deploy is wrong because it uploads artifacts and creates/updates the workspace resources, which is exactly the side effect you want to avoid for a validation-only check. databricks bundle run is wrong because it triggers execution of an already-deployed resource. databricks bundle init is wrong because it generates a new bundle project from a template and does not validate an existing one."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/settings"
+    tags: [asset-bundles, dabs, cli, validate, deploying]
+    source: original
+
+  - id: dbx-pro-0099
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Databricks Asset Bundles"
+    difficulty: hard
+    question: "Your databricks.yml defines a top-level job schedule and a 'prod' target that overrides that schedule and sets a different root_path. When you run 'databricks bundle deploy -t prod', which configuration wins, and why?"
+    code_context: |
+      # databricks.yml (abbreviated)
+      resources:
+        jobs:
+          etl:
+            schedule: { quartz_cron_expression: "0 0 2 * * ?" }   # 02:00 daily
+      targets:
+        dev:
+          default: true
+        prod:
+          workspace: { root_path: /Workspace/prod/${bundle.name} }
+          resources:
+            jobs:
+              etl:
+                schedule: { quartz_cron_expression: "0 0 5 * * ?" } # 05:00 daily
+    options:
+      - id: a
+        text: "The prod target's settings win: deploying with -t prod applies the target-specific schedule (05:00) and root_path because target mappings take precedence over top-level mappings"
+        correct: false
+      - id: b
+        text: "Top-level settings always win because they are listed first, so the job deploys with the 02:00 schedule regardless of target"
+        correct: false
+      - id: c
+        text: "The deploy fails because a resource may not be defined at both the top level and inside a target"
+        correct: false
+      - id: d
+        text: "The prod target's settings win and merge with the top level: deploying with -t prod uses the 05:00 schedule and the prod root_path"
+        correct: true
+    explanation: "Targets define deployment-specific contexts, and the settings within a target's mapping take precedence over (and merge with) the top-level workspace, artifacts, and resources mappings; deploying with -t prod therefore applies the prod schedule (05:00) and the prod root_path. Saying ordering/first-listed wins is incorrect because precedence is by target override, not document order. Claiming the deploy fails for defining a resource in both places is incorrect because top-level and target definitions are explicitly designed to merge with target precedence. The option asserting target precedence but describing it as a non-merging replacement understates the documented merge behavior, so the merge-and-override description is the precise answer."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/settings"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/reference"
+    tags: [asset-bundles, dabs, targets, precedence, promotion, deploying]
+    source: original
+
+  - id: dbx-pro-0100
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "CLI and REST API"
+    difficulty: medium
+    question: "A nightly multi-task job failed on its third task after the first two succeeded, due to a transient upstream outage now resolved. You want to resume the existing run, rerunning only the failed (and dependent) tasks, and pass a corrected job parameter. Which approach is correct?"
+    options:
+      - id: a
+        text: "Call the Jobs repair-run API (jobs/repairrun) on the failed run, listing the tasks to rerun and supplying overridden job parameters in the same request"
+        correct: true
+      - id: b
+        text: "Call jobs/run-now, which starts a brand-new run from scratch and re-executes the already-successful tasks"
+        correct: false
+      - id: c
+        text: "Call jobs/reset, which rewrites the job definition and cannot rerun a specific failed run"
+        correct: false
+      - id: d
+        text: "Delete the run with jobs/runs/delete and recreate the job, because failed tasks cannot otherwise be rerun"
+        correct: false
+    explanation: "The Jobs repair-run operation (jobs/repairrun) resumes an existing failed run, reruns the selected failed/dependent tasks without redoing the successful ones, and lets you override job parameters in the repair request. jobs/run-now is wrong because it launches an entirely new run and would re-execute the tasks that already succeeded. jobs/reset is wrong because it overwrites the job's definition (settings) and is not a mechanism for rerunning a specific failed run. Deleting and recreating the job is wrong because repair-run exists precisely so you do not have to, and deleting the run discards its history without rerunning anything."
+    references:
+      - "https://docs.databricks.com/api/workspace/jobs/repairrun"
+      - "https://docs.databricks.com/aws/en/jobs/repair-job-failures"
+    tags: [rest-api, jobs, repair-run, parameter-override, debugging]
+    source: original
+
+  - id: dbx-pro-0101
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Git-based CI/CD"
+    difficulty: hard
+    question: "You are designing a GitHub Actions CI/CD pipeline that deploys a Databricks Asset Bundle to the prod target on merges to main. Which practice best matches Databricks' recommended approach for authentication and source-of-truth in the production job?"
+    options:
+      - id: a
+        text: "Authenticate the CLI as a service principal (e.g., via OIDC) and deploy the bundle so the bundle is the source of truth for prod, instead of relying on a developer's PAT or an interactively-attached Git folder"
+        correct: true
+      - id: b
+        text: "Hardcode an individual developer's personal access token in a GitHub secret and deploy as that user, so prod follows whoever last committed"
+        correct: false
+      - id: c
+        text: "Skip the bundle in prod and instead have the production job run notebooks directly from a workspace Git folder that engineers manually pull"
+        correct: false
+      - id: d
+        text: "Run 'databricks bundle deploy' with no target flag so it deploys to the default (dev) target, then manually copy artifacts into prod"
+        correct: false
+    explanation: "Databricks recommends authenticating CI/CD as a service principal (for example via GitHub OIDC, avoiding stored PATs) and treating the deployed bundle as the source of truth for production, which keeps prod independent of any individual and reproducible. Hardcoding a developer's PAT is wrong because it couples prod to a person and leaks a long-lived credential. Pointing the prod job at a manually-pulled workspace Git folder is wrong because prod should be driven by the bundle deploy, not interactive Git pulls. Deploying with no target flag is wrong because it targets the default (dev) target; the prod deployment must explicitly select the prod target, and copying artifacts by hand defeats the bundle's purpose."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/ci-cd/github"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/ci-cd-bundles"
+    tags: [ci-cd, github-actions, asset-bundles, git-folders, service-principal, deploying]
+    source: original
+
+  - id: dbx-pro-0102
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Spark UI diagnosis"
+    difficulty: hard
+    question: "A Spark job repeatedly fails with executor OutOfMemoryError during a large shuffle/sort. In the Spark UI you also observe large 'Spill (memory)' and 'Spill (disk)' values in the stage's task metrics. What is the most accurate interpretation and a sound remediation?"
+    options:
+      - id: a
+        text: "The executors lack memory for the working set: spill indicates Spark is overflowing to disk, and OOM follows when even that is insufficient; remediate by reducing per-task data (more shuffle partitions / better partitioning) or increasing executor memory"
+        correct: true
+      - id: b
+        text: "Spill to disk guarantees the job cannot OOM, so the OOM must come from the driver collecting results; the fix is to remove all caching"
+        correct: false
+      - id: c
+        text: "Spill metrics are purely informational and unrelated to memory pressure; the OOM is a transient cluster fault that a simple retry resolves"
+        correct: false
+      - id: d
+        text: "The correct fix is to coalesce the data to a single partition before the shuffle so all data fits in one task"
+        correct: false
+    explanation: "Spill is what happens when Spark runs low on memory and moves data from memory to disk; persistent heavy spill alongside executor OOM signals the working set per task exceeds available executor memory, so reducing data processed per task (increasing shuffle partitions, repartitioning, or fixing skew) or adding executor memory is the sound fix. Claiming spill prevents OOM and blaming the driver is wrong because executor-side OOM during a shuffle is an executor memory problem, and spill does not immunize against OOM. Treating spill as informational and retrying is wrong because repeated OOM tied to spill is a sizing/distribution issue, not a transient fault. Coalescing to a single partition is wrong because it concentrates all data into one task and would make memory pressure dramatically worse."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage-page"
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/debugging-spark-ui"
+    tags: [spark-ui, oom, spill, shuffle, diagnosis, debugging]
+    source: original
+
+  - id: dbx-pro-0103
+    type: single_choice
+    exam: professional
+    domain: "Debugging and Deploying"
+    subdomain: "Asset Bundles - variables"
+    difficulty: medium
+    question: "In a bundle deployed across dev/staging/prod, you must supply a different catalog name per environment at deploy time, and occasionally override it ad hoc from the command line. Using Databricks Asset Bundle variables, which precedence correctly describes how the value is resolved?"
+    options:
+      - id: a
+        text: "A value passed with --var on the command line takes precedence over a BUNDLE_VAR_ environment variable, which takes precedence over a target-level variable mapping, which takes precedence over the variable's default"
+        correct: true
+      - id: b
+        text: "The variable's default value always wins; --var and target mappings are ignored once a default is declared"
+        correct: false
+      - id: c
+        text: "Target-level variable mappings always win and cannot be overridden at the command line under any circumstances"
+        correct: false
+      - id: d
+        text: "Bundle variables cannot vary by target; you must maintain a separate databricks.yml file per environment"
+        correct: false
+    explanation: "The CLI resolves a bundle variable in a defined order: a --var flag on the command wins first, then a BUNDLE_VAR_-prefixed environment variable, then the value set in the target's variables mapping, and finally the variable's default. Saying the default always wins is wrong because the default is the lowest-priority fallback. Saying target mappings can never be overridden at the command line is wrong because --var explicitly overrides them. Claiming variables cannot vary by target is wrong because per-target variable mappings are the documented mechanism for environment-specific values within one databricks.yml."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/variables"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/settings"
+    tags: [asset-bundles, dabs, variables, targets, promotion, deploying]
+    source: original

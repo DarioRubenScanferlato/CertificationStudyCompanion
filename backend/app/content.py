@@ -37,9 +37,9 @@ class ContentValidationError:
         self,
         error_type: str,
         file_path: str,
-        exercise_id: str = None,
-        message: str = None,
-        details: dict[str, Any] = None,
+        exercise_id: str | None = None,
+        message: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """
         Initialize a content validation error.
@@ -71,7 +71,7 @@ class ContentValidationError:
 
 
 def load_exercises_from_directory(
-    base_path: str = None,
+    base_path: str | None = None,
 ) -> tuple[list, int, list[ContentValidationError]]:
     """
     Load all exercises from YAML files in a directory.
@@ -257,10 +257,10 @@ def load_exercises_from_directory(
 
 def filter_exercises(
     exercises: list,
-    domain: str = None,
-    difficulty: str = None,
-    exam: str = None,
-    exercise_type: str = None,
+    domain: str | None = None,
+    difficulty: str | None = None,
+    exam: str | None = None,
+    exercise_type: str | None = None,
 ) -> list:
     """
     Filter exercises by criteria.

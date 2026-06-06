@@ -1,0 +1,127 @@
+# Databricks DE Certification (Professional) - MCQs
+# Generated: 2026-06-07
+# Total Questions: 4
+# Domain Distribution:
+#   - Data Modelling: 4
+# ID Range: dbx-pro-0117 .. dbx-pro-0120
+# Type: single_choice (>=1 correct + >=3 incorrect)
+# Subtopics: medallion architecture & reprocessing; SCD Type 1 vs Type 2 (AUTO CDC);
+#            star schema / surrogate keys / grain; streaming table vs materialized view
+#            + normalization vs denormalization tradeoffs.
+
+exercises:
+  # ========== DATA MODELLING (4 questions) ==========
+  - id: dbx-pro-0117
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Medallion architecture"
+    difficulty: medium
+    question: "An ingestion job writes JSON files from an event source directly into a cleaned, deduplicated silver table, skipping any raw landing layer to save storage. A downstream bug is later discovered in the deduplication logic, and the team realizes some early records had a schema variant that was silently dropped. According to Databricks medallion architecture guidance, what is the primary modelling problem with this design?"
+    options:
+      - id: a
+        text: "Without a bronze layer preserving raw source data as the single source of truth, the team cannot reprocess history to recover the dropped records or re-derive the silver table after fixing the logic"
+        correct: true
+      - id: b
+        text: "Silver tables cannot physically store deduplicated data, so the cleansing step must always be deferred to the gold layer"
+        correct: false
+      - id: c
+        text: "Writing JSON into a silver table is unsupported because silver tables only accept Parquet inputs, which is why the records were dropped"
+        correct: false
+      - id: d
+        text: "The design is fine; raw data should never be retained because it duplicates storage and the source system itself is always the correct reprocessing source"
+        correct: false
+    explanation: "The medallion pattern intends the bronze layer to hold raw, unvalidated data in its original form so it serves as the single source of truth and enables reprocessing and auditing by retaining all historical data. Writing straight into a cleansed table skips that safety net, so once a transformation bug is found there is no retained raw history to replay, and records dropped by the buggy logic are lost. The claim that silver tables cannot store deduplicated data is wrong - cleansing, deduplication, and normalization are exactly the silver layer's job. The claim that silver only accepts Parquet inputs is fabricated; the layer concept is about data quality, not an input file-format restriction. Saying the design is fine because the source system is always available is wrong because upstream operational systems frequently overwrite or purge data and may not retain the historical state needed to reprocess, which is why Databricks advises against skipping bronze."
+    references:
+      - "https://docs.databricks.com/aws/en/lakehouse/medallion"
+    tags: [medallion, bronze, reprocessing, lakehouse]
+    source: original
+
+  - id: dbx-pro-0118
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Slowly changing dimensions"
+    difficulty: hard
+    question: "A customer dimension is built in a Lakeflow Declarative Pipeline from a CDC feed using AUTO CDC INTO with SEQUENCE BY an event timestamp. Analysts must be able to answer 'what was this customer's loyalty tier and address on the date of any past order', and out-of-order CDC events occasionally arrive. The address field changes frequently for purely cosmetic reasons (formatting) and the team does not want those changes to create new history rows. Which modelling choice meets these requirements?"
+    code_context: |
+      CREATE OR REFRESH STREAMING TABLE dim_customer;
+
+      CREATE FLOW customer_cdc AS AUTO CDC INTO dim_customer
+        FROM STREAM(cdc_source)
+        KEYS (customer_id)
+        SEQUENCE BY event_ts
+        STORED AS ___
+    options:
+      - id: a
+        text: "Use STORED AS SCD TYPE 2 with a TRACK HISTORY ON clause that excludes the address column, so versioned __START_AT/__END_AT rows are created for tracked changes while address-only edits update the current row in place"
+        correct: true
+      - id: b
+        text: "Use STORED AS SCD TYPE 1, because SEQUENCE BY already orders events and Type 1 retains enough history for point-in-time queries"
+        correct: false
+      - id: c
+        text: "Use STORED AS SCD TYPE 2 with no history-tracking clause, then manually delete unwanted address-change rows in a nightly job"
+        correct: false
+      - id: d
+        text: "Use STORED AS SCD TYPE 2 but remove SEQUENCE BY, since SCD Type 2 must process events in arrival order to build correct history"
+        correct: false
+    explanation: "Point-in-time queries over past attribute values require retaining a full version history, which is what SCD Type 2 provides by creating new rows with __START_AT and __END_AT validity columns; combining it with a TRACK HISTORY ON clause that excludes address means only the tracked columns generate new versions while cosmetic address edits update the current version in place, exactly matching the requirement. SCD Type 1 updates records directly and does not retain history for updated records, so it cannot answer 'what was the value on a past date'. Type 2 without a tracking clause would faithfully version every change including the unwanted cosmetic address edits, and bolting on a nightly delete job to scrub them is fragile and corrupts the validity intervals. Removing SEQUENCE BY is wrong because AUTO CDC uses the sequencing column specifically to order out-of-order events correctly; without it the API has no basis to resolve late-arriving events into the right historical order."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/cdc"
+      - "https://docs.databricks.com/aws/en/ldp/developer/ldp-sql-ref-apply-changes-into"
+    tags: [scd-type-2, auto-cdc, declarative-pipelines, dimension]
+    source: original
+
+  - id: dbx-pro-0119
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Dimensional modelling"
+    difficulty: hard
+    question: "A team is building a gold-layer star schema for sales analytics on the lakehouse. They need a stable join key for `dim_product` that remains constant even when the natural business key (`product_sku`) is reused or changes upstream, and they want the dimension to keep historical versions of each product. Which approach best models the surrogate key and the dimension semantics?"
+    options:
+      - id: a
+        text: "Add a BIGINT surrogate key on dim_product using GENERATED ALWAYS AS IDENTITY, have fact_sales store that surrogate key, and model dim_product as SCD Type 2 so each historical product version gets its own surrogate-keyed row"
+        correct: true
+      - id: b
+        text: "Use product_sku directly as the primary and foreign key throughout, since natural keys eliminate the need for surrogate keys and SCD modelling"
+        correct: false
+      - id: c
+        text: "Generate the surrogate key in the fact table with GENERATED ALWAYS AS IDENTITY and join facts to dimensions on that fact-side identity value"
+        correct: false
+      - id: d
+        text: "Model dim_product as SCD Type 1 and store the surrogate key, since a single current row per product is all a star schema fact can reference"
+        correct: false
+    explanation: "A surrogate key that is independent of the volatile business key gives the fact table a stable foreign key; Delta Lake supports this directly via a BIGINT column declared GENERATED ALWAYS AS IDENTITY, and pairing it with SCD Type 2 means each historical version of a product is a distinct dimension row with its own surrogate key, so facts join to the version that was active at the time. Using product_sku as the key fails the requirement precisely because it is reused/changed upstream and cannot represent multiple historical versions of the same product. Generating the surrogate on the fact table is wrong: the identity column belongs on the dimension to identify dimension rows; a fact-side identity would just be a unique row id and could not point to the correct historical dimension version. SCD Type 1 keeps only the current row per product, which makes historical-version joins impossible, defeating the stated need to retain history."
+    references:
+      - "https://docs.databricks.com/aws/en/transform/data-modeling"
+      - "https://docs.databricks.com/aws/en/delta/generated-columns"
+    tags: [star-schema, surrogate-key, identity-column, scd-type-2]
+    source: original
+
+  - id: dbx-pro-0120
+    type: single_choice
+    exam: professional
+    domain: "Data Modelling"
+    subdomain: "Streaming tables vs materialized views"
+    difficulty: medium
+    question: "In a Lakeflow Declarative Pipeline, the bronze layer ingests an append-only event stream from cloud storage where each row should be read and processed exactly once, while the gold layer must serve a dashboard that pre-computes daily revenue aggregations and joins against several dimension tables, kept current with incremental refresh. Which dataset types best fit these two layers respectively?"
+    options:
+      - id: a
+        text: "A streaming table for the bronze append-only ingestion, and a materialized view for the gold pre-computed, incrementally refreshed aggregation"
+        correct: true
+      - id: b
+        text: "A materialized view for the bronze ingestion (to deduplicate on refresh), and a streaming table for the gold aggregation (to keep results always up to date)"
+        correct: false
+      - id: c
+        text: "A streaming table for both layers, because streaming semantics are always preferable and materialized views cannot be incrementally refreshed"
+        correct: false
+      - id: d
+        text: "A materialized view for both layers, because batch semantics guarantee exactly-once processing better than streaming tables"
+        correct: false
+    explanation: "Streaming tables use streaming semantics and are the right choice for ingestion and append-only sources where each input row is read and processed once, which fits the bronze event stream from cloud storage. Materialized views use batch semantics, pre-compute results, and stay current via incremental refresh, making them ideal for the gold aggregation-and-join workload feeding a dashboard. Swapping them is wrong: a materialized view does not provide the once-per-row append ingestion model bronze needs, and a streaming table is not designed to serve pre-computed multi-table aggregations. Using streaming tables everywhere is wrong because materialized views can be incrementally refreshed and aggregations/joins that produce updates rather than appends are not well supported as streaming-table logic. Using materialized views everywhere is wrong because exactly-once row processing for an append-only ingest is the streaming table's job, not a property of batch materialized views."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/best-practices"
+      - "https://docs.databricks.com/aws/en/data-engineering/tables-views"
+    tags: [streaming-table, materialized-view, medallion, declarative-pipelines]
+    source: original

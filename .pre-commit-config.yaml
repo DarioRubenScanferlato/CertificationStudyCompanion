@@ -20,3 +20,15 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
+
+  # Static type checking (pyright). Runs in the backend uv env so imports
+  # resolve; config + scope (app/ only) live in backend/pyproject.toml
+  # [tool.pyright]. Requires the dev extra: `uv sync --extra dev` (from backend/).
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright (backend type check)
+        entry: uv run --directory backend pyright
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false

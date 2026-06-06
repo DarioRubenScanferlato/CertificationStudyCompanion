@@ -46,11 +46,11 @@ development_status:
   6-7-exam-filter-session-scoping: done
 
   # EPIC 7: Answer & Stats Tracking (next priority — before Epic 8 & Epic 4)
-  7-1-sqlite-attempt-store: ready-for-dev
-  7-2-record-attempts-on-feedback: ready-for-dev
-  7-3-unseen-first-session-ordering: ready-for-dev
-  7-4-stats-and-readiness-endpoints: ready-for-dev
-  7-5-stats-dashboard-readiness-indicator: ready-for-dev
+  7-1-sqlite-attempt-store: done
+  7-2-record-attempts-on-feedback: done
+  7-3-unseen-first-session-ordering: done
+  7-4-stats-and-readiness-endpoints: done
+  7-5-stats-dashboard-readiness-indicator: done
 
   # EPIC 8: Timed Practice / Mock Exam (after Epic 7)
   8-1-session-countdown-timer: ready-for-dev
@@ -75,13 +75,13 @@ development_status:
 
 summary:
   total_stories: 44
-  ready_for_dev: 14
+  ready_for_dev: 9
   in_progress: 0
   review: 0
   approved: 0
   merged: 10
-  done: 20
+  done: 25
   blocked: 0
   last_updated: 2026-06-07
-  completed: "30 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done, Epic 5: 5.1-5.6 done, Epic 6: 6.1-6.7 done; committed 446d81f)"
-  ready_for_dev_detail: "14 ready. Priority: Epic 7 (7.1-7.5 Answer & Stats Tracking) → Epic 8 (8.1-8.4 Timed Practice / Mock Exam) → Epic 4 (4.1-4.5 Code-Completion / Phase 2). Epics 7 & 8 from PRD rev 3 / architecture rev 4."
+  completed: "35 (Epics 1-3,5,6 + Epic 7: 7.1-7.5 done). Epic 7 implemented & verified 2026-06-07: backend 242 tests, frontend 109 tests, ruff+eslint clean, SQLite store isolated in tests. Uncommitted."
+  ready_for_dev_detail: "9 ready. Priority: Epic 8 (8.1-8.4 Timed Practice / Mock Exam) → Epic 4 (4.1-4.5 Code-Completion / Phase 2)."

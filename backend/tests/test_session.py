@@ -1,11 +1,29 @@
-"""Tests for the server-side session randomizer (Story 5.3)."""
+"""Tests for the server-side session randomizer (Story 5.3, Story 7.3)."""
 
+import pytest
+
+from app import store
 from app.models import MCQ, Difficulty, Domain, ExamType, ExerciseType, Option
 from app.session import (
     build_displayed_options,
     build_session,
     build_session_entry,
 )
+
+
+@pytest.fixture(autouse=True)
+def temp_attempt_db(tmp_path, monkeypatch):
+    """Point the attempt store at a fresh temp DB for every test.
+
+    ``build_session`` reads the store for unseen-first ordering (Story 7.3), so
+    every test must use an isolated, empty DB (no rows => everything unseen)
+    unless it records attempts itself. ``ATTEMPT_DB_PATH`` is honored by all
+    store helpers (see store._resolve_path).
+    """
+    db_path = tmp_path / "progress.db"
+    monkeypatch.setenv("ATTEMPT_DB_PATH", str(db_path))
+    store.init_db()
+    return db_path
 
 
 def make_mcq(
@@ -170,3 +188,134 @@ class TestBuildSession:
             assert len(entry["displayedOptions"]) == 4
             for opt in entry["displayedOptions"]:
                 assert "correct" not in opt
+
+
+class TestUnseenFirstOrdering:
+    """Tests for unseen-first session ordering (Story 7.3, FR-24)."""
+
+    def test_unseen_served_before_any_seen(self):
+        """All unseen exercises are ordered before any seen one."""
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(6)]
+        seen_ids = {"dbx-de-0001", "dbx-de-0003", "dbx-de-0004"}
+        for eid in seen_ids:
+            store.record_attempt(eid, answered_at="2026-01-01T00:00:00+00:00")
+
+        unseen_ids = {ex.id for ex in exercises} - seen_ids
+
+        # Run repeatedly: the unseen-group is shuffled, so the partition
+        # boundary must hold regardless of the random within-group order.
+        for _ in range(50):
+            session = build_session(exercises)
+            ordered_ids = [e["exerciseId"] for e in session]
+            # All exercises still returned (no drops).
+            assert set(ordered_ids) == {ex.id for ex in exercises}
+            # The first len(unseen) entries are exactly the unseen set, and the
+            # remainder are exactly the seen set => every unseen precedes every seen.
+            head = set(ordered_ids[: len(unseen_ids)])
+            tail = ordered_ids[len(unseen_ids) :]
+            assert head == unseen_ids
+            assert set(tail) == seen_ids
+
+    def test_unseen_group_order_is_randomized(self):
+        """Within the unseen group, order varies across calls."""
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(6)]
+        # Nothing attempted => all unseen.
+        observed = set()
+        for _ in range(200):
+            session = build_session(exercises)
+            observed.add(tuple(e["exerciseId"] for e in session))
+        assert len(observed) > 1
+
+    def test_all_seen_fallback_least_recently_seen_first(self):
+        """When everything is seen, all are returned, oldest-last-seen first."""
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(4)]
+        # Record attempts with strictly increasing timestamps so last-seen order
+        # is unambiguous: 0000 oldest ... 0003 most recent.
+        timestamps = {
+            "dbx-de-0000": "2026-01-01T00:00:00+00:00",
+            "dbx-de-0001": "2026-02-01T00:00:00+00:00",
+            "dbx-de-0002": "2026-03-01T00:00:00+00:00",
+            "dbx-de-0003": "2026-04-01T00:00:00+00:00",
+        }
+        for eid, ts in timestamps.items():
+            store.record_attempt(eid, answered_at=ts)
+
+        # Deterministic when all-seen: no unseen group to shuffle.
+        session = build_session(exercises)
+        ordered_ids = [e["exerciseId"] for e in session]
+
+        # No empty/blocked state: every exercise is still present.
+        assert set(ordered_ids) == set(timestamps)
+        # Least-recently-seen first: oldest timestamp leads, most-recent trails.
+        assert ordered_ids == [
+            "dbx-de-0000",
+            "dbx-de-0001",
+            "dbx-de-0002",
+            "dbx-de-0003",
+        ]
+        # Spot-check the load-bearing invariant: oldest before most-recent.
+        assert ordered_ids.index("dbx-de-0000") < ordered_ids.index("dbx-de-0003")
+
+    def test_last_seen_uses_most_recent_attempt(self):
+        """An exercise's position uses its MOST RECENT attempt timestamp."""
+        exercises = [make_mcq("dbx-de-0000"), make_mcq("dbx-de-0001")]
+        # 0000: first attempt old, then a very recent re-attempt.
+        store.record_attempt("dbx-de-0000", answered_at="2026-01-01T00:00:00+00:00")
+        store.record_attempt("dbx-de-0000", answered_at="2026-05-01T00:00:00+00:00")
+        # 0001: single attempt, between the two above.
+        store.record_attempt("dbx-de-0001", answered_at="2026-03-01T00:00:00+00:00")
+
+        session = build_session(exercises)
+        ordered_ids = [e["exerciseId"] for e in session]
+        # 0001 (last seen 2026-03) is less recent than 0000 (last seen 2026-05),
+        # so 0001 comes first.
+        assert ordered_ids == ["dbx-de-0001", "dbx-de-0000"]
+
+    def test_prioritize_unseen_false_is_history_independent(self):
+        """prioritize_unseen=False keeps the prior pure-random ordering."""
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(6)]
+        # Mark a subset seen; it must NOT affect ordering when the flag is off.
+        for eid in ("dbx-de-0001", "dbx-de-0003"):
+            store.record_attempt(eid, answered_at="2026-01-01T00:00:00+00:00")
+
+        observed = set()
+        boundary_violations = 0
+        seen_ids = {"dbx-de-0001", "dbx-de-0003"}
+        for _ in range(200):
+            session = build_session(exercises, prioritize_unseen=False)
+            ordered_ids = [e["exerciseId"] for e in session]
+            assert set(ordered_ids) == {ex.id for ex in exercises}
+            observed.add(tuple(ordered_ids))
+            # Count runs where a seen id lands before some unseen id — under
+            # history-independent random ordering this should frequently happen.
+            first_seen_pos = min(ordered_ids.index(s) for s in seen_ids)
+            last_unseen_pos = max(ordered_ids.index(i) for i in ordered_ids if i not in seen_ids)
+            if first_seen_pos < last_unseen_pos:
+                boundary_violations += 1
+
+        # Random ordering => many distinct permutations...
+        assert len(observed) > 1
+        # ...and history is ignored: seen ids routinely appear before unseen ones
+        # (unseen-first would make boundary_violations == 0).
+        assert boundary_violations > 0
+
+    def test_option_sampling_still_random_under_unseen_first(self):
+        """Per-MCQ sampling stays random: exactly 1 correct + 3 incorrect, varies."""
+        exercises = [make_mcq("dbx-de-0000", extra_incorrect=True)]
+        mcq = exercises[0]
+        correct_ids = {o.id for o in mcq.options if o.correct}
+        incorrect_ids = {o.id for o in mcq.options if not o.correct}
+
+        observed = set()
+        for _ in range(200):
+            session = build_session(exercises)
+            assert len(session) == 1
+            displayed = session[0]["displayedOptions"]
+            shown_ids = [o["id"] for o in displayed]
+            assert sum(1 for i in shown_ids if i in correct_ids) == 1
+            assert sum(1 for i in shown_ids if i in incorrect_ids) == 3
+            for opt in displayed:
+                assert set(opt.keys()) == {"id", "text"}
+            observed.add(tuple(shown_ids))
+        # Sampling from a 6-option pool + shuffle => many distinct outcomes.
+        assert len(observed) > 1

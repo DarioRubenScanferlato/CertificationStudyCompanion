@@ -1,0 +1,392 @@
+# Databricks DE Certification (Professional) - MCQ Batch 02
+# Topic: Security & Compliance, Data Governance, Data Sharing & Federation
+# Generated: 2026-06-07
+# Total Questions: 13
+# Domain Distribution:
+#   - Ensuring Data Security and Compliance: 6
+#   - Data Governance: 4
+#   - Data Sharing and Federation: 3
+# ID Range: dbx-pro-0104 .. dbx-pro-0116
+
+exercises:
+  # ========== ENSURING DATA SECURITY AND COMPLIANCE (6 questions) ==========
+  - id: dbx-pro-0104
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Row filters and column masks"
+    difficulty: medium
+    question: "A Unity Catalog table `prod.fin.transactions` must show only rows belonging to a caller's own business unit, except for members of the `fin_auditors` account group, who must see every row. The same physical table feeds dozens of downstream queries that you cannot modify. Which approach implements this with a single, reusable rule attached to the table?"
+    code_context: |
+      CREATE FUNCTION prod.fin.bu_filter(bu STRING)
+      RETURNS BOOLEAN
+      RETURN is_account_group_member('fin_auditors')
+             OR bu = current_user_business_unit();
+    options:
+      - id: a
+        text: "Author a SQL UDF returning BOOLEAN that calls `is_account_group_member('fin_auditors')` and attach it as a row filter with `ALTER TABLE prod.fin.transactions SET ROW FILTER prod.fin.bu_filter ON (bu)`."
+        correct: true
+      - id: b
+        text: "Attach a column mask to the `bu` column so callers from other business units receive NULL in that column."
+        correct: false
+      - id: c
+        text: "Use the legacy `is_member()` function inside the UDF, since it is the Unity Catalog-aware membership check for row filters."
+        correct: false
+      - id: d
+        text: "Embed a `WHERE bu = ...` predicate inside each `GRANT SELECT` statement issued to non-auditor groups."
+        correct: false
+    answer: [a]
+    explanation: "A Unity Catalog row filter is a SQL UDF returning BOOLEAN that Unity Catalog evaluates per row; rows surface only when it returns TRUE, and attaching it with ALTER TABLE ... SET ROW FILTER lets one physical table serve all callers without touching downstream SQL. Masking the bu column is wrong because a column mask only rewrites one column's value; it cannot remove whole rows, so callers would still see other units' transactions. Using is_member() is incorrect because that is the legacy workspace-local check; the Unity Catalog-aware function is is_account_group_member(), which resolves account-level groups. Putting a WHERE predicate inside GRANT is invalid: the GRANT statement has no row-predicate clause, and row-level security is expressed through row filters, not grants."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/manually-apply"
+    tags: [row-filter, unity-catalog, is_account_group_member, rls, compliance]
+    source: original
+
+  - id: dbx-pro-0105
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Row filters and column masks"
+    difficulty: hard
+    question: "A masking function must show the real `email` value to members of the `pii_readers` group and a redacted value to everyone else, but the redaction logic also depends on the value of a second column, `region`, in the same row. Which statement about implementing this column mask in Unity Catalog is correct?"
+    code_context: |
+      CREATE FUNCTION prod.crm.email_mask(email STRING, region STRING)
+      RETURNS STRING
+      RETURN CASE
+        WHEN is_account_group_member('pii_readers') THEN email
+        WHEN region = 'EU' THEN '[REDACTED-EU]'
+        ELSE '[REDACTED]'
+      END;
+    options:
+      - id: a
+        text: "The mask function can accept the additional `region` column as a parameter, and you bind it at attach time with `ALTER TABLE ... ALTER COLUMN email SET MASK prod.crm.email_mask USING COLUMNS (region)`."
+        correct: true
+      - id: b
+        text: "A column mask function may reference only the single column it is applied to; conditional logic based on a second column is impossible, so you must fall back to a dynamic view."
+        correct: false
+      - id: c
+        text: "You must instead attach a row filter on `email`, because masks cannot call `is_account_group_member()`."
+        correct: false
+      - id: d
+        text: "Column masks cannot inspect group membership at query time; the only supported behavior is unconditional hashing of the masked column."
+        correct: false
+    answer: [a]
+    explanation: "A column mask function can take additional columns from the same row as parameters; you pass them with the USING COLUMNS clause when attaching the mask, so the redaction can branch on region while masking email. The claim that a mask can reference only its own column is false: the USING COLUMNS mechanism exists precisely to feed other row values into the masking UDF. Saying you must use a row filter instead is wrong, because a row filter removes rows rather than rewriting a column value, and masks fully support is_account_group_member(). The statement that masks support only unconditional hashing is incorrect: a mask is an arbitrary SQL UDF that can branch on group membership and other columns, returning plaintext or any redacted form."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/manually-apply"
+    tags: [column-mask, pii, unity-catalog, is_account_group_member, using-columns]
+    source: original
+
+  - id: dbx-pro-0106
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "PII tokenization vs masking"
+    difficulty: medium
+    question: "A team must support a GDPR right-to-erasure workflow where, after a customer is forgotten, the raw `credit_card` value must be unrecoverable, yet analytics joins on the card must still work for non-erased customers using a stable surrogate. Which design best fits these requirements?"
+    options:
+      - id: a
+        text: "Tokenize `credit_card` at ingestion (store a reversible token plus a separately secured vault mapping), so erasure means destroying the vault mapping while keeping the token for joins."
+        correct: true
+      - id: b
+        text: "Apply a Unity Catalog column mask to `credit_card`; the mask alone makes the underlying value unrecoverable on erasure."
+        correct: false
+      - id: c
+        text: "Store the plaintext card and rely solely on table ACLs, deleting nothing, since revoking SELECT satisfies right-to-erasure."
+        correct: false
+      - id: d
+        text: "Encrypt the whole table with a single static key and share that key with every analytics job so joins still work."
+        correct: false
+    answer: [a]
+    explanation: "Tokenization replaces the sensitive value with a surrogate token while a separately protected vault holds the mapping; joins use the stable token, and erasure is achieved by destroying that customer's mapping so the original card can never be recovered. A column mask is wrong here because masking only changes what callers see at query time; the underlying plaintext still exists at rest and is not erased. Relying on table ACLs without deleting anything fails right-to-erasure outright, since the data is retained and merely access-restricted. Encrypting the whole table with one static key shared to every job provides no per-record erasure and effectively exposes plaintext to all those jobs, defeating both the erasure and confidentiality goals."
+    references:
+      - "https://docs.databricks.com/aws/en/security/privacy/gdpr-delta"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/"
+    tags: [tokenization, pii, gdpr, masking, compliance]
+    source: original
+
+  - id: dbx-pro-0107
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "GDPR right to erasure"
+    difficulty: hard
+    question: "A managed Delta table has deletion vectors enabled. To satisfy a GDPR erasure request you have already run `DELETE FROM prod.crm.customers WHERE customer_id = 4711`. A query confirms the row is gone, but compliance insists the underlying bytes be physically purged from cloud storage. What is the correct sequence to guarantee the data is no longer present in any retained file?"
+    options:
+      - id: a
+        text: "Run `REORG TABLE prod.crm.customers APPLY (PURGE)` to rewrite files containing soft-deleted records, then run `VACUUM` with a retention threshold no earlier than the purge completion so the old files are physically removed."
+        correct: true
+      - id: b
+        text: "Run `VACUUM` immediately after the DELETE; because deletion vectors are enabled, VACUUM alone rewrites and physically removes the affected rows."
+        correct: false
+      - id: c
+        text: "Run `OPTIMIZE` on the table; compaction physically purges the soft-deleted rows recorded by the deletion vectors."
+        correct: false
+      - id: d
+        text: "The DELETE statement already overwrote the underlying Parquet files, so no further action is needed for physical removal."
+        correct: false
+    answer: [a]
+    explanation: "With deletion vectors enabled, a DELETE only marks rows as soft-deleted via metadata; the bytes remain in the Parquet files. REORG TABLE ... APPLY (PURGE) rewrites the affected files without the deleted records, producing a new version, and then VACUUM must run with a retention threshold at or after the purge's completion timestamp to physically delete the now-stale old files. VACUUM alone after the DELETE does not help, because the live files still contain the bytes (the deletion vector only masks them); VACUUM removes unreferenced files, not the soft-deleted rows inside referenced ones. OPTIMIZE compacts files for performance but does not guarantee purging of soft-deleted records. The claim that DELETE overwrote the Parquet files is exactly the misconception deletion vectors introduce: DELETE writes a deletion vector rather than rewriting the data files."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/deletion-vectors"
+      - "https://docs.databricks.com/aws/en/security/privacy/gdpr-delta"
+    tags: [gdpr, deletion-vectors, reorg-purge, vacuum, compliance]
+    source: original
+
+  - id: dbx-pro-0108
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Secrets management"
+    difficulty: medium
+    question: "A production job must authenticate to an external API using a credential that should never appear in notebook output, logs, or job source. The team wants the value stored once and referenced by key. Which approach correctly retrieves the secret at runtime?"
+    code_context: |
+      api_token = dbutils.secrets.get(scope="prod-ext", key="api_token")
+    options:
+      - id: a
+        text: "Store the value in a secret scope and read it with `dbutils.secrets.get(scope=\"prod-ext\", key=\"api_token\")`; Databricks redacts the value if it is printed."
+        correct: true
+      - id: b
+        text: "Hardcode the token in a widget default value so it is parameterized and therefore hidden from logs."
+        correct: false
+      - id: c
+        text: "Set the token as a cluster environment variable in plaintext in the cluster's Spark config UI, which keeps it out of all logs."
+        correct: false
+      - id: d
+        text: "Commit the token to the job's notebook in a Git-backed repo so access is controlled solely by repo permissions."
+        correct: false
+    answer: [a]
+    explanation: "Secret scopes hold credentials by key, and dbutils.secrets.get retrieves them at runtime; if a secret value is printed, Databricks redacts it in notebook and log output, satisfying the no-leak requirement. Hardcoding the token as a widget default still embeds plaintext in the notebook source and offers no redaction, so it is not secure. Putting the token in plaintext in the cluster Spark config UI exposes it to anyone who can view the cluster configuration and is not the recommended secret-handling path. Committing the token into a Git-backed notebook stores the plaintext in version control history, which is precisely what secret scopes are designed to avoid."
+    references:
+      - "https://docs.databricks.com/aws/en/security/secrets/"
+      - "https://docs.databricks.com/aws/en/security/secrets/secret-scopes"
+    tags: [secrets, dbutils, secret-scope, security]
+    source: original
+
+  - id: dbx-pro-0109
+    type: single_choice
+    exam: professional
+    domain: "Ensuring Data Security and Compliance"
+    subdomain: "Audit logging"
+    difficulty: hard
+    question: "A regulated environment requires that the full text of every interactive command and SQL query run by users be recorded for audit. An admin queries `system.access.audit` and finds action records but no command text. What is the most likely cause and correct fix?"
+    options:
+      - id: a
+        text: "Verbose audit logs are not enabled by default; enable verbose audit logging so the text of each command and query is captured in `system.access.audit`."
+        correct: true
+      - id: b
+        text: "The `system.access.audit` table never stores command text; you must instead parse driver `log4j` output on each cluster."
+        correct: false
+      - id: c
+        text: "Audit logs only populate after you manually run `VACUUM` on the system schema to flush buffered events."
+        correct: false
+      - id: d
+        text: "Command text appears only if you grant every user the `MODIFY` privilege on the `system` catalog, which forces verbose capture."
+        correct: false
+    answer: [a]
+    explanation: "Verbose audit logging is an opt-in feature that adds records capturing the text of each command or query; it is not enabled by default, so enabling it is what makes command text appear in system.access.audit. The claim that system.access.audit can never store command text is wrong, since verbose logging exists precisely to add those records. VACUUM has nothing to do with populating audit events; it is a Delta file-cleanup operation. Granting MODIFY on the system catalog does not control verbose capture and would be an inappropriate way to alter governed system tables; verbose logging is an account/workspace setting, not a privilege toggle."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/audit-logs"
+      - "https://docs.databricks.com/aws/en/admin/account-settings/verbose-logs"
+    tags: [audit, system-tables, verbose-logs, compliance]
+    source: original
+
+  # ========== DATA GOVERNANCE (4 questions) ==========
+  - id: dbx-pro-0110
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Unity Catalog privilege inheritance"
+    difficulty: medium
+    question: "An analyst has been granted `SELECT` on the table `prod.sales.orders`, but every query returns a permission error. The grant on the table is confirmed to exist. Which combination of privileges does Unity Catalog additionally require for the analyst to read the table?"
+    options:
+      - id: a
+        text: "`USE CATALOG` on `prod` and `USE SCHEMA` on `prod.sales`, in addition to `SELECT` on the table."
+        correct: true
+      - id: b
+        text: "`OWNER` on `prod.sales.orders`, because only the owner can read a table even when SELECT is granted."
+        correct: false
+      - id: c
+        text: "`MODIFY` on the table, since `SELECT` is only effective when paired with write access."
+        correct: false
+      - id: d
+        text: "`ALL PRIVILEGES` on the metastore, because table grants do not take effect without a metastore-level grant."
+        correct: false
+    answer: [a]
+    explanation: "To read a table, a principal needs SELECT on the table plus USE SCHEMA on its parent schema and USE CATALOG on its parent catalog; these traversal privileges let the caller reach the object through the hierarchy. Requiring OWNER is wrong: ownership confers full control but is not a prerequisite for a granted SELECT to work. MODIFY is a write privilege and is unrelated to read access; SELECT does not depend on it. Demanding ALL PRIVILEGES on the metastore is excessive and incorrect; privileges inherit downward, so a broad metastore grant is not required for a specific table read, only the USE CATALOG/USE SCHEMA traversal plus SELECT."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control/permissions-concepts"
+    tags: [unity-catalog, privileges, use-catalog, use-schema, inheritance]
+    source: original
+
+  - id: dbx-pro-0111
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Privilege inheritance and ownership"
+    difficulty: hard
+    question: "A data steward grants `SELECT` on the catalog `prod` to the `analysts` group and expects the group to read all current and future tables under it. A teammate worries that tables created tomorrow by other users will be unreadable, and also that granting on the catalog transfers ownership of child schemas to `analysts`. Which statement is correct?"
+    options:
+      - id: a
+        text: "The catalog-level `SELECT` inherits downward to all current and future schemas and tables, so future tables are automatically readable; ownership, however, does not inherit, so child objects keep their own owners."
+        correct: true
+      - id: b
+        text: "Privileges do not inherit to future objects, so the steward must re-grant `SELECT` on each new table as it is created."
+        correct: false
+      - id: c
+        text: "Granting `SELECT` on the catalog also makes `analysts` the owner of every schema in it, which is the intended behavior."
+        correct: false
+      - id: d
+        text: "Catalog-level grants apply only to schemas, not to tables; a separate schema-level grant is always required for table reads."
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog privileges inherit downward: a privilege granted on a catalog applies to all current and future schemas and the tables, views, volumes, and functions within them, so future tables are readable without re-granting. Ownership is the exception, it does not inherit downward, so child schemas and tables retain their own owners. The claim that privileges do not reach future objects is the opposite of how inheritance works. The claim that the grant makes analysts the owner of child schemas is wrong because SELECT is a read privilege, not an ownership transfer, and ownership never inherits. The claim that catalog grants stop at schemas is also wrong, since inheritance flows all the way down to the data objects."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control/permissions-concepts"
+    tags: [unity-catalog, inheritance, ownership, privileges, governance]
+    source: original
+
+  - id: dbx-pro-0112
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Tags, comments, and classification"
+    difficulty: medium
+    question: "A governance team wants to classify columns containing personal data so they can later be discovered programmatically across the metastore, and they want descriptive documentation visible in the catalog UI. Which combination of Unity Catalog features supports both goals?"
+    options:
+      - id: a
+        text: "Apply tags to the sensitive columns for classification (queryable via `INFORMATION_SCHEMA`) and set `COMMENT` text on the columns for human-readable documentation."
+        correct: true
+      - id: b
+        text: "Use only free-text `COMMENT`s, then run a `LIKE '%pii%'` search over comments, since tags are not queryable."
+        correct: false
+      - id: c
+        text: "Store classifications exclusively in an external spreadsheet, because Unity Catalog cannot record column-level metadata."
+        correct: false
+      - id: d
+        text: "Apply row filters to mark columns as PII; row filters double as a classification catalog discoverable in `INFORMATION_SCHEMA`."
+        correct: false
+    answer: [a]
+    explanation: "Tags attach key-value classification metadata to Unity Catalog securables, including columns, and tag assignments are discoverable programmatically through INFORMATION_SCHEMA, while COMMENT provides human-readable documentation surfaced in the catalog UI; together they cover both goals. Relying only on free-text comments for discovery is brittle and misses the purpose of tags, which are the structured, queryable classification mechanism. Storing classifications only in an external spreadsheet is incorrect because Unity Catalog does record column-level metadata via tags and comments. Row filters are an access-control mechanism that removes rows; they are not a classification system and do not catalog PII columns in INFORMATION_SCHEMA."
+    references:
+      - "https://docs.databricks.com/aws/en/database-objects/tags"
+      - "https://docs.databricks.com/aws/en/admin/governed-tags/"
+    tags: [tags, comment, information-schema, classification, governance]
+    source: original
+
+  - id: dbx-pro-0113
+    type: single_choice
+    exam: professional
+    domain: "Data Governance"
+    subdomain: "Securing Lakeflow Jobs with ACLs"
+    difficulty: hard
+    question: "An on-call engineer must be able to trigger and cancel runs of a production Lakeflow Job and read its run output, but must NOT be able to edit the job definition, change its permissions, or delete it. Which single job ACL permission level grants exactly this and no more?"
+    options:
+      - id: a
+        text: "CAN MANAGE RUN"
+        correct: true
+      - id: b
+        text: "CAN MANAGE"
+        correct: false
+      - id: c
+        text: "CAN VIEW"
+        correct: false
+      - id: d
+        text: "IS OWNER"
+        correct: false
+    answer: [a]
+    explanation: "CAN MANAGE RUN lets a principal trigger, cancel, and view runs of a job while not allowing edits to the job definition or changes to its permissions, which matches the on-call requirement exactly. CAN MANAGE is too broad: it permits editing the job, managing its permissions, and deleting it, violating the must-not constraints. CAN VIEW is too narrow: it only allows viewing the job and its run results, not triggering or cancelling runs. IS OWNER is the single-owner level with full control including editing and deleting the job, which exceeds what the on-call engineer should have (and a job can have only one owner)."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/privileges"
+      - "https://docs.databricks.com/aws/en/security/auth/access-control"
+    tags: [lakeflow-jobs, job-acl, permissions, can-manage-run, governance]
+    source: original
+
+  # ========== DATA SHARING AND FEDERATION (3 questions) ==========
+  - id: dbx-pro-0114
+    type: single_choice
+    exam: professional
+    domain: "Data Sharing and Federation"
+    subdomain: "Delta Sharing vs Lakehouse Federation"
+    difficulty: medium
+    question: "A team needs to run live SQL queries that JOIN a Databricks Delta table against tables that physically live in an external PostgreSQL database, without copying the PostgreSQL data into the lakehouse. Which Databricks capability is designed for this, and how is it exposed?"
+    options:
+      - id: a
+        text: "Lakehouse Federation: create a foreign catalog over the PostgreSQL connection so its tables can be queried live, as if they were Unity Catalog objects."
+        correct: true
+      - id: b
+        text: "Delta Sharing: create a share of the PostgreSQL tables and add the lakehouse as a recipient to query them live."
+        correct: false
+      - id: c
+        text: "Delta Sharing open protocol: issue a recipient bearer token to PostgreSQL so it can push its tables into the metastore."
+        correct: false
+      - id: d
+        text: "Auto Loader: continuously ingest the PostgreSQL tables so the join reads a local copy."
+        correct: false
+    answer: [a]
+    explanation: "Lakehouse Federation lets you create foreign catalogs over external systems such as PostgreSQL, MySQL, and Snowflake, exposing their tables as queryable Unity Catalog objects so you can join them live without copying data in. Delta Sharing is the wrong tool here because it shares Databricks/Delta data outward to recipients; it does not federate an external PostgreSQL database into your workspace, and shares are read-only collections of Delta tables, not foreign sources. The open-protocol recipient-token description is a Delta Sharing concept and does not let PostgreSQL push tables into your metastore. Auto Loader ingests files into the lakehouse, creating a local copy, which the requirement explicitly forbids."
+    references:
+      - "https://docs.databricks.com/aws/en/query-federation/"
+      - "https://docs.databricks.com/aws/en/delta-sharing/"
+    tags: [lakehouse-federation, foreign-catalog, federation, postgresql, sharing]
+    source: original
+
+  - id: dbx-pro-0115
+    type: single_choice
+    exam: professional
+    domain: "Data Sharing and Federation"
+    subdomain: "Delta Sharing protocols"
+    difficulty: hard
+    question: "A provider must share a curated set of Delta tables with an external partner who does NOT use Databricks and has no Unity Catalog metastore. The partner will read the data from their own tools. Which Delta Sharing approach is appropriate, and what authentication does the provider configure?"
+    options:
+      - id: a
+        text: "Use the Delta Sharing open sharing protocol: create a share and a recipient, where the recipient authenticates with a long-lived bearer token (or OIDC federation)."
+        correct: true
+      - id: b
+        text: "Use Databricks-to-Databricks sharing, because it works for any recipient regardless of whether they use Databricks."
+        correct: false
+      - id: c
+        text: "Use Lakehouse Federation to create a foreign catalog in the partner's environment so they can read your tables."
+        correct: false
+      - id: d
+        text: "Grant the partner `SELECT` on your Unity Catalog tables directly via account-level groups; no share object is needed for external partners."
+        correct: false
+    answer: [a]
+    explanation: "The open sharing protocol is designed for recipients who do not have access to Databricks: the provider creates a share and a recipient, and the recipient authenticates using a long-lived bearer token or OIDC federation, then reads the data from any Delta Sharing-compatible tool. Databricks-to-Databricks sharing is inappropriate because it requires the recipient to have a Unity Catalog metastore (it is token-free precisely because both sides are on Databricks). Lakehouse Federation is the inbound direction (querying external sources from Databricks), not a way to publish your tables to a non-Databricks partner. Granting SELECT via account-level groups only works for principals inside your own account/metastore and cannot reach an external partner with no metastore."
+    references:
+      - "https://docs.databricks.com/aws/en/delta-sharing/share-data-open"
+      - "https://docs.databricks.com/aws/en/delta-sharing/share-data-databricks"
+    tags: [delta-sharing, open-protocol, recipient, bearer-token, sharing]
+    source: original
+
+  - id: dbx-pro-0116
+    type: single_choice
+    exam: professional
+    domain: "Data Sharing and Federation"
+    subdomain: "Sharing-out vs federating-in"
+    difficulty: medium
+    question: "Two architects disagree. One says \"we should federate our sales data out to the partner\"; the other says \"we should set up Delta Sharing to query the partner's Snowflake live.\" Both have the direction backwards. Which statement correctly assigns each tool to its direction?"
+    options:
+      - id: a
+        text: "Delta Sharing shares your data OUT to recipients (including non-Databricks partners); Lakehouse Federation brings external sources like Snowflake IN as foreign catalogs you query live."
+        correct: true
+      - id: b
+        text: "Lakehouse Federation shares your data OUT to recipients; Delta Sharing brings external sources IN as foreign catalogs."
+        correct: false
+      - id: c
+        text: "Both Delta Sharing and Lakehouse Federation share data OUT; the only difference is the wire protocol."
+        correct: false
+      - id: d
+        text: "Both Delta Sharing and Lakehouse Federation bring data IN; neither can publish your data to an external party."
+        correct: false
+    answer: [a]
+    explanation: "Delta Sharing is the outbound capability: a provider publishes shares of Delta data to recipients, who may or may not be on Databricks. Lakehouse Federation is the inbound capability: you create foreign catalogs over external systems such as Snowflake, MySQL, or PostgreSQL and query them live without copying. Swapping the two (federation out, sharing in) is exactly the common confusion and is incorrect. Claiming both share OUT is wrong because Federation is for querying external sources in. Claiming both bring data IN and that neither can publish externally is wrong because Delta Sharing exists precisely to publish your data to external parties."
+    references:
+      - "https://docs.databricks.com/aws/en/query-federation/"
+      - "https://docs.databricks.com/aws/en/delta-sharing/"
+    tags: [delta-sharing, lakehouse-federation, federation, direction, sharing]
+    source: original

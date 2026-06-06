@@ -30,7 +30,7 @@ exercises:
         text: "Loads all data into memory to eliminate disk I/O"
         correct: false
     answer: [a]
-    explanation: "The Lakehouse architecture combines the benefits of data lakes (flexibility, open formats) with data warehouses (ACID transactions, schema enforcement). This provides both cost-efficiency and reliability. Option B is wrong because the lakehouse is built on open formats (Parquet/Delta), not a proprietary one. Option C describes a real cloud-architecture benefit but it is not the defining benefit of the lakehouse pattern. Option D is not how the lakehouse works; data is read from object storage, not preloaded into memory."
+    explanation: "The Lakehouse architecture combines the benefits of data lakes (flexibility, open formats) with data warehouses (ACID transactions, schema enforcement). This provides both cost-efficiency and reliability. The choice citing a proprietary columnar format is wrong because the lakehouse is built on open formats (Parquet/Delta), not a proprietary one. The choice about separating storage and compute describes a real cloud-architecture benefit but it is not the defining benefit of the lakehouse pattern. The choice about loading all data into memory is not how the lakehouse works; data is read from object storage, not preloaded into memory."
     references:
       - "https://docs.databricks.com/en/lakehouse/index.html"
     tags: [lakehouse, architecture]
@@ -108,7 +108,7 @@ exercises:
         text: "When you want Databricks to manage the storage lifecycle for you"
         correct: false
     answer: [a]
-    explanation: "External tables reference data stored in cloud storage locations via a LOCATION path. This is useful when data is managed outside the Databricks warehouse or needs to remain in a specific location. Option B is backwards: dropping an external table leaves the files in place; that delete-on-drop behavior is what managed tables provide. Option C is wrong because both managed and external Delta tables support ACID and time travel. Option D describes managed tables, where Databricks owns the storage lifecycle."
+    explanation: "External tables reference data stored in cloud storage locations via a LOCATION path. This is useful when data is managed outside the Databricks warehouse or needs to remain in a specific location. The choice wanting a drop to delete the underlying files is backwards: dropping an external table leaves the files in place; that delete-on-drop behavior is what managed tables provide. The choice about needing ACID and time travel is wrong because both managed and external Delta tables support ACID and time travel. The choice about Databricks managing the storage lifecycle describes managed tables, where Databricks owns the storage lifecycle."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-table.html"
     tags: [tables, external]
@@ -134,7 +134,7 @@ exercises:
         text: "External tables are created without a LOCATION clause; managed tables require one"
         correct: false
     answer: [a]
-    explanation: "Managed tables store data in the warehouse's managed storage location (e.g., /user/hive/warehouse). External tables reference data at a custom LOCATION. When you drop a managed table, data is deleted; dropping an external table only removes metadata. Option B reverses that drop behavior. Option C is false: both can be Delta, and external tables support many formats. Option D is backwards: external tables are the ones defined with a LOCATION clause, while managed tables use the default location."
+    explanation: "Managed tables store data in the warehouse's managed storage location (e.g., /user/hive/warehouse). External tables reference data at a custom LOCATION. When you drop a managed table, data is deleted; dropping an external table only removes metadata. The choice saying dropping a managed table only removes metadata while an external drop deletes data reverses that drop behavior. The choice restricting managed tables to Delta and external tables to Parquet or CSV is false: both can be Delta, and external tables support many formats. The choice saying external tables omit a LOCATION clause is backwards: external tables are the ones defined with a LOCATION clause, while managed tables use the default location."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-table.html"
     tags: [tables, managed, external]
@@ -160,7 +160,7 @@ exercises:
         text: "The data is recoverable with RESTORE TABLE using time travel"
         correct: false
     answer: [a]
-    explanation: "When you drop a managed table, Databricks deletes the underlying Parquet files and metadata. The data is permanently removed from the warehouse directory. For external tables, only the metadata is removed; data persists in cloud storage. Option B describes external-table drop behavior, not managed. Options C and D name real Databricks features, but neither recovers a dropped managed table whose files have already been deleted; time travel and RESTORE operate on a table's version history, not on a dropped table's removed data."
+    explanation: "When you drop a managed table, Databricks deletes the underlying Parquet files and metadata. The data is permanently removed from the warehouse directory. For external tables, only the metadata is removed; data persists in cloud storage. The choice saying only metadata was removed and files remain describes external-table drop behavior, not managed. The choices citing UNDROP TABLE and RESTORE TABLE with time travel name real Databricks features, but neither recovers a dropped managed table whose files have already been deleted; time travel and RESTORE operate on a table's version history, not on a dropped table's removed data."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-drop-table.html"
     tags: [tables, lifecycle]
@@ -212,7 +212,7 @@ exercises:
         text: "Partitions the table on the most frequently filtered column"
         correct: false
     answer: [a]
-    explanation: "OPTIMIZE rewrites table data by consolidating small Parquet files into larger, fewer files. This improves query performance by reducing file I/O overhead. It's especially helpful after many write operations. Use OPTIMIZE along with ZORDER to further improve performance. Option B describes VACUUM, not OPTIMIZE. Option C describes ANALYZE TABLE ... COMPUTE STATISTICS. Option D describes partitioning at table creation, which OPTIMIZE does not perform."
+    explanation: "OPTIMIZE rewrites table data by consolidating small Parquet files into larger, fewer files. This improves query performance by reducing file I/O overhead. It's especially helpful after many write operations. Use OPTIMIZE along with ZORDER to further improve performance. The choice about removing unreferenced files to reclaim storage describes VACUUM, not OPTIMIZE. The choice about collecting column statistics describes ANALYZE TABLE ... COMPUTE STATISTICS. The choice about partitioning on a frequently filtered column describes partitioning at table creation, which OPTIMIZE does not perform."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-optimize.html"
     tags: [optimize, performance]
@@ -293,7 +293,7 @@ exercises:
         text: "Compacts the JSON entries in the _delta_log into a single checkpoint file"
         correct: false
     answer: [a]
-    explanation: "VACUUM removes data files that are no longer needed by any table version. By default, it retains files for 7 days (configurable) to allow time travel. This frees up storage space by deleting orphaned files from failed writes or expired versions. Option B describes OPTIMIZE. Option C overstates VACUUM: it only removes files older than the retention period that are no longer referenced, and Delta creates log checkpoints automatically rather than via VACUUM, which option D incorrectly attributes to it."
+    explanation: "VACUUM removes data files that are no longer needed by any table version. By default, it retains files for 7 days (configurable) to allow time travel. This frees up storage space by deleting orphaned files from failed writes or expired versions. The choice about consolidating small files describes OPTIMIZE. The choice claiming it permanently deletes all previous versions overstates VACUUM: it only removes files older than the retention period that are no longer referenced, and Delta creates log checkpoints automatically rather than via VACUUM, which the choice about compacting JSON entries into a checkpoint file incorrectly attributes to it."
     references:
       - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-utility-vacuum.html"
     tags: [vacuum, cleanup]
@@ -371,7 +371,7 @@ exercises:
         text: "A reusable cluster policy that pins library versions"
         correct: false
     answer: [a]
-    explanation: "Repos allow you to connect a Databricks workspace to a Git repository (GitHub, GitLab, Azure DevOps). This enables version control, collaboration, and CI/CD integration for notebooks and code files. Option B confuses Repos with DBFS storage. Option C describes the workspace's built-in notebook revision history, which is separate from Git-backed Repos. Option D describes cluster policies, an unrelated feature."
+    explanation: "Repos allow you to connect a Databricks workspace to a Git repository (GitHub, GitLab, Azure DevOps). This enables version control, collaboration, and CI/CD integration for notebooks and code files. The choice describing it as a managed DBFS folder confuses Repos with DBFS storage. The choice describing a notebook revision snapshot describes the workspace's built-in notebook revision history, which is separate from Git-backed Repos. The choice describing a reusable cluster policy describes cluster policies, an unrelated feature."
     references:
       - "https://docs.databricks.com/en/repos/index.html"
     tags: [repos, git]
@@ -449,7 +449,7 @@ exercises:
         text: "To enforce access control and governance policies on data"
         correct: false
     answer: [a]
-    explanation: "Clusters are groups of machines (nodes) that execute your Spark jobs and SQL queries. They provide the distributed compute needed to process data. Different cluster types (all-purpose, jobs, SQL) serve different use cases. Option B confuses compute with storage (data lives in cloud object storage). Option C describes the metastore/Unity Catalog. Option D describes Unity Catalog governance, not clusters."
+    explanation: "Clusters are groups of machines (nodes) that execute your Spark jobs and SQL queries. They provide the distributed compute needed to process data. Different cluster types (all-purpose, jobs, SQL) serve different use cases. The choice about persisting Delta tables and data files confuses compute with storage (data lives in cloud object storage). The choice about storing catalog and table metadata describes the metastore/Unity Catalog. The choice about enforcing access control and governance describes Unity Catalog governance, not clusters."
     references:
       - "https://docs.databricks.com/en/clusters/index.html"
     tags: [clusters, compute]
@@ -1023,7 +1023,7 @@ exercises:
         text: "To automatically infer and enforce primary keys on incoming data"
         correct: false
     answer: [a]
-    explanation: "Auto Loader continuously monitors a cloud storage location (S3, ADLS, GCS) and automatically ingests new files as they appear. It uses directory listing (default) or file notifications for efficiency, and can infer or evolve schema automatically. Option B describes table maintenance commands, not ingestion. Option C is closer to a one-time COPY INTO load and misses Auto Loader's incremental, exactly-once tracking. Option D is not an Auto Loader feature."
+    explanation: "Auto Loader continuously monitors a cloud storage location (S3, ADLS, GCS) and automatically ingests new files as they appear. It uses directory listing (default) or file notifications for efficiency, and can infer or evolve schema automatically. The choice about running OPTIMIZE and VACUUM describes table maintenance commands, not ingestion. The choice about a one-time scheduled directory load is closer to a one-time COPY INTO load and misses Auto Loader's incremental, exactly-once tracking. The choice about inferring and enforcing primary keys is not an Auto Loader feature."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [auto-loader, ingestion]
@@ -1101,7 +1101,7 @@ exercises:
         text: "Defines how frequently the query triggers a new micro-batch"
         correct: false
     answer: [a]
-    explanation: "checkpointLocation is critical for Structured Streaming fault tolerance. It tracks which records have been processed, enabling the query to resume from the exact point it left off after failures, preventing data loss or duplication. Option B confuses it with the sink path. Option C is wrong; checkpoint state is persisted to durable storage, not an in-memory cache. Option D describes the trigger setting, not the checkpoint."
+    explanation: "checkpointLocation is critical for Structured Streaming fault tolerance. It tracks which records have been processed, enabling the query to resume from the exact point it left off after failures, preventing data loss or duplication. The choice describing it as the output sink path confuses it with the sink path. The choice about caching micro-batches in memory is wrong; checkpoint state is persisted to durable storage, not an in-memory cache. The choice about how frequently the query triggers describes the trigger setting, not the checkpoint."
     references:
       - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
     tags: [streaming, checkpoint]
@@ -1153,7 +1153,7 @@ exercises:
         text: "How long the query retains state for late-arriving data"
         correct: false
     answer: [a]
-    explanation: "Triggers define batch intervals: processingTime('30 seconds'), availableNow (process all available data once), or continuous (experimental). Default is processingTime with micro-batches as soon as data arrives. Option B is controlled by the source/data volume, not the trigger. Option C is set by outputMode. Option D is governed by withWatermark, not the trigger."
+    explanation: "Triggers define batch intervals: processingTime('30 seconds'), availableNow (process all available data once), or continuous (experimental). Default is processingTime with micro-batches as soon as data arrives. The choice about how many rows are in each output write is controlled by the source/data volume, not the trigger. The choice about which output mode is applied is set by outputMode. The choice about how long state is retained for late data is governed by withWatermark, not the trigger."
     references:
       - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
     tags: [streaming, triggers]
@@ -1179,7 +1179,7 @@ exercises:
         text: "Prevents the checkpoint from growing by trimming old offsets"
         correct: false
     answer: [a]
-    explanation: "withWatermark() allows windows (and aggregation state) to remain open for a specified duration to handle late data, then close so old state can be dropped. Without it, data arriving after the window closes is dropped. Watermarking is critical for correct windowed aggregations. Option B is the opposite: watermarking actually bounds how late data can be before it is dropped. Option C describes dropDuplicates, not watermarking. Option D confuses it with checkpoint compaction; watermarking bounds aggregation state, not checkpoint offsets."
+    explanation: "withWatermark() allows windows (and aggregation state) to remain open for a specified duration to handle late data, then close so old state can be dropped. Without it, data arriving after the window closes is dropped. Watermarking is critical for correct windowed aggregations. The choice claiming it never drops any record however late is the opposite: watermarking actually bounds how late data can be before it is dropped. The choice about deduplicating on the event-time column describes dropDuplicates, not watermarking. The choice about trimming old checkpoint offsets confuses it with checkpoint compaction; watermarking bounds aggregation state, not checkpoint offsets."
     references:
       - "https://docs.databricks.com/en/structured-streaming/tutorial.html"
     tags: [streaming, watermark]
@@ -1257,7 +1257,7 @@ exercises:
         text: "COPY INTO requires a checkpointLocation, while Auto Loader does not"
         correct: false
     answer: [a]
-    explanation: "COPY INTO is a SQL command for idempotent, incremental ingestion of files that runs on demand, while Auto Loader is a Structured Streaming source that continuously watches for new files. Use COPY INTO for periodic or backfill loads; use Auto Loader for ongoing streaming data flows. Option B reverses their interfaces (COPY INTO is SQL). Option C is false; Auto Loader supports JSON, CSV, Parquet, Avro, and more. Option D is backwards: it is Auto Loader (as a streaming source) that uses a checkpointLocation, not COPY INTO."
+    explanation: "COPY INTO is a SQL command for idempotent, incremental ingestion of files that runs on demand, while Auto Loader is a Structured Streaming source that continuously watches for new files. Use COPY INTO for periodic or backfill loads; use Auto Loader for ongoing streaming data flows. The choice calling COPY INTO a Python DataFrame API and Auto Loader a SQL command reverses their interfaces (COPY INTO is SQL). The choice restricting Auto Loader to Parquet is false; Auto Loader supports JSON, CSV, Parquet, Avro, and more. The choice saying COPY INTO requires a checkpointLocation is backwards: it is Auto Loader (as a streaming source) that uses a checkpointLocation, not COPY INTO."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [ingestion, copy-into]
@@ -1303,13 +1303,13 @@ exercises:
         text: "Stores the source file path and modification time for each ingested row"
         correct: false
       - id: c
-        text: "Holds rows that failed @dlt.expect data-quality checks"
+        text: "Holds rows that failed @dp.expect data-quality checks"
         correct: false
       - id: d
         text: "Quarantines duplicate records detected during ingestion"
         correct: false
     answer: [a]
-    explanation: "_rescuedData is a column capturing data that didn't match the inferred schema, such as fields with the wrong type or columns not present in the schema. It lets the pipeline continue without failing while preserving the problematic values for investigation. Option B describes file-metadata columns like _metadata, not _rescuedData. Option C describes Lakeflow expectations, a separate mechanism. Option D is not what _rescuedData does; it does not perform deduplication."
+    explanation: "_rescuedData is a column capturing data that didn't match the inferred schema, such as fields with the wrong type or columns not present in the schema. It lets the pipeline continue without failing while preserving the problematic values for investigation. The choice about storing source file path and modification time describes file-metadata columns like _metadata, not _rescuedData. The choice about rows failing data-quality checks describes Lakeflow expectations, a separate mechanism. The choice about quarantining duplicates is not what _rescuedData does; it does not perform deduplication."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [auto-loader, error-handling]
@@ -1428,7 +1428,7 @@ exercises:
     question: "What is a Databricks Job?"
     options:
       - id: a
-        text: "A scheduled or triggered workflow that runs notebooks, SQL, or DLT pipelines on a cluster"
+        text: "A scheduled or triggered workflow that runs notebooks, SQL, or Lakeflow Declarative Pipelines on a cluster"
         correct: true
       - id: b
         text: "An interactive notebook session attached to an all-purpose cluster"
@@ -1440,7 +1440,7 @@ exercises:
         text: "A query saved in the SQL editor for ad-hoc reuse"
         correct: false
     answer: [a]
-    explanation: "Jobs are workflows you can schedule (daily, hourly, etc.) or trigger manually. They can contain multiple tasks (notebooks, SQL, Python, DLT) that run in sequence or parallel, with retry and alerting policies. Option B is an interactive session, not an orchestrated workflow. Option C describes a cluster policy. Option D describes a saved SQL query, neither of which is a Job."
+    explanation: "Jobs are workflows you can schedule (daily, hourly, etc.) or trigger manually. They can contain multiple tasks (notebooks, SQL, Python, Lakeflow pipelines) that run in sequence or parallel, with retry and alerting policies. The choice describing an interactive notebook session is an interactive session, not an orchestrated workflow. The choice describing a reusable compute definition describes a cluster policy. The choice describing a saved SQL editor query describes a saved SQL query, neither of which is a Job."
     references:
       - "https://docs.databricks.com/en/workflows/jobs/index.html"
     tags: [jobs, workflows]
@@ -1492,7 +1492,7 @@ exercises:
         text: "To define secrets that the notebook can read at runtime"
         correct: false
     answer: [a]
-    explanation: "dbutils.widgets.text(), .dropdown(), .multiselect() define input parameters. When a notebook is run by a Job, the Job configuration can pass values for these widgets, retrieved with dbutils.widgets.get(). Option B describes dbutils.notebook.exit / taskValues for outputs. Option C is done via spark.conf.set. Option D describes dbutils.secrets, not widgets."
+    explanation: "dbutils.widgets.text(), .dropdown(), .multiselect() define input parameters. When a notebook is run by a Job, the Job configuration can pass values for these widgets, retrieved with dbutils.widgets.get(). The choice about passing return values back to the caller describes dbutils.notebook.exit / taskValues for outputs. The choice about setting Spark configuration is done via spark.conf.set. The choice about defining secrets describes dbutils.secrets, not widgets."
     references:
       - "https://docs.databricks.com/en/dev-tools/databricks-utils.html"
     tags: [dbutils, widgets, parameters]
@@ -1518,7 +1518,7 @@ exercises:
         text: "Read and write files in DBFS from within a task"
         correct: false
     answer: [a]
-    explanation: "taskValues allows you to pass data from one task to downstream tasks. One task puts data with dbutils.jobs.taskValues.set(), and later tasks retrieve it with dbutils.jobs.taskValues.get(). Useful for sharing status, counts, paths, etc. Option B describes dbutils.widgets. Option C is configured through task depends_on, not taskValues. Option D describes dbutils.fs."
+    explanation: "taskValues allows you to pass data from one task to downstream tasks. One task puts data with dbutils.jobs.taskValues.set(), and later tasks retrieve it with dbutils.jobs.taskValues.get(). Useful for sharing status, counts, paths, etc. The choice about defining widget parameters describes dbutils.widgets. The choice about setting dependency order is configured through task depends_on, not taskValues. The choice about reading and writing DBFS files describes dbutils.fs."
     references:
       - "https://docs.databricks.com/en/dev-tools/databricks-utils.html"
     tags: [dbutils, task-values]
@@ -1570,7 +1570,7 @@ exercises:
         text: "Jobs clusters bill at the all-purpose compute rate, which is higher than interactive"
         correct: false
     answer: [a]
-    explanation: "All-purpose clusters stay alive for users to run code interactively. Jobs clusters are created when a Job runs and terminated after, reducing costs; they are recommended for production. Option B is backwards: all-purpose clusters are the ones designed for shared interactive use. Option C is false; a Job can be configured to run on an existing all-purpose cluster, it's just less cost-efficient. Option D is reversed: jobs compute is billed at a lower DBU rate than all-purpose compute."
+    explanation: "All-purpose clusters stay alive for users to run code interactively. Jobs clusters are created when a Job runs and terminated after, reducing costs; they are recommended for production. The choice claiming jobs clusters are the shared multi-user ones is backwards: all-purpose clusters are the ones designed for shared interactive use. The choice claiming all-purpose clusters can never run scheduled workloads is false; a Job can be configured to run on an existing all-purpose cluster, it's just less cost-efficient. The choice claiming jobs clusters bill at the higher all-purpose rate is reversed: jobs compute is billed at a lower DBU rate than all-purpose compute."
     references:
       - "https://docs.databricks.com/en/clusters/index.html"
     tags: [clusters, jobs]
@@ -1596,7 +1596,7 @@ exercises:
         text: "Enable the cluster's automatic recovery / auto-restart setting"
         correct: false
     answer: [a]
-    explanation: "max_retries in the Job task configuration automatically retries failed tasks, and Databricks applies exponential backoff between retries. This is simpler and more reliable than adding retry logic in notebook code. Option B reinvents retries in application code and won't recover from a failure that crashes the run. Option C sets the backoff interval but does nothing without max_retries to enable retries. Option D restarts unhealthy clusters but does not retry a failed task."
+    explanation: "max_retries in the Job task configuration automatically retries failed tasks, and Databricks applies exponential backoff between retries. This is simpler and more reliable than adding retry logic in notebook code. The choice wrapping the logic in a try/except loop reinvents retries in application code and won't recover from a failure that crashes the run. The choice setting only min_retry_interval_millis sets the backoff interval but does nothing without max_retries to enable retries. The choice enabling cluster auto-restart restarts unhealthy clusters but does not retry a failed task."
     references:
       - "https://docs.databricks.com/en/workflows/jobs/index.html"
     tags: [jobs, retries]
@@ -1622,7 +1622,7 @@ exercises:
         text: "An open table format that extends Delta with built-in CDC"
         correct: false
     answer: [a]
-    explanation: "Lakeflow Declarative Pipelines (LFP, formerly DLT) let you define pipelines declaratively. You write SQL CREATE TABLE/VIEW or Python @dlt.table decorators, and the system handles ordering, recovery, and optimization. Includes quality checks (expectations). Option B confuses it with a cluster type. Option C is wrong because the framework infers the dependency DAG automatically rather than leaving ordering to the author. Option D confuses it with a storage/table format; it is an orchestration framework, not a format."
+    explanation: "Lakeflow Declarative Pipelines (LFP, formerly DLT) let you define pipelines declaratively. You write SQL CREATE TABLE/VIEW or Python @dp.table decorators, and the system handles ordering, recovery, and optimization. Includes quality checks (expectations). The choice describing a streaming-optimized cluster type confuses it with a cluster type. The choice describing a scheduler that leaves ordering to the author is wrong because the framework infers the dependency DAG automatically rather than leaving ordering to the author. The choice describing an open table format with CDC confuses it with a storage/table format; it is an orchestration framework, not a format."
     references:
       - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
     tags: [dlt, pipelines]
@@ -1633,7 +1633,7 @@ exercises:
     exam: associate
     domain: "Production Pipelines"
     difficulty: medium
-    question: "In a Lakeflow Declarative Pipeline, what is the purpose of a @dlt.expect() or @dlt.expect_or_drop decorator?"
+    question: "In a Lakeflow Declarative Pipeline, what is the purpose of a @dp.expect() or @dp.expect_or_drop decorator?"
     options:
       - id: a
         text: "To define data quality checks and specify what to do when checks fail (drop rows or fail pipeline)"
@@ -1648,7 +1648,7 @@ exercises:
         text: "To schedule the pipeline"
         correct: false
     answer: [a]
-    explanation: "Expectations are quality checks. @dlt.expect() or @dlt.expect_or_drop() validate data. If they fail, you can drop rows with expect_or_drop or fail the pipeline with FAIL UPDATE. This ensures only quality data flows downstream."
+    explanation: "Expectations are quality checks. @dp.expect() or @dp.expect_or_drop() validate data. If they fail, you can drop rows with expect_or_drop or fail the pipeline with FAIL UPDATE. This ensures only quality data flows downstream."
     references:
       - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
     tags: [dlt, expectations]
@@ -1674,7 +1674,7 @@ exercises:
         text: "Ranks tables by query frequency so the cache can prioritize them"
         correct: false
     answer: [a]
-    explanation: "Medallion (layered) architecture: Bronze (raw data as-is), Silver (cleaned, deduplicated), Gold (business-ready aggregates). This separation improves maintainability, allows reuse, and provides quality gates at each layer. Option B confuses the layers with storage tiering. Option C confuses them with access-control grants. Option D invents a caching scheme; the layers are about data refinement, not query frequency."
+    explanation: "Medallion (layered) architecture: Bronze (raw data as-is), Silver (cleaned, deduplicated), Gold (business-ready aggregates). This separation improves maintainability, allows reuse, and provides quality gates at each layer. The choice about hot, warm, and cold storage tiers confuses the layers with storage tiering. The choice about SELECT, MODIFY, and OWNER tiers confuses them with access-control grants. The choice about ranking tables by query frequency invents a caching scheme; the layers are about data refinement, not query frequency."
     references:
       - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
     tags: [medallion, architecture]
@@ -1753,7 +1753,7 @@ exercises:
         text: "A per-workspace Hive metastore with two-level naming"
         correct: false
     answer: [a]
-    explanation: "Unity Catalog provides: centralized three-level namespace (catalog > schema > table), fine-grained access control (GRANT/REVOKE), and lineage tracking across workspaces. It's essential for data governance and compliance. Option B describes a compute/query engine. Option C describes cloud storage, not a governance layer. Option D describes the legacy Hive metastore that Unity Catalog replaces; Unity Catalog is centralized across workspaces and uses three-level naming."
+    explanation: "Unity Catalog provides: centralized three-level namespace (catalog > schema > table), fine-grained access control (GRANT/REVOKE), and lineage tracking across workspaces. It's essential for data governance and compliance. The choice describing a SQL execution engine describes a compute/query engine. The choice describing a managed object-storage service describes cloud storage, not a governance layer. The choice describing a per-workspace two-level metastore describes the legacy Hive metastore that Unity Catalog replaces; Unity Catalog is centralized across workspaces and uses three-level naming."
     references:
       - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
     tags: [unity-catalog, governance]
@@ -1883,8 +1883,215 @@ exercises:
         text: "To convert files to Delta format on write automatically"
         correct: false
     answer: [a]
-    explanation: "External locations combine a cloud storage path with a storage credential and Unity Catalog permissions, centralizing access management so individual users don't need their own cloud credentials. This improves security and auditability. Options B, C, and D describe caching, replication, and format conversion, none of which is the purpose of an external location."
+    explanation: "External locations combine a cloud storage path with a storage credential and Unity Catalog permissions, centralizing access management so individual users don't need their own cloud credentials. This improves security and auditability. The choices about caching frequently accessed files, replicating data across regions, and auto-converting files to Delta describe caching, replication, and format conversion, none of which is the purpose of an external location."
     references:
       - "https://docs.databricks.com/en/data-governance/unity-catalog/index.html"
     tags: [external-locations, governance]
+    source: original
+
+  - id: dbx-de-0073
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: easy
+    question: "You need to upsert rows from a staging table into a Delta target: rows that already exist (matched on a key) should be updated, and rows that don't exist yet should be inserted. Which single SQL statement performs this in one atomic operation?"
+    options:
+      - id: a
+        text: "MERGE INTO with an ON condition, a WHEN MATCHED THEN UPDATE clause, and a WHEN NOT MATCHED THEN INSERT clause"
+        correct: true
+      - id: b
+        text: "Run a DELETE FROM target WHERE key IN (SELECT key FROM staging) followed by INSERT INTO target SELECT * FROM staging"
+        correct: false
+      - id: c
+        text: "INSERT OVERWRITE target SELECT * FROM staging"
+        correct: false
+      - id: d
+        text: "UPDATE target SET ... and rely on it to insert any keys that are not present"
+        correct: false
+    answer: [a]
+    explanation: "MERGE INTO is the single statement built for upserts: the ON condition decides matches, WHEN MATCHED THEN UPDATE refreshes existing rows, and WHEN NOT MATCHED THEN INSERT adds new ones, all in one atomic transaction. The delete-then-insert pair is two separate statements (not atomic together) and would discard rows present in the target but not the staging set. INSERT OVERWRITE replaces the entire target rather than merging on a key, so unrelated existing rows would be lost. A plain UPDATE only modifies rows that already match its WHERE clause; it can never insert keys that are absent from the target."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/merge"
+    tags: [delta, merge, upsert]
+    source: original
+
+  - id: dbx-de-0074
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: medium
+    question: "Read the MERGE statement below. Assuming a source row matches a target row on the ON condition, what does this statement do for matched rows, and what does it do for source rows that have no match in the target?"
+    code_context: |
+      MERGE INTO customers t
+      USING updates s
+      ON t.customer_id = s.customer_id
+      WHEN MATCHED THEN
+        UPDATE SET t.email = s.email, t.updated_at = s.updated_at
+      WHEN NOT MATCHED THEN
+        INSERT (customer_id, email, updated_at)
+        VALUES (s.customer_id, s.email, s.updated_at)
+    options:
+      - id: a
+        text: "Matched rows have their email and updated_at columns overwritten from the source; source rows with no matching customer_id are inserted as new rows"
+        correct: true
+      - id: b
+        text: "Matched rows are deleted from the target, and unmatched source rows are inserted"
+        correct: false
+      - id: c
+        text: "Matched rows are updated; unmatched source rows are silently ignored because there is no WHEN NOT MATCHED BY SOURCE clause"
+        correct: false
+      - id: d
+        text: "The entire target table is overwritten with the contents of the source table"
+        correct: false
+    answer: [a]
+    explanation: "WHEN MATCHED THEN UPDATE SET assigns only the listed columns (email and updated_at) on rows where t.customer_id = s.customer_id, and WHEN NOT MATCHED THEN INSERT adds source rows whose key is absent from the target. The choice claiming matched rows are deleted is wrong because the clause says UPDATE, not DELETE. The choice that says unmatched source rows are ignored confuses WHEN NOT MATCHED (source row not in target, which fires INSERT here) with WHEN NOT MATCHED BY SOURCE (target row not in source); the present clause does insert unmatched source rows. Nothing here overwrites the whole table; MERGE only touches rows selected by the ON condition and the WHEN clauses."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/merge"
+    tags: [delta, merge, upsert]
+    source: original
+
+  - id: dbx-de-0075
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: hard
+    question: "A MERGE INTO statement fails at runtime with an error indicating that it attempted to match a single target row against multiple source rows. The ON condition is t.id = s.id and there is one WHEN MATCHED THEN UPDATE clause. What is the cause, and what is the recommended fix?"
+    options:
+      - id: a
+        text: "The source contains more than one row with the same id, so a single target row matches multiple source rows; deduplicate the source so at most one row matches each target row before running the merge"
+        correct: true
+      - id: b
+        text: "The target table is missing a primary key constraint; add a PRIMARY KEY on id and the merge will succeed"
+        correct: false
+      - id: c
+        text: "The target table is not OPTIMIZED; run OPTIMIZE on the target and retry the merge"
+        correct: false
+      - id: d
+        text: "Delta does not allow UPDATE inside MERGE; rewrite the WHEN MATCHED clause to use DELETE instead"
+        correct: false
+    answer: [a]
+    explanation: "Delta requires that only a single source row can match a given target row; when duplicate ids in the source make one target row match several source rows, the update is ambiguous and the merge fails, so the documented fix is to preprocess and deduplicate the source. Adding a PRIMARY KEY does not resolve this: informational keys are not enforced on Delta tables and the duplication is in the source, not the target. Running OPTIMIZE only compacts files and has no effect on match cardinality. The claim that UPDATE is not allowed inside MERGE is false; WHEN MATCHED THEN UPDATE is fully supported, and switching to DELETE would change the semantics without fixing the duplicate-source problem."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/merge"
+    tags: [delta, merge, upsert]
+    source: original
+
+  - id: dbx-de-0076
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: medium
+    question: "Why can you run row-level UPDATE and DELETE statements (for example, DELETE FROM sales WHERE region = 'EU') directly against a Delta Lake table, when the same operations are not reliably available on a plain Parquet directory?"
+    options:
+      - id: a
+        text: "Delta Lake adds a file-based transaction log on top of Parquet that provides ACID transactions, so it can atomically rewrite affected files and commit the change consistently"
+        correct: true
+      - id: b
+        text: "Delta stores data as editable row-oriented records instead of columnar Parquet files, allowing in-place edits of individual rows"
+        correct: false
+      - id: c
+        text: "Delta locks the entire table for the duration of the statement, which is what makes UPDATE and DELETE possible"
+        correct: false
+      - id: d
+        text: "UPDATE and DELETE only work because the table is registered in Unity Catalog; the same Delta files outside a catalog cannot be modified"
+        correct: false
+    answer: [a]
+    explanation: "Delta Lake extends Parquet with a transaction log that delivers ACID guarantees; an UPDATE or DELETE rewrites the affected data files and atomically commits a new table version, which plain Parquet (with no transaction log) cannot do safely. Delta does not change the underlying storage to row-oriented records; it still stores columnar Parquet data files and achieves modifications by rewriting files, not editing rows in place. ACID isolation comes from the optimistic-concurrency transaction log, not from coarse table-level locking. And these operations depend on the Delta format and its log, not on Unity Catalog registration; Delta tables can be modified whether or not they are governed by a catalog."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/delta-update"
+      - "https://docs.databricks.com/aws/en/lakehouse/acid"
+    tags: [delta, update, delete, acid]
+    source: original
+
+  - id: dbx-de-0077
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: easy
+    question: "A nightly job fully rebuilds a Delta reporting table from a source query. The job may be re-run several times if it fails partway, and the final table must always reflect exactly the current source data with no leftover or duplicated rows. Which statement best fits this requirement?"
+    options:
+      - id: a
+        text: "INSERT OVERWRITE report SELECT ... FROM source — it replaces the table's contents, so re-running it yields the same final result rather than accumulating duplicates"
+        correct: true
+      - id: b
+        text: "INSERT INTO report SELECT ... FROM source — re-running it simply refreshes the existing rows in place"
+        correct: false
+      - id: c
+        text: "INSERT INTO report SELECT ... FROM source — it is idempotent because Delta automatically deduplicates appended rows"
+        correct: false
+      - id: d
+        text: "MERGE INTO report USING source ON 1=1 WHEN MATCHED THEN UPDATE SET * — a cross-match merge that rebuilds the table"
+        correct: false
+    answer: [a]
+    explanation: "INSERT OVERWRITE replaces the table's existing rows with the query result, so a full rebuild that is re-run produces the same final contents instead of accumulating data. INSERT INTO appends; it does not refresh rows in place, so a re-run would duplicate the rows. INSERT INTO is likewise not idempotent and Delta does not silently deduplicate appended rows. A MERGE with ON 1=1 would make every target row match every source row, which is the ambiguous multi-match case that fails, and it is the wrong tool for a full table replacement anyway."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-dml-insert-into"
+    tags: [delta, insert-overwrite, insert-into, idempotency]
+    source: original
+
+  - id: dbx-de-0078
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: medium
+    question: "You run ALTER TABLE orders ADD CONSTRAINT valid_amount CHECK (amount > 0) on an existing populated Delta table, and later a load tries to insert a row with amount = -5. What happens at each step?"
+    code_context: |
+      ALTER TABLE orders ADD CONSTRAINT valid_amount CHECK (amount > 0);
+      -- later
+      INSERT INTO orders VALUES (1001, -5);
+    options:
+      - id: a
+        text: "When the constraint is added, Databricks verifies all existing rows satisfy amount > 0 and fails the ALTER if any row violates it; once added, the INSERT of amount = -5 fails and the transaction is rejected"
+        correct: true
+      - id: b
+        text: "The constraint is added without checking existing rows, and the later INSERT of amount = -5 succeeds but the row is flagged as quarantined"
+        correct: false
+      - id: c
+        text: "The ALTER always succeeds regardless of existing data, and the violating INSERT is silently dropped while the rest of the batch loads"
+        correct: false
+      - id: d
+        text: "CHECK constraints are only informational on Delta tables, so neither the ALTER nor the INSERT enforces amount > 0"
+        correct: false
+    answer: [a]
+    explanation: "ADD CONSTRAINT ... CHECK first validates that every existing row satisfies the boolean expression and fails the ALTER if any row violates it; afterward the constraint is enforced, so an INSERT with amount = -5 makes the transaction fail with an error. The option about adding without checking and quarantining the row describes expectation-style behavior from declarative pipelines, not enforced table CHECK constraints. The option claiming the violating row is silently dropped is wrong because the whole transaction is rejected, not partially loaded. And CHECK constraints on Delta are enforced, not merely informational (unlike PRIMARY KEY / FOREIGN KEY, which are informational)."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/constraints"
+    tags: [delta, check-constraint, data-quality]
+    source: original
+
+  - id: dbx-de-0079
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Delta DML"
+    difficulty: medium
+    question: "A bad job corrupted a Delta table this morning. Using the table history you confirm that version 41 was the last good state. Which command rolls the table back to that state, and what kind of operation is it?"
+    code_context: |
+      DESCRIBE HISTORY my_catalog.sales.orders;
+      -- version 41 is the last known-good state
+    options:
+      - id: a
+        text: "RESTORE TABLE my_catalog.sales.orders TO VERSION AS OF 41 — a data-changing operation that creates a new version reflecting the state at version 41"
+        correct: true
+      - id: b
+        text: "SELECT * FROM my_catalog.sales.orders VERSION AS OF 41 — this permanently reverts the table to version 41"
+        correct: false
+      - id: c
+        text: "VACUUM my_catalog.sales.orders RETAIN 41 VERSIONS — this restores the table to version 41"
+        correct: false
+      - id: d
+        text: "ALTER TABLE my_catalog.sales.orders SET VERSION = 41 — this resets the current version pointer to 41"
+        correct: false
+    answer: [a]
+    explanation: "RESTORE TABLE ... TO VERSION AS OF 41 (or TIMESTAMP AS OF) rolls the table back to an earlier state; it is a data-changing operation that commits a new version whose contents match version 41, leaving the history intact. A SELECT ... VERSION AS OF only time-travels for reading and changes nothing on disk, so it cannot revert the table. VACUUM removes old, unreferenced data files and its RETAIN clause takes hours (and can delete the very files a restore would need); it does not roll the table back. There is no ALTER TABLE ... SET VERSION syntax; version pointers are not edited manually."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/delta-restore"
+      - "https://docs.databricks.com/aws/en/delta/history"
+    tags: [delta, restore, time-travel]
     source: original

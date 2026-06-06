@@ -1,0 +1,708 @@
+# Databricks DE Certification Study Companion - MCQ Batch 02 (Associate gap-fillers)
+# Generated: 2026-06-07
+# Purpose: close topic gaps identified vs the blueprint technical surface (addendum §C).
+# Note: IDs dbx-de-0073..0079 (Delta DML) live in mcq-associate-batch-01.yaml.
+# Total Questions: 23
+# Coverage added:
+#   - ELT with Spark SQL and Python: views, CTEs, PIVOT, higher-order funcs, semi-structured JSON, SQL UDFs (7)
+#   - Incremental Data Processing: Lakeflow Declarative Pipelines SQL/Python, AUTO CDC/SCD, Change Data Feed (6)
+#   - Databricks Lakehouse Platform: liquid clustering, UC Volumes, notebook magics, SQL warehouses (5)
+#   - Data Governance: row filters, privilege inheritance / USE CATALOG (3)
+
+exercises:
+  # ========== ELT WITH SPARK SQL AND PYTHON (Spark SQL surface) ==========
+  - id: dbx-de-0080
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "Views"
+    difficulty: easy
+    question: "In a Databricks notebook, you run CREATE OR REPLACE TEMP VIEW recent_orders AS SELECT * FROM orders WHERE order_date > current_date() - INTERVAL 7 DAYS. Which statement best describes the scope and lifetime of recent_orders?"
+    options:
+      - id: a
+        text: "It is a session-scoped temporary view: it is visible only within the current notebook/SparkSession and disappears when the notebook detaches from the cluster; no data is persisted to storage."
+        correct: true
+      - id: b
+        text: "It is a managed Delta table written to the default schema and persisted in cloud storage until explicitly dropped."
+        correct: false
+      - id: c
+        text: "It is visible to every notebook and SQL query attached to the same workspace and persists until the workspace is deleted."
+        correct: false
+      - id: d
+        text: "It is registered in the metastore under the current catalog and schema and survives cluster restarts."
+        correct: false
+      - id: e
+        text: "It physically materializes the query results into memory cache that other clusters can read."
+        correct: false
+    answer: [a]
+    explanation: "A TEMP VIEW is a temporary, session-scoped object: in a notebook it is tied to that notebook's SparkSession and ceases to exist once the notebook detaches from the cluster. It stores only the query definition, not data, so nothing is written to storage. It is not a managed Delta table written to storage and droppable later, so that choice is wrong. A plain temporary view is not visible to other notebooks or queries and is not workspace-wide, so the choice claiming workspace-wide visibility until the workspace is deleted is wrong. A temp view is not registered in the metastore catalog/schema and does not survive cluster restarts, so the metastore-registration choice is wrong. It also does not materialize results into a cross-cluster memory cache, so that choice is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/views/"
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-view.html"
+    tags: [spark-sql, views, temp-view]
+    source: original
+
+  - id: dbx-de-0081
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "Views"
+    difficulty: medium
+    question: "You create a view with CREATE GLOBAL TEMPORARY VIEW active_users AS SELECT * FROM users WHERE active = true. A second notebook attached to the same cluster needs to read it. How must that view be referenced, and what determines its lifetime?"
+    options:
+      - id: a
+        text: "Reference it as global_temp.active_users; it lives in the system-preserved global_temp schema and is tied to the Spark application/cluster, so any notebook on the same cluster can read it until the cluster terminates."
+        correct: true
+      - id: b
+        text: "Reference it simply as active_users from any notebook; a global temp view is automatically added to the current catalog's default schema."
+        correct: false
+      - id: c
+        text: "Reference it as main.default.active_users; global temp views are registered in Unity Catalog and persist across cluster restarts."
+        correct: false
+      - id: d
+        text: "Reference it as active_users, but only from the same notebook that created it, exactly like a plain TEMP VIEW."
+        correct: false
+      - id: e
+        text: "Reference it as temp.active_users; the view persists permanently until explicitly dropped with DROP VIEW."
+        correct: false
+    answer: [a]
+    explanation: "A GLOBAL TEMPORARY VIEW is stored in the system-preserved global_temp schema and must be qualified with that schema name, e.g. global_temp.active_users. It is tied to the Spark application (the cluster), so other notebooks sharing the same cluster can read it, and it disappears when the cluster terminates. Referencing it by bare name and expecting it in the current catalog's default schema is wrong because the global_temp qualifier is required. It is not registered in Unity Catalog under a three-level name like main.default and does not survive cluster restarts, so the Unity Catalog/persistence choice is wrong. Unlike a plain TEMP VIEW it is not limited to the creating notebook, so the same-notebook-only choice is wrong. The schema is global_temp (not temp) and the view is temporary, not permanent until dropped, so the temp.active_users/permanent choice is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/views/"
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-syntax-ddl-create-view.html"
+    tags: [spark-sql, views, global-temp-view]
+    source: original
+
+  - id: dbx-de-0082
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "CTEs"
+    difficulty: easy
+    question: "Which statement correctly describes a Common Table Expression (CTE) introduced with the WITH clause in Databricks SQL?"
+    code_context: |
+      WITH recent AS (
+        SELECT customer_id, amount
+        FROM orders
+        WHERE order_date > current_date() - INTERVAL 30 DAYS
+      )
+      SELECT customer_id, sum(amount) AS total
+      FROM recent
+      GROUP BY customer_id;
+    options:
+      - id: a
+        text: "It defines a named temporary result set that exists only for the duration of the single statement and can be referenced (possibly multiple times) within that statement."
+        correct: true
+      - id: b
+        text: "It creates a persistent view named recent in the current schema that later queries can reuse."
+        correct: false
+      - id: c
+        text: "It materializes recent as a temporary table in cloud storage that is dropped at the end of the session."
+        correct: false
+      - id: d
+        text: "It is only valid inside a CREATE VIEW statement and cannot precede a standalone SELECT."
+        correct: false
+      - id: e
+        text: "It caches the result in cluster memory so other notebooks attached to the cluster can query recent by name."
+        correct: false
+    answer: [a]
+    explanation: "A CTE defines a named temporary result set scoped to the single SQL statement that contains the WITH clause; within that statement the name (here recent) can be referenced one or more times, and it vanishes once the statement finishes. It does not create a persistent or reusable view, so the choice describing a persistent view in the current schema is wrong. It does not write a temporary table to storage, so the materialize-to-storage choice is wrong. A WITH clause can precede a standalone SELECT (as shown), not only a CREATE VIEW, so that restriction is wrong. A CTE is not a cross-notebook memory cache, so that choice is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-cte"
+    tags: [spark-sql, cte]
+    source: original
+
+  - id: dbx-de-0083
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "PIVOT"
+    difficulty: medium
+    question: "Given a sales table with columns year, quarter, and amount, you want one output row per year with separate columns q1, q2, q3, q4 holding the summed amount for each quarter. Which query is correct?"
+    options:
+      - id: a
+        text: "SELECT * FROM sales PIVOT (sum(amount) FOR quarter IN (1 AS q1, 2 AS q2, 3 AS q3, 4 AS q4))"
+        correct: true
+      - id: b
+        text: "SELECT * FROM sales PIVOT (quarter FOR sum(amount) IN ('q1', 'q2', 'q3', 'q4'))"
+        correct: false
+      - id: c
+        text: "SELECT * FROM sales GROUP BY year PIVOT quarter ON sum(amount)"
+        correct: false
+      - id: d
+        text: "SELECT * FROM sales UNPIVOT (sum(amount) FOR quarter IN (1, 2, 3, 4))"
+        correct: false
+      - id: e
+        text: "SELECT * FROM sales PIVOT (amount FOR quarter IN (q1 = 1, q2 = 2, q3 = 3, q4 = 4))"
+        correct: false
+    answer: [a]
+    explanation: "PIVOT syntax is PIVOT ( aggregate_expression [AS alias] FOR pivot_column IN (literal AS new_column, ...) ): the aggregate goes first, FOR names the column whose distinct values become columns, and IN lists literal values mapped to output column names. The correct query aggregates sum(amount), pivots on quarter, and maps the literals 1..4 to q1..q4. The choice that puts quarter before FOR and an aggregate after FOR inverts the clause order, so it is wrong. There is no GROUP BY ... PIVOT ... ON syntax in Spark SQL, so that choice is wrong. UNPIVOT does the opposite operation (columns to rows), so it does not produce the wanted layout. The aggregate must be a real aggregate function, not a bare amount column, and the IN mapping uses 'literal AS name' not 'name = literal', so the bare-column/reversed-mapping choice is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-pivot"
+    tags: [spark-sql, pivot]
+    source: original
+
+  - id: dbx-de-0084
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "Higher-order functions"
+    difficulty: medium
+    question: "A column nums has type ARRAY<INT>. You want a new array containing each element multiplied by 10, WITHOUT turning the array into multiple rows. Which expression does this?"
+    options:
+      - id: a
+        text: "transform(nums, x -> x * 10)"
+        correct: true
+      - id: b
+        text: "explode(nums) * 10"
+        correct: false
+      - id: c
+        text: "filter(nums, x -> x * 10)"
+        correct: false
+      - id: d
+        text: "map(nums, x -> x * 10)"
+        correct: false
+      - id: e
+        text: "transform(nums, sum(x) * 10)"
+        correct: false
+    answer: [a]
+    explanation: "transform applies a lambda to every element of an array and returns a new array of the same length, so transform(nums, x -> x * 10) yields the element-wise multiplied array without changing the row count. explode un-nests an array into one row per element, which produces multiple rows rather than a single array, so it does not meet the requirement. filter takes a boolean lambda and keeps only elements where it is true; using it for arithmetic is a misuse, so that choice is wrong. There is no array higher-order function named map for element-wise transformation in Spark SQL (map builds a map type), so that choice is wrong. transform's second argument must be a lambda (x -> ...), not an aggregate like sum(x), so the sum-based choice is invalid."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/transform"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/explode"
+    tags: [spark-sql, higher-order-functions, arrays]
+    source: original
+
+  - id: dbx-de-0085
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "Semi-structured data"
+    difficulty: medium
+    question: "A table events has a column payload of type STRING that contains JSON text such as {\"user\": {\"id\": 42}}. You want to extract the nested id value directly in SQL. Which approach is correct?"
+    code_context: |
+      -- payload is a STRING column holding raw JSON text
+      SELECT ??? AS user_id FROM events;
+    options:
+      - id: a
+        text: "Use the colon operator on the JSON string: payload:user.id"
+        correct: true
+      - id: b
+        text: "Use struct dot notation directly: payload.user.id"
+        correct: false
+      - id: c
+        text: "Cast first with to_json(payload) then read payload.user.id"
+        correct: false
+      - id: d
+        text: "Use explode(payload):user.id to flatten the JSON into the field"
+        correct: false
+      - id: e
+        text: "Use payload['user']['id'] because string columns require Python-style bracket indexing"
+        correct: false
+    answer: [a]
+    explanation: "The colon operator queries JSON that is stored as a STRING column, so payload:user.id navigates the JSON text and returns the nested value (as a string unless cast). Plain dot notation (payload.user.id) only works on native STRUCT or VARIANT columns, not on a raw JSON string, so that choice is wrong. to_json serializes structured data into a JSON string (the inverse direction); to go from a JSON string to structured fields you would use from_json, so the to_json choice is wrong. explode un-nests arrays/maps into rows and is not a JSON-string field accessor, so that choice is wrong. Bracket indexing like payload['user']['id'] applies to map/struct types, not to a JSON string column, so that choice is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/semi-structured/json"
+    tags: [spark-sql, json, semi-structured]
+    source: original
+
+  - id: dbx-de-0086
+    type: single_choice
+    exam: associate
+    domain: "ELT with Spark SQL and Python"
+    subdomain: "SQL UDFs"
+    difficulty: hard
+    question: "You need a reusable scalar SQL UDF that returns a DOUBLE discount given price and rate. Which CREATE FUNCTION statement uses the correct Databricks SQL UDF syntax?"
+    options:
+      - id: a
+        text: "CREATE OR REPLACE FUNCTION apply_discount(price DOUBLE, rate DOUBLE) RETURNS DOUBLE RETURN price - (price * rate);"
+        correct: true
+      - id: b
+        text: "CREATE OR REPLACE FUNCTION apply_discount(price DOUBLE, rate DOUBLE) RETURNS DOUBLE AS BEGIN RETURN price - (price * rate); END;"
+        correct: false
+      - id: c
+        text: "CREATE OR REPLACE FUNCTION apply_discount(price DOUBLE, rate DOUBLE) RETURN DOUBLE AS price - (price * rate);"
+        correct: false
+      - id: d
+        text: "CREATE OR REPLACE FUNCTION apply_discount(price, rate) RETURNS DOUBLE AS SELECT price - (price * rate);"
+        correct: false
+      - id: e
+        text: "CREATE SCALAR FUNCTION apply_discount(price DOUBLE, rate DOUBLE) OUTPUTS DOUBLE EXECUTE price - (price * rate);"
+        correct: false
+    answer: [a]
+    explanation: "A scalar SQL UDF uses CREATE [OR REPLACE] FUNCTION name(params) RETURNS data_type RETURN expression, where RETURNS declares the output type and RETURN provides the body expression. The correct statement follows that exact shape. Spark/Databricks SQL UDFs do not use a procedural BEGIN ... END; RETURN ...; END block for a scalar function defined inline, so that choice is wrong. The keyword for the declared type is RETURNS (not RETURN) and the body keyword is RETURN (not AS for an inline expression), so the choice that swaps them (RETURN DOUBLE AS ...) is wrong. Function parameters must be typed (price DOUBLE, rate DOUBLE); omitting the parameter types is invalid, so that choice is wrong. There is no CREATE SCALAR FUNCTION ... OUTPUTS ... EXECUTE syntax, so that choice is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-ddl-create-sql-function"
+    tags: [spark-sql, sql-udf, functions]
+    source: original
+
+  # ========== INCREMENTAL DATA PROCESSING (Lakeflow Declarative Pipelines, CDC, CDF) ==========
+  - id: dbx-de-0087
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    subdomain: "Lakeflow Declarative Pipelines"
+    difficulty: easy
+    question: "In a Lakeflow Declarative Pipeline defined in SQL, you need a dataset that ingests an append-only source incrementally, processing only newly arrived records on each update. Which statement creates the appropriate dataset?"
+    code_context: |
+      -- source is an append-only Delta table: samples.nyctaxi.trips
+    options:
+      - id: a
+        text: "CREATE OR REFRESH STREAMING TABLE bronze AS SELECT * FROM STREAM samples.nyctaxi.trips"
+        correct: true
+      - id: b
+        text: "CREATE OR REFRESH MATERIALIZED VIEW bronze AS SELECT * FROM samples.nyctaxi.trips"
+        correct: false
+      - id: c
+        text: "CREATE OR REFRESH STREAMING TABLE bronze AS SELECT * FROM samples.nyctaxi.trips (no STREAM keyword)"
+        correct: false
+      - id: d
+        text: "CREATE OR REPLACE TEMPORARY VIEW bronze AS SELECT * FROM samples.nyctaxi.trips"
+        correct: false
+    answer: [a]
+    explanation: "Incremental, append-only ingestion calls for a streaming table reading the source with the STREAM keyword: CREATE OR REFRESH STREAMING TABLE ... AS SELECT * FROM STREAM source applies streaming semantics so each update processes only new rows. A materialized view recomputes from the full source as a batch flow rather than consuming the source incrementally, so it does not give append-only streaming semantics. Declaring a streaming table but omitting STREAM on the source makes the source a batch read, defeating the incremental goal. A temporary view defines no persisted incremental dataset at all and is not a streaming target."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/sql-dev"
+      - "https://docs.databricks.com/aws/en/ldp/concepts"
+    tags: [lakeflow, streaming-table, materialized-view]
+    source: original
+
+  - id: dbx-de-0088
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    subdomain: "Lakeflow Declarative Pipelines"
+    difficulty: medium
+    question: "A silver dataset in a Lakeflow Declarative Pipeline (SQL) must read from another dataset, `bronze`, defined earlier in the same pipeline. What is the current, recommended way to reference that in-pipeline dataset?"
+    options:
+      - id: a
+        text: "Reference it directly by name, e.g. SELECT * FROM bronze (or with its catalog.schema), with no special prefix"
+        correct: true
+      - id: b
+        text: "Reference it as LIVE.bronze, the required prefix for in-pipeline datasets"
+        correct: false
+      - id: c
+        text: "Reference it as STREAM(LIVE.bronze) in all cases, even for batch reads"
+        correct: false
+      - id: d
+        text: "Reference it as dlt.read('bronze')"
+        correct: false
+    answer: [a]
+    explanation: "In current Lakeflow Declarative Pipelines you reference other datasets in the pipeline directly by name (optionally qualified with catalog and schema); the LIVE schema is no longer required and is silently ignored in new pipelines. The LIVE.bronze form is the deprecated DLT-era prefix, kept only for backward compatibility. STREAM(LIVE.bronze) wraps that legacy prefix and additionally forces streaming semantics on every read, which is wrong for a batch read. dlt.read('bronze') is a legacy Python DLT API call, not valid SQL and not the current approach."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/sql-dev"
+    tags: [lakeflow, live-schema, sql]
+    source: original
+
+  - id: dbx-de-0089
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    subdomain: "Lakeflow Declarative Pipelines"
+    difficulty: medium
+    question: "You are writing a Lakeflow Declarative Pipeline in Python. Which import and decorator reflect the current pipelines API for defining a table?"
+    code_context: |
+      # top of the pipeline source file
+      ??? import ??? as ???
+
+      @???.table
+      def silver():
+          return spark.readStream.table("bronze")
+    options:
+      - id: a
+        text: "from pyspark import pipelines as dp  ...  @dp.table"
+        correct: true
+      - id: b
+        text: "import dlt  ...  @dlt.table"
+        correct: false
+      - id: c
+        text: "from databricks import dlt as dp  ...  @dp.create_table"
+        correct: false
+      - id: d
+        text: "from pyspark import pipelines as dp  ...  @dp.create_streaming_table"
+        correct: false
+    answer: [a]
+    explanation: "The current pipelines API is imported with from pyspark import pipelines as dp, and a dataset is defined with the @dp.table decorator. The import dlt / @dlt.table form is the deprecated Delta Live Tables API replaced by the dp module. from databricks import dlt as dp is not a real import path and @dp.create_table is not the decorator name. The choice using the correct import but @dp.create_streaming_table is wrong because that is not the decorator used to define a dataset function; the decorator is @dp.table (or @dp.materialized_view)."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/python-dev"
+      - "https://docs.databricks.com/aws/en/ldp/developer/python-ref"
+    tags: [lakeflow, python, dp-api]
+    source: original
+
+  - id: dbx-de-0090
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    subdomain: "Lakeflow Declarative Pipelines"
+    difficulty: medium
+    question: "In a Python Lakeflow Declarative Pipeline you must enforce a data-quality constraint such that any record violating the expectation is removed before being written to the target dataset, while the pipeline keeps running. Which decorator does this?"
+    code_context: |
+      from pyspark import pipelines as dp
+
+      @dp.table
+      @???("valid_id", "id IS NOT NULL")
+      def silver():
+          return spark.readStream.table("bronze")
+    options:
+      - id: a
+        text: "@dp.expect_or_drop"
+        correct: true
+      - id: b
+        text: "@dp.expect"
+        correct: false
+      - id: c
+        text: "@dp.expect_or_fail"
+        correct: false
+      - id: d
+        text: "@dlt.expect_or_drop"
+        correct: false
+    answer: [a]
+    explanation: "@dp.expect_or_drop drops rows that fail the constraint before writing to the target and logs the count of dropped records, which matches the requirement to discard violating rows while the pipeline continues. @dp.expect only records valid/invalid metrics but still retains (writes) the violating rows, so nothing is dropped. @dp.expect_or_fail immediately stops the update on a violation rather than dropping the row and continuing. @dlt.expect_or_drop uses the deprecated dlt module instead of the current dp module."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/ldp-python-ref-expectations"
+    tags: [lakeflow, python, expectations, data-quality]
+    source: original
+
+  - id: dbx-de-0091
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    subdomain: "Change Data Capture"
+    difficulty: hard
+    question: "A Lakeflow Declarative Pipeline applies a CDC feed to a streaming table and must retain the full history of every change to each key (so superseded versions remain queryable). Which combination correctly expresses this?"
+    code_context: |
+      CREATE OR REFRESH STREAMING TABLE customers;
+
+      CREATE FLOW customers_cdc AS AUTO CDC INTO customers
+      FROM STREAM cdc_source
+      KEYS (customer_id)
+      SEQUENCE BY sequence_num
+      STORED AS ???;
+    options:
+      - id: a
+        text: "STORED AS SCD TYPE 2 — retains a history of records across updates"
+        correct: true
+      - id: b
+        text: "STORED AS SCD TYPE 1 — updates records in place and keeps no history"
+        correct: false
+      - id: c
+        text: "STORED AS SCD TYPE 2, but omit SEQUENCE BY since history ordering is automatic"
+        correct: false
+      - id: d
+        text: "STORED AS SCD TYPE 1 with APPLY AS TRUNCATE WHEN to preserve history"
+        correct: false
+    answer: [a]
+    explanation: "AUTO CDC INTO (the current API that replaces APPLY CHANGES INTO) with STORED AS SCD TYPE 2 retains a history of records, so superseded versions of each key stay queryable, which is exactly the requirement. SCD TYPE 1 updates records directly and keeps no history, so prior versions are lost. The option that drops SEQUENCE BY is wrong because SEQUENCE BY is required to order CDC events and handle out-of-order changes regardless of SCD type. The last option is wrong on two counts: SCD TYPE 1 does not retain history, and APPLY AS TRUNCATE WHEN is a TYPE 1-only clause that removes data rather than preserving it."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/cdc"
+      - "https://docs.databricks.com/aws/en/ldp/developer/ldp-sql-ref-apply-changes-into"
+    tags: [cdc, auto-cdc, scd-type-2, lakeflow]
+    source: original
+
+  - id: dbx-de-0092
+    type: single_choice
+    exam: associate
+    domain: "Incremental Data Processing"
+    subdomain: "Change Data Feed"
+    difficulty: hard
+    question: "Change Data Feed is enabled on a Delta table. A downstream job needs to read the row-level changes (inserts, updates, deletes) between two table versions. Which approach reads the change feed correctly?"
+    code_context: |
+      -- table created with TBLPROPERTIES (delta.enableChangeDataFeed = true)
+    options:
+      - id: a
+        text: "SELECT * FROM table_changes('my_table', 5, 10) to read changes between versions 5 and 10"
+        correct: true
+      - id: b
+        text: "Read with spark.read.option('readChangeFeed', 'true').option('startingVersion', 5).table('my_table') and filter on _change_type"
+        correct: true
+      - id: c
+        text: "SELECT * FROM my_table VERSION AS OF 10 — time travel returns the row-level change events"
+        correct: false
+      - id: d
+        text: "SELECT * FROM my_table EXCEPT SELECT * FROM my_table VERSION AS OF 5 — set difference returns the change feed"
+        correct: false
+      - id: e
+        text: "SELECT * FROM read_change_data('my_table', 5, 10) — the dedicated CDF SQL function"
+        correct: false
+    answer: [a, b]
+    explanation: "Once delta.enableChangeDataFeed is on, the change feed is read either via the SQL function table_changes('my_table', start, end), which returns row-level changes with _change_type, _commit_version, and _commit_timestamp, or via the DataFrame reader using the readChangeFeed option together with startingVersion — both are valid, interchangeable ways to read CDF. Time travel with VERSION AS OF returns a snapshot of the table at a version, not the change events (no _change_type), so it does not yield the feed. An EXCEPT between two snapshots only surfaces net row differences and cannot distinguish update pre/post images or capture deletes, so it is not the change feed. read_change_data is not a real function; the SQL function is table_changes."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/delta-change-data-feed"
+    tags: [change-data-feed, cdf, delta]
+    source: original
+
+  # ========== DATABRICKS LAKEHOUSE PLATFORM (clustering, Volumes, magics, SQL warehouses) ==========
+  - id: dbx-de-0093
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Liquid Clustering"
+    difficulty: medium
+    question: "You want to use liquid clustering to optimize a new Delta table's data layout. Which statement about enabling and using liquid clustering is correct?"
+    code_context: |
+      CREATE TABLE events (event_id INT, event_date DATE, region STRING)
+      CLUSTER BY (region);
+    options:
+      - id: a
+        text: "Specify CLUSTER BY at create time; liquid clustering replaces partitioning and ZORDER and cannot be combined with either"
+        correct: true
+      - id: b
+        text: "Specify CLUSTER BY together with PARTITIONED BY so clustering refines the layout within each partition"
+        correct: false
+      - id: c
+        text: "Liquid clustering is configured only by running ZORDER BY during OPTIMIZE; there is no CLUSTER BY clause"
+        correct: false
+      - id: d
+        text: "Once CLUSTER BY columns are chosen at create time, they can never be changed without rewriting all existing data"
+        correct: false
+    answer: [a]
+    explanation: "Liquid clustering is enabled with a CLUSTER BY clause at table creation and is designed to replace both partitioning and ZORDER; the docs state it is not compatible with partitioning or ZORDER. Combining CLUSTER BY with PARTITIONED BY is therefore not allowed. The claim that liquid clustering is only configured through ZORDER BY during OPTIMIZE is wrong because liquid clustering uses CLUSTER BY and supersedes ZORDER. The statement that clustering keys can never be changed without a full rewrite is also wrong: a key advantage of liquid clustering is that clustering keys can be redefined without rewriting existing data."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+    tags: [liquid-clustering, cluster-by, delta, performance]
+    source: original
+
+  - id: dbx-de-0094
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Unity Catalog Volumes"
+    difficulty: easy
+    question: "What is a Unity Catalog volume primarily designed to govern and provide access to?"
+    options:
+      - id: a
+        text: "Non-tabular data (files in any format — structured, semi-structured, or unstructured) in a cloud object storage location"
+        correct: true
+      - id: b
+        text: "Delta tables and their transaction logs registered in the metastore"
+        correct: false
+      - id: c
+        text: "SQL warehouse compute capacity allocated to a workspace"
+        correct: false
+      - id: d
+        text: "Cluster-scoped Python and JVM libraries installed at runtime"
+        correct: false
+    answer: [a]
+    explanation: "A volume is a Unity Catalog governance object for non-tabular data: files of any format (structured, semi-structured, or unstructured) living in cloud object storage, organized and access-controlled through Unity Catalog. Delta tables are a different Unity Catalog object type (tables, not volumes) governed separately. SQL warehouse capacity is a compute concept, not a storage governance object. Libraries are installed on compute and are unrelated to volumes."
+    references:
+      - "https://docs.databricks.com/aws/en/volumes/"
+    tags: [unity-catalog, volumes]
+    source: original
+
+  - id: dbx-de-0095
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Unity Catalog Volumes"
+    difficulty: easy
+    question: "Which path correctly addresses a file stored in a Unity Catalog volume?"
+    options:
+      - id: a
+        text: "/Volumes/<catalog>/<schema>/<volume>/<path>/<file>"
+        correct: true
+      - id: b
+        text: "/dbfs/FileStore/<volume>/<file>"
+        correct: false
+      - id: c
+        text: "/Volumes/<schema>/<volume>/<file>"
+        correct: false
+      - id: d
+        text: "/mnt/<volume>/<path>/<file>"
+        correct: false
+    answer: [a]
+    explanation: "Volume paths follow the full three-level Unity Catalog namespace under the /Volumes root: /Volumes/<catalog>/<schema>/<volume>/<path>/<file>. The /dbfs/FileStore form is a legacy DBFS path, not a governed volume. The path that drops the catalog level is incomplete — a volume is always identified by catalog, schema, and volume name. The /mnt/ prefix refers to legacy DBFS mount points, which Unity Catalog volumes replace."
+    references:
+      - "https://docs.databricks.com/aws/en/volumes/"
+    tags: [unity-catalog, volumes, dbfs]
+    source: original
+
+  - id: dbx-de-0096
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Unity Catalog Volumes"
+    difficulty: medium
+    question: "A team wants to apply Unity Catalog governance to a set of files that already exist in a cloud storage location, without copying or moving the data. Which volume type fits this requirement?"
+    options:
+      - id: a
+        text: "An external volume, which adds Unity Catalog governance over an existing storage location without requiring a data copy"
+        correct: true
+      - id: b
+        text: "A managed volume, which stores data in a Databricks-managed location and handles its full lifecycle"
+        correct: false
+      - id: c
+        text: "A DBFS mount, which is the Unity Catalog mechanism for governing pre-existing files"
+        correct: false
+      - id: d
+        text: "A managed Delta table created with CREATE TABLE over the existing files"
+        correct: false
+    answer: [a]
+    explanation: "External volumes are made for exactly this case: they layer Unity Catalog governance onto data that already resides in a cloud storage location, with no data migration required. A managed volume instead uses a Databricks-managed storage location and controls the data lifecycle internally, so it does not point at pre-existing external data. DBFS mounts are a legacy, pre-Unity-Catalog feature and are not a governed Unity Catalog object. A managed table is for tabular data, not arbitrary files, and would not govern the files as a volume."
+    references:
+      - "https://docs.databricks.com/aws/en/volumes/"
+    tags: [unity-catalog, volumes, external-volume]
+    source: original
+
+  - id: dbx-de-0097
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Notebook magic commands"
+    difficulty: easy
+    question: "In a Databricks notebook whose default language is Python, what does placing %sql at the top of a cell do?"
+    options:
+      - id: a
+        text: "Switches that cell's language to SQL so its contents are executed as a SQL query"
+        correct: true
+      - id: b
+        text: "Renders the cell contents as formatted Markdown documentation"
+        correct: false
+      - id: c
+        text: "Runs another notebook inline and imports its functions and variables"
+        correct: false
+      - id: d
+        text: "Executes the cell contents as a shell command on the driver node"
+        correct: false
+    answer: [a]
+    explanation: "%sql is a language magic that overrides the cell's language to SQL, so the cell body is executed as a SQL statement. Rendering Markdown is what %md does. Running another notebook inline is the job of %run. Executing shell commands on the driver is what %sh does."
+    references:
+      - "https://docs.databricks.com/aws/en/notebooks/notebooks-code"
+    tags: [notebooks, magic-commands]
+    source: original
+
+  - id: dbx-de-0098
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "Notebook magic commands"
+    difficulty: medium
+    question: "What is the key behavioral difference between %run and dbutils.notebook.run() when one notebook executes another?"
+    options:
+      - id: a
+        text: "%run executes the target notebook inline in the current session, so its functions and variables become available to the caller; dbutils.notebook.run() launches the target as a separate ephemeral job in its own scope, returning only a string"
+        correct: true
+      - id: b
+        text: "%run launches the target as an isolated job, while dbutils.notebook.run() executes it inline and shares variables with the caller"
+        correct: false
+      - id: c
+        text: "Both run the target notebook inline; the only difference is that dbutils.notebook.run() can be written mid-cell while %run must be alone in its cell"
+        correct: false
+      - id: d
+        text: "%run can pass parameters and receive return values, whereas dbutils.notebook.run() can only run a notebook with no parameters"
+        correct: false
+    answer: [a]
+    explanation: "%run runs the other notebook inline in the same execution context, so any functions and variables it defines are pulled into the calling notebook's namespace. dbutils.notebook.run() instead starts a new, isolated ephemeral job that does not share the caller's variables and communicates only through string parameters (widget values) and a single string return value. The option that swaps these behaviors is backwards. The option claiming both run inline ignores the isolation of the dbutils call. The option about parameters is inverted — it is dbutils.notebook.run() that passes parameters and returns a value, not %run."
+    references:
+      - "https://docs.databricks.com/aws/en/notebooks/notebook-workflows"
+      - "https://docs.databricks.com/aws/en/notebooks/notebooks-code"
+    tags: [notebooks, magic-commands, notebook-workflows]
+    source: original
+
+  - id: dbx-de-0099
+    type: single_choice
+    exam: associate
+    domain: "Databricks Lakehouse Platform"
+    subdomain: "SQL warehouses"
+    difficulty: medium
+    question: "A BI team needs compute that is purpose-built to run interactive SQL queries and power dashboards, with instant elastic startup and minimal management. Which Databricks compute should they choose?"
+    options:
+      - id: a
+        text: "A serverless SQL warehouse"
+        correct: true
+      - id: b
+        text: "An all-purpose cluster running a Python notebook attached for each analyst"
+        correct: false
+      - id: c
+        text: "A jobs cluster created automatically by a scheduled Lakeflow Job"
+        correct: false
+      - id: d
+        text: "A single-node cluster in shared access mode"
+        correct: false
+    answer: [a]
+    explanation: "A serverless SQL warehouse is the SQL-optimized compute built for querying, exploring data, and powering BI tools and dashboards, and the serverless type provides instant elastic compute with Databricks handling provisioning and scaling. An all-purpose cluster is general compute for interactive development across languages, not the purpose-built SQL/BI option, and is more costly and slower to start for this use. A jobs cluster is created and torn down for scheduled automated workloads, not interactive BI querying. A single-node cluster is general compute sized for small/development workloads, not a SQL warehouse for dashboards."
+    references:
+      - "https://docs.databricks.com/aws/en/compute/sql-warehouse/"
+    tags: [sql-warehouse, compute, serverless]
+    source: original
+
+  # ========== DATA GOVERNANCE (row filters, privilege inheritance) ==========
+  - id: dbx-de-0100
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    subdomain: "Row filters"
+    difficulty: hard
+    question: "A governance team applies a row filter to a Unity Catalog table with ALTER TABLE sales SET ROW FILTER region_filter ON (region). What must the function region_filter return, and what is the effect on query results?"
+    options:
+      - id: a
+        text: "It returns a BOOLEAN evaluated per row; rows for which it returns FALSE are excluded from query results"
+        correct: true
+      - id: b
+        text: "It returns a masked STRING value that replaces the region column in the output"
+        correct: false
+      - id: c
+        text: "It returns a BOOLEAN per row; rows for which it returns TRUE are excluded from query results"
+        correct: false
+      - id: d
+        text: "It returns the number of rows to drop, and Databricks removes that many rows from the top of the result"
+        correct: false
+    answer: [a]
+    explanation: "A row filter is a SQL UDF that returns a BOOLEAN and is evaluated for every row; rows where it returns FALSE are filtered out of the results, so only rows that evaluate TRUE are visible. Returning a masked string describes a column mask — the column-level analog of a row filter — not a row filter. The option that excludes the TRUE rows inverts the boolean semantics. Row filters never operate on a count of rows to drop; they decide row-by-row based on the boolean result."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/row-and-column-filters"
+    tags: [unity-catalog, row-filter, governance]
+    source: original
+
+  - id: dbx-de-0101
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    subdomain: "Privilege inheritance"
+    difficulty: hard
+    question: "A table owner runs GRANT SELECT ON TABLE finance.reports.q1 TO `analyst@co.com`, but the analyst still cannot read the table. They have no other grants. What is the most likely missing privilege?"
+    options:
+      - id: a
+        text: "USE CATALOG on finance and USE SCHEMA on finance.reports — the analyst needs these usage privileges on the parent catalog and schema before any object access takes effect"
+        correct: true
+      - id: b
+        text: "MANAGE on the table, which is required in addition to SELECT in order to read rows"
+        correct: false
+      - id: c
+        text: "Ownership of the table must be transferred to the analyst, because only owners can run SELECT"
+        correct: false
+      - id: d
+        text: "MODIFY on the table, which is the privilege that actually allows reading data"
+        correct: false
+    answer: [a]
+    explanation: "To interact with any object, a user needs USE CATALOG on its parent catalog and USE SCHEMA on its parent schema in addition to the object privilege; without those usage privileges, a SELECT grant has no effect. This is a deliberate control so catalog and schema admins gate access regardless of object-level grants. MANAGE governs administering an object's grants/filters, not the ability to read rows. Ownership is not required to SELECT — a SELECT grant suffices once the usage privileges are in place. MODIFY allows writing/changing data (insert, update, delete), not reading it; SELECT is the read privilege."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+    tags: [unity-catalog, privileges, governance, use-catalog]
+    source: original
+
+  - id: dbx-de-0102
+    type: single_choice
+    exam: associate
+    domain: "Data Governance"
+    subdomain: "Privilege inheritance"
+    difficulty: medium
+    question: "An administrator runs GRANT SELECT ON SCHEMA finance.reports TO `team@co.com`. Considering Unity Catalog privilege inheritance, what is the effect?"
+    options:
+      - id: a
+        text: "The group can SELECT from all current and future tables in the finance.reports schema, because privileges granted at a container level are inherited by the objects within it"
+        correct: true
+      - id: b
+        text: "The group can SELECT only from tables that already exist in the schema; tables created later require a new grant each time"
+        correct: false
+      - id: c
+        text: "The grant has no effect because SELECT can only be granted directly on individual tables, never on a schema"
+        correct: false
+      - id: d
+        text: "The group becomes the owner of the schema and all of its tables"
+        correct: false
+    answer: [a]
+    explanation: "Unity Catalog privileges granted on a container cascade to the objects inside it, so SELECT on a schema applies to all current and future tables in that schema — no per-table re-grant is needed. The option limiting it to existing tables misses the 'future objects' part of inheritance. SELECT can be granted at the catalog, schema, or table level, so the claim that it only works on individual tables is wrong. A grant of a privilege does not change ownership; SELECT confers read access, not ownership of the schema or its tables."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+    tags: [unity-catalog, privileges, inheritance, governance]
+    source: original

@@ -1,9 +1,17 @@
-"""Server-side session randomizer (Epic 5, Story 5.3).
+"""Server-side session randomizer (Epic 5, Story 5.3; Epic 7, Story 7.3).
 
-This module turns authored exercises into a *displayed* practice session. It is
-stateless and non-deterministic by design: every call samples and shuffles
-uniformly at random with no seed and no anti-repeat memory. This is what powers
-MCQ variety so the same exercise looks different across sessions (FR-21).
+This module turns authored exercises into a *displayed* practice session.
+
+Per-MCQ rendering is stateless and non-deterministic by design: every call
+samples and shuffles options uniformly at random with no seed. This is what
+powers MCQ variety so the same exercise looks different across sessions (FR-20).
+
+Cross-exercise *ordering*, however, is history-aware (FR-24, supersedes FR-21's
+pure-random ordering): :func:`build_session` partitions MCQs into *unseen* (no
+recorded attempt) and *seen* (>=1 recorded attempt) using the attempt store, and
+serves unseen first (randomized within the unseen group), then seen ordered
+least-recently-seen first. Callers that want representative, non-history-aware
+ordering (e.g. the Mock-Exam builder) pass ``prioritize_unseen=False``.
 
 Shared contract (downstream endpoint + frontend stories depend on it):
 
@@ -25,6 +33,7 @@ endpoint story is responsible for loading exercises and passing them in.
 
 import random
 
+from app import store
 from app.models import MCQ, ExerciseType
 
 # A Displayed Option is intentionally just {id, text} — no `correct` flag.
@@ -101,28 +110,76 @@ def build_session_entry(mcq: MCQ) -> SessionEntry:
     }
 
 
-def build_session(exercises: list) -> list[SessionEntry]:
-    """Build a randomized session from a list of exercises.
+def _order_unseen_first(mcqs: list[MCQ]) -> list[MCQ]:
+    """Order MCQs unseen-first using the attempt store (FR-24).
 
-    Returns the exercises in **randomized order** (FR-21). Each MCQ carries its
-    freshly sampled + shuffled ``displayedOptions``. Non-MCQ exercises (e.g.
-    ``code_completion``) are **skipped** — MCQ is the focus of this session
-    builder and the endpoint can build code-completion payloads separately.
+    Partitions the MCQs into *unseen* (no recorded attempt) and *seen* (>=1
+    recorded attempt), then returns unseen first — randomized within the unseen
+    group — followed by seen ordered least-recently-seen first (oldest
+    ``last_seen`` timestamp first). When every MCQ is seen this naturally falls
+    back to the full set in least-recently-seen order (no empty/blocked state).
 
-    The input list is not mutated; a shuffled copy is produced internally.
+    The store is read exactly once each for ``attempted_ids`` and
+    ``last_seen_map`` to keep the build efficient.
+    """
+    attempted = store.attempted_ids()
+    last_seen = store.last_seen_map()
+
+    unseen = [mcq for mcq in mcqs if mcq.id not in attempted]
+    seen = [mcq for mcq in mcqs if mcq.id in attempted]
+
+    # Randomize within the unseen group (variety among new material).
+    random.shuffle(unseen)
+
+    # Seen: least-recently-seen first. Missing timestamps (shouldn't happen for
+    # an attempted id, but stay defensive) sort first as "" so they're served
+    # before anything with a real timestamp.
+    seen.sort(key=lambda mcq: last_seen.get(mcq.id, ""))
+
+    return unseen + seen
+
+
+def build_session(
+    exercises: list,
+    *,
+    prioritize_unseen: bool = True,
+) -> list[SessionEntry]:
+    """Build a session from a list of exercises.
+
+    Each MCQ carries its freshly sampled + shuffled ``displayedOptions`` (FR-20,
+    always random). Non-MCQ exercises (e.g. ``code_completion``) are **skipped**
+    — MCQ is the focus of this session builder and the endpoint can build
+    code-completion payloads separately.
+
+    Cross-exercise ordering depends on ``prioritize_unseen``:
+
+    * ``True`` (default): **unseen-first** (FR-24). Unseen MCQs (no recorded
+      attempt in the store) are served first, randomized within that group;
+      seen MCQs follow, ordered least-recently-seen first. Reads the attempt
+      store once via :func:`_order_unseen_first`.
+    * ``False``: the prior **pure-random** ordering (FR-21), with no dependence
+      on history — used by callers like the Mock-Exam builder that want a
+      representative set that may repeat seen exercises.
+
+    The input list is not mutated; a reordered copy is produced internally.
 
     Args:
         exercises: A list of exercise objects (``MCQ`` and/or ``CodeCompletion``).
+        prioritize_unseen: Order unseen exercises before seen ones (default
+            ``True``). Pass ``False`` for history-independent random ordering.
 
     Returns:
         A list of session-entry dicts (see :func:`build_session_entry`) for the
-        MCQs only, in randomized order.
+        MCQs only, ordered per ``prioritize_unseen``.
     """
     mcqs = [
         ex for ex in exercises if isinstance(ex, MCQ) and ex.type != ExerciseType.CODE_COMPLETION
     ]
 
-    order = list(mcqs)
-    random.shuffle(order)
+    if prioritize_unseen:
+        order = _order_unseen_first(mcqs)
+    else:
+        order = list(mcqs)
+        random.shuffle(order)
 
     return [build_session_entry(mcq) for mcq in order]

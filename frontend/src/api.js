@@ -174,3 +174,55 @@ export async function submitFeedback({ exerciseId, displayedOptionIds, selectedI
   }
   return result.data
 }
+
+/**
+ * Fetch aggregate practice statistics (FR-23): overall + per-Domain accuracy
+ * and a dated trend. Scoped to one exam when `exam` is provided so Associate
+ * and Professional history never mix.
+ *
+ * @param {object} args
+ * @param {string} [args.exam] - exam scope (e.g. 'associate'); omit for all
+ * @returns {Promise<{overall, byDomain, trend}>}
+ *   overall: { attempts, correct, accuracy }
+ *   byDomain: { [domain]: { attempts, correct, accuracy } }
+ *   trend: [{ date, attempts, correct, accuracy }]
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function getStats({ exam } = {}) {
+  const params = new URLSearchParams()
+  if (exam) params.append('exam', exam)
+  const query = params.toString()
+  const url = `/api/stats${query ? `?${query}` : ''}`
+
+  const result = await apiRequest(url)
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to load stats', null, result)
+  }
+  return result.data
+}
+
+/**
+ * Fetch readiness guidance (FR-25): overall readiness vs the ~70% threshold
+ * over a rolling window, plus per-Domain readiness. This is guidance, not a
+ * guarantee of passing the real exam.
+ *
+ * @param {object} args
+ * @param {string} [args.exam] - exam scope (e.g. 'associate'); omit for all
+ * @returns {Promise<{overall, byDomain, threshold, window}>}
+ *   overall: { accuracy, ready, window }
+ *   byDomain: { [domain]: { accuracy, ready } }
+ *   threshold: number, window: number
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function getReadiness({ exam } = {}) {
+  const params = new URLSearchParams()
+  if (exam) params.append('exam', exam)
+  const query = params.toString()
+  const url = `/api/readiness${query ? `?${query}` : ''}`
+
+  const result = await apiRequest(url)
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to load readiness', null, result)
+  }
+  return result.data
+}

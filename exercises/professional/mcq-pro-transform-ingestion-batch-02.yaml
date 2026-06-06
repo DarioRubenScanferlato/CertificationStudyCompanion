@@ -1,0 +1,340 @@
+# Databricks DE Certification (Professional) - MCQ Batch 02
+# Generated: 2026-06-07
+# Total Questions: 10
+# Domain Distribution:
+#   - Data Transformation, Cleansing, and Quality: 6 (dbx-pro-0082 .. dbx-pro-0087)
+#   - Data Ingestion & Acquisition: 4 (dbx-pro-0088 .. dbx-pro-0091)
+# ID range: dbx-pro-0082 .. dbx-pro-0091
+# Difficulty mix: medium 6 / hard 4
+# Terminology: Lakeflow Declarative Pipelines + `dp` API, Lakeflow Jobs, Unity Catalog.
+# Source: original (documentation-grounded, blueprint-aligned).
+
+exercises:
+  # ========== DATA TRANSFORMATION, CLEANSING, AND QUALITY (6) ==========
+  - id: dbx-pro-0082
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Pipeline expectations"
+    difficulty: medium
+    question: "A Lakeflow Declarative Pipeline ingests sensor readings. The team wants any row whose reading is outside the calibrated range to be EXCLUDED from the target table while the update continues processing all other rows, and they want the number of excluded rows visible in the pipeline's data quality metrics. Which expectation decorator satisfies all of these?"
+    code_context: |
+      from pyspark import pipelines as dp
+    options:
+      - id: a
+        text: "@dp.expect_or_drop(\"in_range\", \"reading BETWEEN low AND high\")"
+        correct: true
+      - id: b
+        text: "@dp.expect(\"in_range\", \"reading BETWEEN low AND high\")"
+        correct: false
+      - id: c
+        text: "@dp.expect_or_fail(\"in_range\", \"reading BETWEEN low AND high\")"
+        correct: false
+      - id: d
+        text: "@dp.drop_if_invalid(\"in_range\", \"reading BETWEEN low AND high\")"
+        correct: false
+      - id: e
+        text: "Apply a .where(\"reading BETWEEN low AND high\") transformation with no expectation decorator"
+        correct: false
+    answer: [a]
+    explanation: "The drop-on-violation expectation removes rows that fail the constraint before they are written to the target, lets the update keep running, and logs the count of dropped records alongside the dataset's other data quality metrics. The warn-only expectation records violations in metrics but still writes the invalid rows to the target, so out-of-range readings would land in the table. The fail-on-violation expectation halts the update entirely on the first violation, contradicting the requirement to keep processing. There is no decorator named drop_if_invalid in the pipelines API. A plain filter transformation correctly removes the rows but produces no expectation metrics, so the excluded count is never surfaced in the data quality tab."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/expectations"
+    tags: [lakeflow, declarative-pipelines, expectations, data-quality]
+    source: original
+
+  - id: dbx-pro-0083
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "SQL expectations"
+    difficulty: medium
+    question: "In a SQL Lakeflow Declarative Pipeline, a compliance rule states that if any record in an incoming batch has a NULL account_id, the entire update must abort so that no partial batch is ever committed. Which CONSTRAINT clause implements this?"
+    code_context: |
+      CREATE OR REFRESH STREAMING TABLE accounts_clean (
+        ___
+      ) AS SELECT * FROM STREAM(accounts_raw)
+    options:
+      - id: a
+        text: "CONSTRAINT valid_account EXPECT (account_id IS NOT NULL) ON VIOLATION FAIL UPDATE"
+        correct: true
+      - id: b
+        text: "CONSTRAINT valid_account EXPECT (account_id IS NOT NULL) ON VIOLATION DROP ROW"
+        correct: false
+      - id: c
+        text: "CONSTRAINT valid_account EXPECT (account_id IS NOT NULL)"
+        correct: false
+      - id: d
+        text: "CONSTRAINT valid_account CHECK (account_id IS NOT NULL) ON VIOLATION ABORT"
+        correct: false
+      - id: e
+        text: "CONSTRAINT valid_account EXPECT (account_id IS NOT NULL) ON VIOLATION FAIL ROW"
+        correct: false
+    answer: [a]
+    explanation: "The FAIL UPDATE action causes invalid records to prevent the update from succeeding, atomically rolling back the transaction so no partial batch is committed and manual intervention is required before reprocessing. DROP ROW silently discards only the offending rows and lets the rest commit, which violates the all-or-nothing requirement. The bare EXPECT clause is warn-only and still writes the NULL rows. CHECK ... ON VIOLATION ABORT is not valid pipeline expectation syntax; expectations use the EXPECT keyword. FAIL ROW is not a defined action; the failure action is FAIL UPDATE, which fails the whole update rather than a single row."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/expectations"
+    tags: [lakeflow, declarative-pipelines, expectations, sql, data-quality]
+    source: original
+
+  - id: dbx-pro-0084
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Quarantine pattern"
+    difficulty: hard
+    question: "An engineer must implement a quarantine pattern: every incoming record lands in bronze, valid records flow to a clean silver table, and records failing validation must be routed to a separate quarantine table for inspection. No record may be discarded and the pipeline must not halt. What is the most appropriate design in a Lakeflow Declarative Pipeline?"
+    options:
+      - id: a
+        text: "Define the validity rule once; create a clean table that filters to rows satisfying the rule and a quarantine table that filters to rows violating it, using warn-only @dp.expect so nothing is dropped or fails the update."
+        correct: true
+      - id: b
+        text: "Apply @dp.expect_or_drop on the silver table; the dropped rows are automatically written to a system-managed quarantine table you can query later."
+        correct: false
+      - id: c
+        text: "Apply @dp.expect_or_fail on the bronze table, then catch the raised exception and write the failing rows to the quarantine table."
+        correct: false
+      - id: d
+        text: "Use a single silver table with @dp.expect_or_drop and recover the dropped invalid rows from the quarantine table using Delta time travel."
+        correct: false
+      - id: e
+        text: "Apply @dp.expect_or_drop on both the clean and quarantine tables so each table keeps only its respective rows."
+        correct: false
+    answer: [a]
+    explanation: "The quarantine pattern keeps invalid rows by routing them rather than dropping them: you express the validity rule once, then build two derived datasets, one filtered to passing rows and one filtered to failing rows, using warn-only expectations so nothing is silently discarded or halted. Drop-on-violation does not create any system-managed quarantine table; the dropped rows are simply gone. Fail-on-violation aborts the update and expectation violations are not catchable exceptions you can redirect to another table. Time travel exposes prior table versions, not the specific rows an expectation dropped, so it cannot reconstruct a quarantine set. Putting drop on both tables would discard the failing rows from the clean table AND discard the passing rows from the quarantine table, leaving the quarantine table empty of the very records it must capture."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/expectations"
+    tags: [lakeflow, quarantine, expectations, data-quality, design-pattern]
+    source: original
+
+  - id: dbx-pro-0085
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Streaming deduplication"
+    difficulty: hard
+    question: "A Structured Streaming job ingests events that may be delivered more than once, with duplicates arriving close together in event time. The team wants to deduplicate on event_id while bounding the state Spark must retain, and they do NOT want to maintain an explicit guess of the maximum delay between two copies of the same event. Which approach is most appropriate?"
+    code_context: |
+      from pyspark.sql.functions import col
+      stream = spark.readStream.table("raw_events")
+    options:
+      - id: a
+        text: "Set a watermark on event_time, then call dropDuplicatesWithinWatermark(['event_id'])"
+        correct: true
+      - id: b
+        text: "Call dropDuplicates(['event_id', 'event_time']) after setting a watermark on event_time"
+        correct: false
+      - id: c
+        text: "Call dropDuplicates(['event_id']) with no watermark"
+        correct: false
+      - id: d
+        text: "Group by event_id with a tumbling window and keep the first row, with no watermark"
+        correct: false
+      - id: e
+        text: "Use distinct() on the streaming DataFrame before writing"
+        correct: false
+    answer: [a]
+    explanation: "dropDuplicatesWithinWatermark deduplicates on the specified key for records arriving within the watermark threshold and, unlike the older approach, does not require the duplicate copies to share the same event-time value, so the team need not estimate or encode the maximum inter-duplicate delay. Calling dropDuplicates on the key plus event_time only removes rows that are identical in BOTH columns, so two copies with slightly different timestamps survive as distinct. dropDuplicates on the key with no watermark forces Spark to retain unbounded state forever, which is what the requirement to bound state rules out. A tumbling-window group-by without a watermark also accumulates unbounded state and only dedups within each fixed window boundary. distinct() is not supported the same way for unbounded streaming aggregation and provides no state bounding."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/watermarks"
+    tags: [structured-streaming, deduplication, watermark, state]
+    source: original
+
+  - id: dbx-pro-0086
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "MERGE-based SCD"
+    difficulty: hard
+    question: "A nightly batch job maintains a dimension table as SCD Type 2 using a MERGE inside foreachBatch on a streaming source. The job occasionally retries, and on retry the same micro-batch can be re-applied. Which statement correctly identifies the requirement that keeps the result correct across retries?"
+    options:
+      - id: a
+        text: "The MERGE logic inside foreachBatch must be idempotent, because a streaming-query restart can apply the same batch of data more than once."
+        correct: true
+      - id: b
+        text: "No special handling is needed; Spark guarantees foreachBatch executes each batch exactly once even across restarts."
+        correct: false
+      - id: c
+        text: "Switching the output mode to complete prevents foreachBatch from reprocessing a batch after a restart."
+        correct: false
+      - id: d
+        text: "Calling dropDuplicates inside foreachBatch is sufficient to make any non-idempotent MERGE safe across retries."
+        correct: false
+      - id: e
+        text: "Setting checkpointLocation alone guarantees the MERGE cannot be re-applied to the same batch."
+        correct: false
+    answer: [a]
+    explanation: "Databricks documents that the merge statement inside foreachBatch must be verified idempotent, because restarts of the streaming query can apply the operation on the same batch of data multiple times; an SCD Type 2 MERGE keyed on the business key with proper matched/not-matched conditions achieves this. foreachBatch provides at-least-once execution of the batch function, not exactly-once, so the no-handling claim is false. The complete output mode governs how aggregations are emitted and does not prevent batch re-execution after a restart. Deduplicating inside the batch does not by itself make an arbitrary MERGE idempotent if the MERGE can, for example, open a second history row for an already-current record. A checkpoint enables recovery and offset tracking but does not on its own guarantee a given batch's writes are not re-applied; that is why the MERGE itself must be idempotent."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
+      - "https://docs.databricks.com/aws/en/structured-streaming/foreach"
+    tags: [merge, scd-type-2, foreachbatch, idempotency, structured-streaming]
+    source: original
+
+  - id: dbx-pro-0087
+    type: single_choice
+    exam: professional
+    domain: "Data Transformation, Cleansing, and Quality"
+    subdomain: "Change Data Feed"
+    difficulty: medium
+    question: "A silver Delta table receives inserts, updates, and deletes. A downstream gold job must propagate only the net row-level changes (including which rows were deleted and the new values of updated rows) without rescanning the whole table each run. What is the correct way to enable and consume this?"
+    code_context: |
+      -- silver table already exists
+    options:
+      - id: a
+        text: "ALTER TABLE silver SET TBLPROPERTIES (delta.enableChangeDataFeed = true), then read the gold source with spark.readStream.option('readChangeFeed', 'true') and inspect _change_type / _commit_version."
+        correct: true
+      - id: b
+        text: "Enable Change Data Feed and read the feed expecting it to include all historical changes from before the property was set."
+        correct: false
+      - id: c
+        text: "Rely on Delta time travel by diffing VERSION AS OF n against VERSION AS OF n-1 manually each run; Change Data Feed is unnecessary."
+        correct: false
+      - id: d
+        text: "Set delta.enableChangeDataFeed = true and read the feed; deletes are not emitted, so handle them by a separate full-table anti-join."
+        correct: false
+      - id: e
+        text: "Enable Change Data Feed by calling MERGE with WHEN NOT MATCHED BY SOURCE; no table property is required."
+        correct: false
+    answer: [a]
+    explanation: "Setting delta.enableChangeDataFeed and reading with the readChangeFeed option exposes the metadata columns _change_type (insert, update_preimage, update_postimage, delete), _commit_version, and _commit_timestamp, letting the downstream job consume only net row-level changes incrementally. Change Data Feed records only changes made AFTER the property is enabled, so expecting full historical changes is wrong. Manually diffing time-travel versions is exactly the expensive full rescan pattern that Change Data Feed is designed to replace. The feed does emit delete records with _change_type = delete, so claiming deletes are absent and require an anti-join is incorrect. Change Data Feed is enabled via the table property; WHEN NOT MATCHED BY SOURCE is a MERGE clause for handling source-absent rows and does not enable the feed."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/delta-change-data-feed"
+    tags: [change-data-feed, cdf, delta, incremental, downstream-propagation]
+    source: original
+
+  # ========== DATA INGESTION & ACQUISITION (4) ==========
+  - id: dbx-pro-0088
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Auto Loader schema evolution"
+    difficulty: hard
+    question: "An Auto Loader stream reads JSON with cloudFiles. New columns appear in source files intermittently. The team wants Auto Loader to keep any data that does not match the tracked schema in a single column for later inspection, while the stream NEVER fails and NEVER evolves the tracked schema on its own. Which configuration achieves this?"
+    code_context: |
+      (spark.readStream.format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .option("cloudFiles.schemaLocation", "/chk/_schemas")
+        ___
+        .load(src))
+    options:
+      - id: a
+        text: ".option('cloudFiles.schemaEvolutionMode', 'rescue')"
+        correct: true
+      - id: b
+        text: ".option('cloudFiles.schemaEvolutionMode', 'addNewColumns')"
+        correct: false
+      - id: c
+        text: ".option('cloudFiles.schemaEvolutionMode', 'failOnNewColumns')"
+        correct: false
+      - id: d
+        text: ".option('cloudFiles.schemaEvolutionMode', 'none')"
+        correct: false
+      - id: e
+        text: ".option('mergeSchema', 'true')"
+        correct: false
+    answer: [a]
+    explanation: "The rescue mode means Auto Loader never evolves the schema and the stream does not fail on schema changes; columns that do not match are captured in the _rescued_data column for later inspection, which is exactly the stated requirement. The addNewColumns mode adds the new columns and then fails the stream with an UnknownFieldException, requiring a restart, so it both evolves the schema and fails. The failOnNewColumns mode fails the stream and does not restart until the schema is updated. The none mode ignores new columns but does not populate rescued data unless explicitly configured, so unmatched data is lost rather than retained for inspection. mergeSchema is a Delta write option, not an Auto Loader schema-evolution control, and does not produce a rescued-data column."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema"
+    tags: [auto-loader, schema-evolution, rescued-data, cloudfiles, ingestion]
+    source: original
+
+  - id: dbx-pro-0089
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Auto Loader file detection"
+    difficulty: medium
+    question: "An Auto Loader stream ingests from a bucket where tens of millions of files accumulate over time, and directory listing has become the dominant cost. The team wants the most scalable and performant file-detection approach and also wants to cap how many files each micro-batch processes to smooth load. Which combination is correct?"
+    options:
+      - id: a
+        text: "Use file notification mode (cloud queue/notification services) and set cloudFiles.maxFilesPerTrigger to bound files per micro-batch."
+        correct: true
+      - id: b
+        text: "Stay on directory listing mode but raise cloudFiles.maxFilesPerTrigger; directory listing is always cheaper than notifications."
+        correct: false
+      - id: c
+        text: "Use file notification mode and set maxFilesPerTrigger on the Delta WRITE; the read-side limit is ignored by Auto Loader."
+        correct: false
+      - id: d
+        text: "Switch to COPY INTO, which is the recommended tool at the scale of tens of millions of files."
+        correct: false
+      - id: e
+        text: "Use file notification mode and rely on it to guarantee files are processed in strict arrival order."
+        correct: false
+    answer: [a]
+    explanation: "Databricks documents that file notification mode, which uses the cloud provider's notification and queue services, is more performant and scalable than directory listing and is recommended at high file volumes; cloudFiles.maxFilesPerTrigger is the read-side option that bounds how many files each micro-batch ingests. Directory listing is not always cheaper; at large scale its repeated scans are the costly part, which is why notifications are recommended. The rate limit is an Auto Loader read option, not a Delta write option, so applying it to the write would not control micro-batch sizing. COPY INTO is recommended for thousands of files, while Auto Loader is recommended for millions or more, so switching to COPY INTO at this scale is the wrong direction. Auto Loader does not guarantee the order in which files are discovered or processed, so relying on strict arrival ordering is incorrect."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/file-detection-modes"
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/"
+    tags: [auto-loader, file-notification, directory-listing, maxfilespertrigger, ingestion]
+    source: original
+
+  - id: dbx-pro-0090
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Auto Loader vs COPY INTO"
+    difficulty: medium
+    question: "A team must choose between Auto Loader and COPY INTO for cloud-object-storage ingestion. The schema evolves frequently and they expect file counts to grow into the millions over time. Per Databricks guidance, which choice and rationale is correct?"
+    options:
+      - id: a
+        text: "Auto Loader, because it is recommended for files in the order of millions or more and offers richer schema inference and evolution than COPY INTO."
+        correct: true
+      - id: b
+        text: "COPY INTO, because it is recommended for files in the order of millions or more and scales better than Auto Loader."
+        correct: false
+      - id: c
+        text: "COPY INTO, because Auto Loader cannot perform schema inference or evolution at all."
+        correct: false
+      - id: d
+        text: "Either tool is equivalent at any scale; the only difference is SQL versus Python syntax."
+        correct: false
+      - id: e
+        text: "Auto Loader, because COPY INTO is not idempotent and reloads every file on each run."
+        correct: false
+    answer: [a]
+    explanation: "Databricks recommends COPY INTO for files in the order of thousands and Auto Loader for files in the order of millions or more; Auto Loader also requires fewer file-discovery operations at scale and provides better primitive types around schema inference and evolution, matching the team's frequently-evolving schema. The claim that COPY INTO is the millions-scale choice inverts the documented guidance. Auto Loader does perform schema inference and evolution, so saying it cannot is false. The tools are not equivalent at all scales; the documented cost, scalability, and schema-evolution differences are real, not just syntax. COPY INTO is in fact idempotent, skipping files it has already loaded on subsequent runs, so the rationale that it reloads every file is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/"
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/"
+    tags: [auto-loader, copy-into, ingestion-tool-selection, schema-evolution]
+    source: original
+
+  - id: dbx-pro-0091
+    type: single_choice
+    exam: professional
+    domain: "Data Ingestion & Acquisition"
+    subdomain: "Kafka ingestion"
+    difficulty: medium
+    question: "A Structured Streaming job reads from Kafka and writes to a Delta bronze table. Which set of statements about the read and the exactly-once write is correct?"
+    code_context: |
+      df = (spark.readStream.format("kafka")
+        .option("kafka.bootstrap.servers", servers)
+        .option("subscribe", "events")
+        .option("startingOffsets", "latest")
+        .load())
+    options:
+      - id: a
+        text: "The value column arrives as binary and must be deserialized (e.g. CAST to string or from_avro); supplying a checkpointLocation on the Delta write gives exactly-once semantics across restarts."
+        correct: true
+      - id: b
+        text: "The value column arrives already decoded as a STRING, and exactly-once is guaranteed even without a checkpointLocation."
+        correct: false
+      - id: c
+        text: "You must set startingOffsets to earliest for streaming; latest is only valid for batch reads."
+        correct: false
+      - id: d
+        text: "kafka.bootstrap.servers is optional when subscribe is set, since the brokers are discovered from the topic name."
+        correct: false
+      - id: e
+        text: "Exactly-once requires manually committing offsets back to Kafka after each micro-batch; the checkpoint does not track Kafka offsets."
+        correct: false
+    answer: [a]
+    explanation: "The Kafka source returns key and value as byte arrays (ByteArrayDeserializer), so the value must be explicitly deserialized, for example by casting to string or using from_avro; combined with a checkpointLocation on the Delta write, Structured Streaming recovers and provides exactly-once semantics across restarts. The value is not pre-decoded to a string, and a checkpoint is required for fault-tolerant exactly-once behavior. For streaming, latest is a valid (and default-style) startingOffsets value while earliest is typical for batch, so the claim that latest is batch-only is wrong. kafka.bootstrap.servers is a required option; brokers are not discovered from the topic name. The Structured Streaming checkpoint tracks the consumed Kafka offsets itself, so manual offset commits back to Kafka are not required for exactly-once into Delta."
+    references:
+      - "https://docs.databricks.com/aws/en/connect/streaming/kafka"
+      - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
+    tags: [kafka, structured-streaming, exactly-once, checkpoint, ingestion]
+    source: original

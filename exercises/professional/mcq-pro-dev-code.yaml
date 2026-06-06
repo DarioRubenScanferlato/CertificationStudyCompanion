@@ -26,7 +26,7 @@ exercises:
         text: "Use a Lakeflow Spark Declarative Pipeline but define every table with the legacy @dlt.table decorator and dlt.expect to keep dependency tracking"
         correct: false
     answer: [a]
-    explanation: "Lakeflow Spark Declarative Pipelines automatically resolve table dependencies, track lineage, and enforce declared expectations, removing most checkpoint/orchestration plumbing; the current Python API is `from pyspark import pipelines as dp` with @dp.table and @dp.expect_or_drop. B re-implements dependency resolution and quality enforcement by hand. C loses incremental processing, lineage, and quality constraints and adds manual ordering. D is the right product but uses the deprecated `dlt` alias/decorators rather than the current `dp` API, so it is not the recommended form."
+    explanation: "Lakeflow Spark Declarative Pipelines automatically resolve table dependencies, track lineage, and enforce declared expectations, removing most checkpoint/orchestration plumbing; the current Python API is `from pyspark import pipelines as dp` with @dp.table and @dp.expect_or_drop. The single long-running Structured Streaming application that manually wires each readStream/writeStream stage re-implements dependency resolution and quality enforcement by hand. The sequence of independent notebooks doing batch overwrites loses incremental processing, lineage, and quality constraints and adds manual ordering. The option built on a declarative pipeline but using the legacy @dlt.table decorator and dlt.expect picks the right product but the deprecated `dlt` alias/decorators rather than the current `dp` API, so it is not the recommended form."
     references:
       - "https://docs.databricks.com/aws/en/dlt/"
     tags: [lakeflow, declarative-pipelines, medallion, expectations]
@@ -66,7 +66,7 @@ exercises:
       - id: d
         text: "foreachBatch(upsert_to_delta).outputMode(\"update\")"
         correct: false
-    explanation: "MERGE-based upserts in Structured Streaming are done inside foreachBatch, which hands you a deterministic batch DataFrame and batch_id you can run arbitrary batch operations (including DeltaTable.merge) against. B foreach operates row-at-a-time and cannot run a MERGE. C is a plain sink with complete mode and cannot express an upsert; complete mode is for aggregations only. D adds an outputMode that foreachBatch ignores/does not require and is misleading — foreachBatch governs the write, not outputMode, so the option is wrong as the intended fix."
+    explanation: "MERGE-based upserts in Structured Streaming are done inside foreachBatch, which hands you a deterministic batch DataFrame and batch_id you can run arbitrary batch operations (including DeltaTable.merge) against. Using foreach instead operates row-at-a-time and cannot run a MERGE. The delta sink with complete output mode is a plain sink and cannot express an upsert; complete mode is for aggregations only. Adding `.outputMode(\"update\")` after foreachBatch supplies an outputMode that foreachBatch ignores/does not require and is misleading — foreachBatch governs the write, not outputMode, so that option is wrong as the intended fix."
     references:
       - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
     tags: [structured-streaming, foreachbatch, merge, upsert]
@@ -98,7 +98,7 @@ exercises:
       - id: d
         text: "cloudFiles.schemaHints — set to addNewColumns to allow the schema to grow automatically"
         correct: false
-    explanation: "cloudFiles.schemaEvolutionMode controls how Auto Loader reacts to new columns; addNewColumns is the mode that adds them (the stream fails once with an UnknownFieldException, then restarts with the updated schema persisted in schemaLocation), and unparseable values land in the _rescued_data column. B inferColumnTypes is a boolean controlling whether types are inferred, not an evolution mode. C mergeSchema is a Delta/batch write option, not an Auto Loader schema-evolution control. D schemaHints lets you pin/override specific column types; it does not take addNewColumns and is not the evolution-mode switch."
+    explanation: "cloudFiles.schemaEvolutionMode controls how Auto Loader reacts to new columns; addNewColumns is the mode that adds them (the stream fails once with an UnknownFieldException, then restarts with the updated schema persisted in schemaLocation), and unparseable values land in the _rescued_data column. cloudFiles.inferColumnTypes is a boolean controlling whether types are inferred, not an evolution mode. mergeSchema is a Delta/batch write option, not an Auto Loader schema-evolution control. cloudFiles.schemaHints lets you pin/override specific column types; it does not take addNewColumns and is not the evolution-mode switch."
     references:
       - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/"
     tags: [auto-loader, schema-evolution, rescued-data]
@@ -124,7 +124,7 @@ exercises:
       - id: d
         text: "Convert it to a Scala UDF invoked from Python via py4j on each row"
         correct: false
-    explanation: "pandas (vectorized) UDFs use Apache Arrow to transfer data in batches and execute on pandas Series, avoiding per-row Python serialization, so they are generally much faster than row-at-a-time Python UDFs while preserving custom Python logic. B changing shuffle partitions does not remove per-row serialization, the core bottleneck. C registering a Python UDF as a SQL function does not move execution into the JVM — it is still a Python UDF. D there is no per-row py4j path that helps here; that round-trips every row and would not be expressible/efficient from PySpark in the way described."
+    explanation: "pandas (vectorized) UDFs use Apache Arrow to transfer data in batches and execute on pandas Series, avoiding per-row Python serialization, so they are generally much faster than row-at-a-time Python UDFs while preserving custom Python logic. Increasing spark.sql.shuffle.partitions does not remove per-row serialization, the core bottleneck. Registering the Python UDF via spark.udf.register as a SQL function does not move execution into the JVM — it is still a Python UDF. Calling a Scala UDF from Python via py4j on each row round-trips every row and would not be expressible/efficient from PySpark in the way described."
     references:
       - "https://docs.databricks.com/aws/en/pyspark/"
     tags: [pandas-udf, python-udf, performance, arrow]
@@ -150,7 +150,7 @@ exercises:
       - id: d
         text: "Add .option(\"mergeSchema\", \"true\") so Delta deduplicates rows during the append"
         correct: false
-    explanation: "Delta supports idempotent writes via the txnAppId and txnVersion (DataFrameWriter) options: Delta records the (appId, version) of each committed transaction and skips a later write carrying an already-seen pair, so a retried identical append commits at most once. B overwrite would clobber other data and is not append-idempotent if the run also processes different partitions. C autoCompact only rewrites small files; it does not deduplicate logical rows. D mergeSchema only reconciles schema differences and performs no deduplication."
+    explanation: "Delta supports idempotent writes via the txnAppId and txnVersion (DataFrameWriter) options: Delta records the (appId, version) of each committed transaction and skips a later write carrying an already-seen pair, so a retried identical append commits at most once. Switching the writer to overwrite mode would clobber other data and is not append-idempotent if the run also processes different partitions. Enabling autoCompact only rewrites small files; it does not deduplicate logical rows. Setting mergeSchema only reconciles schema differences and performs no deduplication."
     references:
       - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
     tags: [delta, idempotent, txnappid, txnversion]
@@ -176,7 +176,7 @@ exercises:
       - id: d
         text: "Trigger.Continuous(\"1 second\")"
         correct: false
-    explanation: "Trigger.AvailableNow consumes all available data and then stops, but unlike the older Trigger.Once it splits the work into multiple micro-batches and honors rate limits such as maxFilesPerTrigger, making it the recommended incremental-batch trigger. B Trigger.Once also stops when caught up but processes everything in a single batch, ignoring backpressure options (it is superseded by AvailableNow). C ProcessingTime keeps the query running continuously on a fixed interval rather than stopping. D Continuous is the experimental low-latency mode and does not stop when the backlog is drained."
+    explanation: "Trigger.AvailableNow consumes all available data and then stops, but unlike the older Trigger.Once it splits the work into multiple micro-batches and honors rate limits such as maxFilesPerTrigger, making it the recommended incremental-batch trigger. Trigger.Once also stops when caught up but processes everything in a single batch, ignoring backpressure options (it is superseded by AvailableNow). Trigger.ProcessingTime keeps the query running continuously on a fixed interval rather than stopping. Trigger.Continuous is the experimental low-latency mode and does not stop when the backlog is drained."
     references:
       - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
     tags: [structured-streaming, triggers, availablenow, backpressure]
@@ -202,7 +202,7 @@ exercises:
       - id: d
         text: "INSERT OVERWRITE the target table from the full change feed on every update"
         correct: false
-    explanation: "APPLY CHANGES INTO is the declarative-pipelines construct for CDC/SCD processing: you give it the source stream, the keys, and a SEQUENCE BY ordering column and it handles upserts, deletes, and out-of-order records for SCD Type 1 (or Type 2). B/C hand-rolled MERGE/foreachBatch inside the pipeline reintroduces the very ordering and idempotency logic APPLY CHANGES manages, and MERGE is not the declarative pattern here. D INSERT OVERWRITE discards incremental semantics and reprocesses everything, defeating CDC."
+    explanation: "APPLY CHANGES INTO is the declarative-pipelines construct for CDC/SCD processing: you give it the source stream, the keys, and a SEQUENCE BY ordering column and it handles upserts, deletes, and out-of-order records for SCD Type 1 (or Type 2). Hand-rolling a foreachBatch MERGE or a MERGE INTO inside a @dp.table function reintroduces the very ordering and idempotency logic APPLY CHANGES manages, and MERGE is not the declarative pattern here. Using INSERT OVERWRITE from the full change feed discards incremental semantics and reprocesses everything, defeating CDC."
     references:
       - "https://docs.databricks.com/aws/en/dlt/"
     tags: [lakeflow, apply-changes, cdc, scd]
@@ -228,7 +228,7 @@ exercises:
       - id: d
         text: "Store it in a Python module-level variable that both notebooks import"
         correct: false
-    explanation: "Task values (dbutils.jobs.taskValues.set/get) are the built-in Lakeflow Jobs mechanism for passing small values between tasks in a job run, with the downstream task referencing the upstream task by key. B tasks run on separate clusters/sessions, so Spark conf is not shared across them. C dbutils.notebook.exit returns a value for the notebook-workflow (run-a-notebook) API, not automatic cross-task binding in a multi-task job. D module-level variables do not persist across separate task executions/JVMs."
+    explanation: "Task values (dbutils.jobs.taskValues.set/get) are the built-in Lakeflow Jobs mechanism for passing small values between tasks in a job run, with the downstream task referencing the upstream task by key. Writing the value to a global Spark conf fails because tasks run on separate clusters/sessions, so Spark conf is not shared across them. Returning it with dbutils.notebook.exit supplies a value for the notebook-workflow (run-a-notebook) API, not automatic cross-task binding in a multi-task job. A Python module-level variable shared by both notebooks does not persist across separate task executions/JVMs."
     references:
       - "https://docs.databricks.com/aws/en/jobs/"
     tags: [lakeflow-jobs, taskvalues, orchestration]
@@ -254,7 +254,7 @@ exercises:
       - id: d
         text: "Manually run the last notebook interactively and mark the original job run as succeeded"
         correct: false
-    explanation: "Repair run re-runs only the failed (and downstream) tasks within the same job run, reusing outputs of tasks that already succeeded — the efficient recovery path. (Configuring per-task retries would also help for transient errors, but among these options Repair run is the correct recovery action.) B cloning re-runs everything and fragments history. C double-scheduling reprocesses all tasks again and does not target the failure. D running a notebook by hand bypasses the job's lineage/state and you cannot retroactively mark a run succeeded."
+    explanation: "Repair run re-runs only the failed (and downstream) tasks within the same job run, reusing outputs of tasks that already succeeded — the efficient recovery path. (Configuring per-task retries would also help for transient errors, but among these options Repair run is the correct recovery action.) Cloning the job and triggering the clone re-runs everything and fragments history. Scheduling the job to run twice nightly reprocesses all tasks again and does not target the failure. Running the last notebook by hand bypasses the job's lineage/state and you cannot retroactively mark a run succeeded."
     references:
       - "https://docs.databricks.com/aws/en/jobs/"
     tags: [lakeflow-jobs, repair-run, retries, reliability]
@@ -280,7 +280,7 @@ exercises:
       - id: d
         text: "Mock the SparkSession entirely so no Spark code executes during the test"
         correct: false
-    explanation: "Extracting transformations into pure DataFrame-in/DataFrame-out functions decouples logic from I/O so you can drive them with tiny in-memory fixtures on a local SparkSession and assert exact outputs — fast, deterministic, CI-friendly unit tests. B couples tests to production data and side effects, making them slow and non-deterministic. C is an end-to-end integration check, not a unit test, and is slow and coarse. D fully mocking Spark means the actual transformation (which is Spark code) never runs, so the test validates nothing meaningful."
+    explanation: "Extracting transformations into pure DataFrame-in/DataFrame-out functions decouples logic from I/O so you can drive them with tiny in-memory fixtures on a local SparkSession and assert exact outputs — fast, deterministic, CI-friendly unit tests. Adding assertions inside the notebook and running it against production tables couples tests to production data and side effects, making them slow and non-deterministic. Submitting the full Lakeflow Job and inspecting gold table row counts is an end-to-end integration check, not a unit test, and is slow and coarse. Mocking the SparkSession entirely means the actual transformation (which is Spark code) never runs, so the test validates nothing meaningful."
     references:
       - "https://docs.databricks.com/aws/en/pyspark/"
     tags: [testing, unit-tests, pyspark, ci]
@@ -306,7 +306,7 @@ exercises:
       - id: d
         text: "dbutils.fs commands in a setup notebook that recreate the resources on first run"
         correct: false
-    explanation: "Databricks Asset Bundles let you declare resources (jobs, pipelines, notebooks) as code in databricks.yml, define multiple targets (dev/prod) with overrides, and validate/deploy them via the Databricks CLI in CI/CD — exactly the described need. B .dbc export/import only moves notebooks, not jobs/pipelines, and is manual. C UI cloning is manual, error-prone, and not source-controlled. D dbutils.fs manipulates files, not job/pipeline resource definitions, and provides no target abstraction."
+    explanation: "Databricks Asset Bundles let you declare resources (jobs, pipelines, notebooks) as code in databricks.yml, define multiple targets (dev/prod) with overrides, and validate/deploy them via the Databricks CLI in CI/CD — exactly the described need. Exporting notebooks as .dbc archives and importing them only moves notebooks, not jobs/pipelines, and is manual. Cloning the dev job in the UI is manual, error-prone, and not source-controlled. Using dbutils.fs commands manipulates files, not job/pipeline resource definitions, and provides no target abstraction."
     references:
       - "https://docs.databricks.com/aws/en/dev-tools/bundles/"
     tags: [asset-bundles, cicd, project-structure, deployment]
@@ -332,7 +332,7 @@ exercises:
       - id: d
         text: "maxFilesPerTrigger = 1 so each commit is processed in isolation"
         correct: false
-    explanation: "skipChangeCommits tells the Delta streaming source to ignore transactions that perform updates/deletes (data-changing operations) and consume only appended data, preventing the stream from failing on non-append commits. B ignoreDeletes only handles partition-boundary deletes and does not cover updates, so the stream still fails on updates. C readChangeFeed switches the source to emit change events (including updates/deletes), which is the opposite of ignoring them. D maxFilesPerTrigger only limits batch size and does nothing about non-append commits."
+    explanation: "skipChangeCommits tells the Delta streaming source to ignore transactions that perform updates/deletes (data-changing operations) and consume only appended data, preventing the stream from failing on non-append commits. ignoreDeletes only handles partition-boundary deletes and does not cover updates, so the stream still fails on updates. readChangeFeed switches the source to emit change events (including updates/deletes), which is the opposite of ignoring them. maxFilesPerTrigger only limits batch size and does nothing about non-append commits."
     references:
       - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
     tags: [structured-streaming, skipchangecommits, delta-source]
@@ -365,7 +365,7 @@ exercises:
       - id: d
         text: "dlt.expect_or_drop"
         correct: false
-    explanation: "@dp.expect_or_drop enforces a constraint by dropping rows that violate it while letting the pipeline continue and reporting the number of dropped records in the data-quality metrics — exactly the requested behavior. B @dp.expect only tracks/reports violations but retains the invalid rows. C @dp.expect_or_fail halts the pipeline on a violation instead of dropping. D uses the deprecated `dlt` alias rather than the current `dp` API, so it is not the correct current form."
+    explanation: "@dp.expect_or_drop enforces a constraint by dropping rows that violate it while letting the pipeline continue and reporting the number of dropped records in the data-quality metrics — exactly the requested behavior. dp.expect only tracks/reports violations but retains the invalid rows. dp.expect_or_fail halts the pipeline on a violation instead of dropping. The dlt.expect_or_drop option uses the deprecated `dlt` alias rather than the current `dp` API, so it is not the correct current form."
     references:
       - "https://docs.databricks.com/aws/en/dlt/"
     tags: [lakeflow, expectations, data-quality, expect-or-drop]

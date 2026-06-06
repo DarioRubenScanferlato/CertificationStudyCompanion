@@ -1,0 +1,377 @@
+# Databricks DE Certification (Professional) - MCQ batch 02
+# Domain: Developing Code for Data Processing
+# IDs: dbx-pro-0061 .. dbx-pro-0073
+# Focus: Python/Pandas UDFs & Arrow, Structured Streaming (foreachBatch, stateful,
+#        mapInPandas/applyInPandasWithState, idempotent writes), Lakeflow Declarative
+#        Pipelines (dp API), DataFrame API depth (windows, broadcast joins, caching,
+#        schema), AUTO CDC / SCD Type 1 vs 2.
+exercises:
+  - id: dbx-pro-0061
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Pandas UDFs"
+    difficulty: medium
+    question: "You must apply an element-wise numeric transformation to a billion-row DataFrame. A row-at-a-time Python UDF works but is dominated by serialization overhead. You decide to use a Series-to-Series pandas UDF. Which definition is correct and will be invoked in a vectorized way?"
+    code_context: |
+      import pandas as pd
+      from pyspark.sql.functions import pandas_udf
+    options:
+      - id: a
+        text: "@pandas_udf(\"double\")\ndef scale(v: pd.Series) -> pd.Series:\n    return v * 1.8 + 32"
+        correct: true
+      - id: b
+        text: "@pandas_udf(\"double\")\ndef scale(v: float) -> float:\n    return v * 1.8 + 32"
+        correct: false
+      - id: c
+        text: "@pandas_udf(\"double\")\ndef scale(v: pd.Series) -> float:\n    return (v * 1.8 + 32).mean()"
+        correct: false
+      - id: d
+        text: "@udf(\"double\")\ndef scale(v: pd.Series) -> pd.Series:\n    return v * 1.8 + 32"
+        correct: false
+    answer: [a]
+    explanation: "A Series-to-Series pandas UDF must accept a pandas Series and return a pandas Series of the same length; the type hints (pd.Series -> pd.Series) are what tell Spark to dispatch it as a vectorized scalar UDF over Arrow batches. The version typed float -> float describes a row-at-a-time scalar function, not a vectorized one, so it would not behave as a pandas UDF. The version returning a single mean value (pd.Series -> float) is the Series-to-scalar (grouped aggregation) signature; used as an element-wise transform it returns the wrong shape. Decorating with the plain @udf decorator produces an ordinary Python UDF regardless of the type hints, so it loses the Arrow vectorization entirely."
+    references:
+      - "https://docs.databricks.com/aws/en/udf/pandas"
+      - "https://docs.databricks.com/aws/en/pyspark/reference/functions/pandas_udf"
+    tags: [pyspark, pandas-udf, arrow, vectorization]
+    source: original
+  - id: dbx-pro-0062
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Pandas UDFs"
+    difficulty: hard
+    question: "A pandas UDF must load a large machine-learning model from disk to score input batches. Initializing the model once per executor task (not once per batch) is critical for performance. Which pandas UDF variant lets you initialize expensive state a single time and then process many Arrow batches?"
+    options:
+      - id: a
+        text: "An Iterator-of-Series to Iterator-of-Series pandas UDF: def predict(it: Iterator[pd.Series]) -> Iterator[pd.Series], loading the model before the for-loop and yielding a result per batch."
+        correct: true
+      - id: b
+        text: "A Series-to-Series pandas UDF that loads the model at the top of the function body, since the body runs only once per partition."
+        correct: false
+      - id: c
+        text: "A Series-to-scalar pandas UDF used with groupBy().agg(), which caches the model across groups automatically."
+        correct: false
+      - id: d
+        text: "A standard row-at-a-time @udf, relying on Spark to memoize the model object between rows."
+        correct: false
+    answer: [a]
+    explanation: "The Iterator-of-Series to Iterator-of-Series form is purpose-built for this: the function receives an iterator over all the Arrow batches for the partition, so you load the model once before the loop and reuse it as you yield one output Series per input batch. A plain Series-to-Series pandas UDF re-enters the function for every batch, so any setup at the top of the body runs once per batch, not once per task. The Series-to-scalar aggregation form returns a single scalar per group and does not perform any cross-group model caching. A row-at-a-time @udf gives no batching or guaranteed state reuse and reintroduces the per-row serialization cost you are trying to avoid."
+    references:
+      - "https://docs.databricks.com/aws/en/udf/pandas"
+    tags: [pyspark, pandas-udf, iterator, arrow]
+    source: original
+  - id: dbx-pro-0063
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "UDF vs built-in functions"
+    difficulty: medium
+    question: "A reviewer rejects a PR that computes a per-row hash with a Python UDF wrapping hashlib, arguing a native approach is faster. The logic is a standard SHA-256 over a concatenation of two string columns. What is the best justification for preferring a built-in over the UDF here?"
+    options:
+      - id: a
+        text: "Built-in Spark SQL functions (e.g. sha2(concat_ws(...), 256)) execute inside the JVM/Catalyst with codegen and no Python serialization, so they avoid the per-row Python round-trip a UDF incurs."
+        correct: true
+      - id: b
+        text: "Python UDFs cannot be used on string columns, so a built-in is the only option that compiles."
+        correct: false
+      - id: c
+        text: "Built-in functions are preferred only because UDFs are unsupported on Unity Catalog clusters; performance is otherwise identical."
+        correct: false
+      - id: d
+        text: "A pandas UDF would be required instead, because built-in hash functions are not deterministic across runs."
+        correct: false
+    answer: [a]
+    explanation: "Native functions run in the JVM under Catalyst with whole-stage code generation and never serialize data to a Python worker, so for logic expressible with built-ins they are consistently faster than even pandas UDFs and far faster than row-at-a-time UDFs. The claim that Python UDFs cannot operate on string columns is false. The assertion that the only reason is a Unity Catalog restriction is wrong, because Python UDFs are supported there and the real driver is the serialization/codegen difference. Recommending a pandas UDF on grounds that sha2 is non-deterministic is incorrect: sha2 is deterministic, so no UDF is needed at all."
+    references:
+      - "https://docs.databricks.com/aws/en/udf/"
+      - "https://docs.databricks.com/aws/en/udf/pandas"
+    tags: [pyspark, udf, built-in-functions, performance]
+    source: original
+  - id: dbx-pro-0064
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Structured Streaming upserts"
+    difficulty: hard
+    question: "Inside foreachBatch you MERGE each micro-batch into a Delta target. After a cluster failure the query restarts and replays the last (incomplete) batch. You want re-processing a replayed batchId to be safe. Which statement about achieving idempotency here is correct?"
+    code_context: |
+      def upsert(batch_df, batch_id):
+          (target.alias("t")
+             .merge(batch_df.alias("s"), "t.id = s.id")
+             .whenMatchedUpdateAll()
+             .whenNotMatchedInsertAll()
+             .execute())
+
+      (stream.writeStream
+         .foreachBatch(upsert)
+         .option("checkpointLocation", path)
+         .start())
+    options:
+      - id: a
+        text: "A key-based MERGE (match on id, update/insert) is inherently idempotent for a replayed batch, because re-applying the same upsert keys produces the same target state."
+        correct: true
+      - id: b
+        text: "foreachBatch already guarantees exactly-once delivery, so the MERGE will never see a replayed batch and no further measure is needed."
+        correct: false
+      - id: c
+        text: "You must switch the sink to append-only and drop the MERGE, because MERGE is not allowed inside foreachBatch."
+        correct: false
+      - id: d
+        text: "Idempotency is impossible with foreachBatch; you must rewrite the job as a Lakeflow Declarative Pipeline to get any restart safety."
+        correct: false
+    answer: [a]
+    explanation: "foreachBatch provides at-least-once semantics, so a batch can be re-presented after failure; the way to make that safe is to ensure the per-batch operation is itself idempotent, and a MERGE keyed on id that updates or inserts by key reaches the same final state whether applied once or twice. The claim that foreachBatch is exactly-once is wrong, which is precisely why an idempotent operation is needed. MERGE is fully supported inside foreachBatch, so forcing append-only is unnecessary. Idempotency is achievable here, so the assertion that you must migrate to a declarative pipeline is false; (for blind appends you would instead use txnAppId/txnVersion, but a keyed MERGE already covers this case)."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
+    tags: [structured-streaming, foreachbatch, merge, idempotency, delta]
+    source: original
+  - id: dbx-pro-0065
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Idempotent writes"
+    difficulty: hard
+    question: "A streaming job uses foreachBatch to write each micro-batch to two different Delta tables with plain appends (no MERGE). On restart, a replayed batch could append duplicate rows to either table. Which mechanism is designed to make these blind appends idempotent per table?"
+    options:
+      - id: a
+        text: "Set DataFrameWriter options txnAppId (a stable app id) and txnVersion (the batchId) on each append, so Delta detects and skips a write whose (txnAppId, txnVersion) pair was already committed."
+        correct: true
+      - id: b
+        text: "Enable spark.sql.shuffle.partitions tuning so each batch produces a stable number of files that Delta deduplicates automatically."
+        correct: false
+      - id: c
+        text: "Call dropDuplicates() on the batch DataFrame inside foreachBatch, which removes rows already present in the target tables."
+        correct: false
+      - id: d
+        text: "Use the same checkpoint location for both writeStream sinks so Delta correlates the writes and prevents double-appending."
+        correct: false
+    answer: [a]
+    explanation: "Delta's idempotent-writes feature keys on the (txnAppId, txnVersion) pair: by passing a stable txnAppId and the micro-batch's batchId as txnVersion to each append, Delta records the version per table and silently ignores a replay of an already-committed version, which is exactly what blind appends need. Tuning shuffle partitions only changes file layout and does nothing for deduplication. dropDuplicates only removes duplicates within the current batch DataFrame; it has no knowledge of rows already committed to the targets. Sharing one checkpoint location across sinks is not how idempotency is established and in fact mixing checkpoint state across separate sinks is unsafe."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/delta-lake"
+    tags: [structured-streaming, idempotency, txnappid, txnversion, delta]
+    source: original
+  - id: dbx-pro-0066
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Stateful streaming"
+    difficulty: medium
+    question: "You need arbitrary, custom per-key state in a Python Structured Streaming job (e.g. maintaining a session object per user with timeouts). Across recent Databricks Runtime releases, which operator does Databricks recommend for new custom stateful applications?"
+    options:
+      - id: a
+        text: "transformWithState (the new arbitrary stateful processing operator)."
+        correct: true
+      - id: b
+        text: "applyInPandasWithState, which is the current recommended API for custom state."
+        correct: false
+      - id: c
+        text: "A pandas UDF with @pandas_udf(\"...\", PandasUDFType.GROUPED_MAP)."
+        correct: false
+      - id: d
+        text: "foreachBatch combined with a broadcast variable that holds the per-key state dictionary."
+        correct: false
+    answer: [a]
+    explanation: "Databricks now recommends transformWithState as the operator for building custom arbitrary stateful streaming applications, and it is the only option here that supports being chained with other stateful operators in current runtimes. applyInPandasWithState (and FlatMapGroupsWithState) are the legacy operators that Databricks explicitly steers users away from. PandasUDFType.GROUPED_MAP is a deprecated pandas-UDF style superseded by applyInPandas and carries no streaming state machine. Holding state in a broadcast variable inside foreachBatch is not fault-tolerant: broadcast values are not checkpointed and would be lost or stale across restarts, so it is not a valid stateful-streaming pattern."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/stateful-streaming"
+      - "https://docs.databricks.com/aws/en/stateful-applications"
+    tags: [structured-streaming, stateful, transformwithstate]
+    source: original
+  - id: dbx-pro-0067
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "mapInPandas vs applyInPandas"
+    difficulty: medium
+    question: "You want to apply a Python function to an entire partition as an iterator of pandas DataFrames, emitting an arbitrary number of output rows (a flat-map style transform) without grouping by any key. Which API fits?"
+    options:
+      - id: a
+        text: "df.mapInPandas(func, schema), where func: Iterator[pd.DataFrame] -> Iterator[pd.DataFrame]."
+        correct: true
+      - id: b
+        text: "df.groupBy(\"k\").applyInPandas(func, schema), which is required for any pandas-based partition processing."
+        correct: false
+      - id: c
+        text: "df.select(my_pandas_udf(\"*\")), since a Series-to-Series pandas UDF can change the row count."
+        correct: false
+      - id: d
+        text: "df.foreach(func), passing a function that returns a pandas DataFrame."
+        correct: false
+    answer: [a]
+    explanation: "mapInPandas transforms an iterator of pandas DataFrames for each partition into an iterator of output DataFrames and can emit a different number of rows than it received, which matches a keyless flat-map. applyInPandas is the grouped (cogroup-style) API and forces a groupBy key, so it is not the right tool when there is no grouping. A Series-to-Series pandas UDF must return a Series of the same length as its input, so it cannot change the row count. foreach is an output action for side effects that returns nothing, not a transformation that produces a new DataFrame."
+    references:
+      - "https://docs.databricks.com/aws/en/udf/pandas"
+    tags: [pyspark, mapinpandas, applyinpandas, pandas]
+    source: original
+  - id: dbx-pro-0068
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Lakeflow Declarative Pipelines"
+    difficulty: medium
+    question: "You are writing a new Lakeflow Declarative Pipeline in Python. Which import and decorator usage reflects the current, recommended API (not the deprecated module)?"
+    code_context: |
+      # Pipeline source file
+    options:
+      - id: a
+        text: "from pyspark import pipelines as dp  ...  @dp.materialized_view\ndef gold():\n    return spark.read.table(\"silver\").groupBy(\"k\").count()"
+        correct: true
+      - id: b
+        text: "import dlt  ...  @dlt.table\ndef gold():\n    return spark.read.table(\"silver\").groupBy(\"k\").count()"
+        correct: false
+      - id: c
+        text: "from databricks import pipelines as dp  ...  @dp.create_table\ndef gold(): ..."
+        correct: false
+      - id: d
+        text: "from pyspark import dlt as dp  ...  @dp.view_table\ndef gold(): ..."
+        correct: false
+    answer: [a]
+    explanation: "The current API imports the module as from pyspark import pipelines as dp and exposes decorators such as @dp.table and @dp.materialized_view; a batch aggregate over an existing table is naturally a materialized view. The dlt module with @dlt.table is the deprecated predecessor that pyspark.pipelines replaced; it still functions but Databricks recommends the new module, so it is a labeled-legacy distractor rather than the recommended answer. There is no from databricks import pipelines entry point nor a @dp.create_table decorator. There is no from pyspark import dlt as dp form or a @dp.view_table decorator; those names are invented."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/python-ref"
+      - "https://docs.databricks.com/aws/en/ldp/"
+    tags: [lakeflow, declarative-pipelines, dp-api, materialized-view]
+    source: original
+  - id: dbx-pro-0069
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "Pipeline expectations"
+    difficulty: medium
+    question: "In a Lakeflow Declarative Pipeline, rows where amount is negative are invalid: they must be DROPPED from the published table, and the pipeline must keep running and record how many rows were dropped in its data-quality metrics. Using the current dp API, which decorator expresses exactly this?"
+    code_context: |
+      from pyspark import pipelines as dp
+    options:
+      - id: a
+        text: "@dp.expect_or_drop(\"valid_amount\", \"amount >= 0\")"
+        correct: true
+      - id: b
+        text: "@dp.expect(\"valid_amount\", \"amount >= 0\")"
+        correct: false
+      - id: c
+        text: "@dp.expect_or_fail(\"valid_amount\", \"amount >= 0\")"
+        correct: false
+      - id: d
+        text: "@dlt.expect_all_or_drop({\"valid_amount\": \"amount >= 0\"})"
+        correct: false
+    answer: [a]
+    explanation: "expect_or_drop both removes records that violate the constraint from the target and continues processing while reporting the number of dropped rows in the pipeline's data-quality metrics, which is exactly the stated requirement. A plain expect only tracks and reports violations but keeps the offending rows in the dataset, so it does not drop them. expect_or_fail aborts the update on any violation, which contradicts the need to keep running. The expect_all_or_drop form has the right drop-and-continue behavior but is shown on the deprecated dlt module rather than the current dp API, so it is a legacy distractor here."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/python-ref"
+    tags: [lakeflow, declarative-pipelines, expectations, data-quality]
+    source: original
+  - id: dbx-pro-0070
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "AUTO CDC / SCD"
+    difficulty: hard
+    question: "Using create_auto_cdc_flow in a Lakeflow Declarative Pipeline, you must materialize a dimension that preserves full history: every change to a key produces a new versioned row with validity windows, and DELETE events should close out (expire) the current record. Which configuration is correct?"
+    code_context: |
+      from pyspark import pipelines as dp
+      dp.create_streaming_table("dim_customer")
+    options:
+      - id: a
+        text: "dp.create_auto_cdc_flow(target=\"dim_customer\", source=\"cdc\", keys=[\"id\"], sequence_by=\"ts\", apply_as_deletes=expr(\"op = 'DELETE'\"), stored_as_scd_type=2)"
+        correct: true
+      - id: b
+        text: "dp.create_auto_cdc_flow(target=\"dim_customer\", source=\"cdc\", keys=[\"id\"], sequence_by=\"ts\", apply_as_deletes=expr(\"op = 'DELETE'\"), stored_as_scd_type=1)"
+        correct: false
+      - id: c
+        text: "dp.create_auto_cdc_flow(target=\"dim_customer\", source=\"cdc\", keys=[\"id\"], stored_as_scd_type=2)  # no sequence_by"
+        correct: false
+      - id: d
+        text: "dp.create_auto_cdc_from_snapshot_flow(target=\"dim_customer\", source=\"cdc\", keys=[\"id\"], stored_as_scd_type=2)"
+        correct: false
+    answer: [a]
+    explanation: "SCD Type 2 keeps a full history by writing a new versioned row per change with start/end validity columns, and apply_as_deletes lets DELETE events expire (close out) the current record rather than hard-deleting history; stored_as_scd_type=2 is therefore required. stored_as_scd_type=1 performs in-place upserts and overwrites prior values, keeping no history, so it cannot satisfy the requirement. Omitting sequence_by is invalid because the API needs a sequencing column to order change events and correctly handle out-of-order data. create_auto_cdc_from_snapshot_flow consumes periodic full snapshots and infers changes between them; it is the wrong API when you already have an ordered row-level change feed."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/developer/ldp-python-ref-apply-changes"
+      - "https://docs.databricks.com/aws/en/ldp/cdc"
+    tags: [lakeflow, auto-cdc, scd-type-2, declarative-pipelines]
+    source: original
+  - id: dbx-pro-0071
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "AUTO CDC / SCD"
+    difficulty: hard
+    question: "A team declares an AUTO CDC target with stored_as_scd_type=2 and explicitly specifies the schema of the target streaming table, but the pipeline fails validation. They listed only their business columns in the schema. What is the most likely fix?"
+    options:
+      - id: a
+        text: "When you specify the schema for an SCD Type 2 target, you must also declare the __START_AT and __END_AT columns using the same data type as the sequence_by column."
+        correct: true
+      - id: b
+        text: "SCD Type 2 forbids declaring an explicit schema; remove the schema so it is always inferred."
+        correct: false
+      - id: c
+        text: "Add an auto-incrementing primary key column, because AUTO CDC cannot use the business keys for SCD Type 2."
+        correct: false
+      - id: d
+        text: "Switch stored_as_scd_type to 1, since explicit schemas are only supported for SCD Type 1."
+        correct: false
+    answer: [a]
+    explanation: "For SCD Type 2, the target carries validity-window columns, and when you choose to declare the schema explicitly you must include __START_AT and __END_AT with the same type as the sequence_by field; omitting them causes the failure. Declaring an explicit schema is allowed for SCD Type 2, so removing it is not required and not the actual cause. AUTO CDC uses the provided keys to identify records and does not require an extra auto-increment surrogate key. Forcing SCD Type 1 would change the semantics and lose history, and explicit schemas are not restricted to Type 1, so that is not the fix."
+    references:
+      - "https://docs.databricks.com/aws/en/ldp/cdc"
+      - "https://docs.databricks.com/aws/en/ldp/developer/ldp-python-ref-apply-changes"
+    tags: [lakeflow, auto-cdc, scd-type-2, schema]
+    source: original
+  - id: dbx-pro-0072
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "DataFrame API - joins"
+    difficulty: medium
+    question: "A 2 TB fact DataFrame is joined to a 40 MB dimension DataFrame on a key. The cluster has ample executor memory. You want to avoid shuffling the huge fact table across the network for this join. What is the most appropriate technique?"
+    options:
+      - id: a
+        text: "Hint the small side with broadcast(dim) so Spark performs a broadcast hash join, sending the small table to every executor and avoiding a shuffle of the fact table."
+        correct: true
+      - id: b
+        text: "Repartition both DataFrames by the join key with the same number of partitions to force a co-located sort-merge join with no network movement."
+        correct: false
+      - id: c
+        text: "Call fact.cache() before the join so the join is served from memory without a shuffle."
+        correct: false
+      - id: d
+        text: "Use a cross join and then filter on the key, letting Catalyst prune it down to the matching rows."
+        correct: false
+    answer: [a]
+    explanation: "Broadcasting the ~40 MB dimension turns the join into a broadcast hash join: the small table is replicated to every executor so each fact partition is joined locally, eliminating the expensive shuffle of the 2 TB fact table. Repartitioning both sides by key still triggers a shuffle of the large fact table, which is exactly what you want to avoid. Caching the fact table materializes it in memory but does not change the join strategy, so a shuffle still occurs. A cross join produces the full cartesian product before filtering, which is catastrophically expensive and never the right approach for an equi-join."
+    references:
+      - "https://docs.databricks.com/aws/en/pyspark/reference/functions/broadcast"
+    tags: [pyspark, dataframe, broadcast-join, performance]
+    source: original
+  - id: dbx-pro-0073
+    type: single_choice
+    exam: professional
+    domain: "Developing Code for Data Processing"
+    subdomain: "DataFrame API - window functions"
+    difficulty: hard
+    question: "For each customer you must keep only their single most recent order (highest order_ts), breaking ties deterministically by order_id. Which DataFrame expression returns exactly one row per customer correctly?"
+    code_context: |
+      from pyspark.sql import functions as F, Window
+    options:
+      - id: a
+        text: "w = Window.partitionBy(\"customer_id\").orderBy(F.col(\"order_ts\").desc(), F.col(\"order_id\").desc())\norders.withColumn(\"rn\", F.row_number().over(w)).filter(\"rn = 1\")"
+        correct: true
+      - id: b
+        text: "w = Window.partitionBy(\"customer_id\").orderBy(F.col(\"order_ts\").desc())\norders.withColumn(\"rk\", F.rank().over(w)).filter(\"rk = 1\")"
+        correct: false
+      - id: c
+        text: "orders.groupBy(\"customer_id\").agg(F.max(\"order_ts\").alias(\"order_ts\"))"
+        correct: false
+      - id: d
+        text: "w = Window.partitionBy(\"customer_id\").orderBy(\"order_ts\")\norders.withColumn(\"rn\", F.row_number().over(w)).filter(\"rn = 1\")"
+        correct: false
+    answer: [a]
+    explanation: "row_number over a window partitioned by customer and ordered by order_ts descending with order_id descending as a tiebreaker assigns a unique 1 to exactly one row per customer even when timestamps tie, so filtering rn = 1 returns precisely one most-recent order each. Using rank() instead can emit multiple rows with value 1 when there are ties, so it does not guarantee a single row per customer. The groupBy max(order_ts) aggregation returns only the customer_id and the max timestamp, dropping all the other order columns, so it does not give you the full most-recent row. Ordering by order_ts ascending picks the oldest order, not the newest, so it answers the wrong question."
+    references:
+      - "https://docs.databricks.com/aws/en/pyspark/reference/functions/row_number"
+      - "https://docs.databricks.com/aws/en/pyspark/reference/pyspark.sql/window"
+    tags: [pyspark, dataframe, window-functions, row-number]
+    source: original

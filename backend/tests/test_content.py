@@ -103,19 +103,26 @@ class TestExerciseCount:
     """Tests to verify exercise counts by domain."""
 
     def test_all_exercises_loaded(self):
-        """72 Associate + 60 Professional = 132 exercises load with no errors."""
+        """The corpus loads cleanly with both exams represented.
+
+        Counts are intentionally NOT hard-coded — the content bank grows over
+        time. We assert invariants (no load errors, both exams present, total
+        is the sum of the exam splits) rather than a magic number.
+        """
         exercises, error_count, error_log = load_exercises_from_directory()
-        assert len(exercises) == 132, f"Expected 132 exercises, got {len(exercises)}"
-        assert error_count == 0
+        assert error_count == 0, f"content load errors: {error_log[:3]}"
+        assert len(exercises) > 0
 
         by_exam = {}
         for ex in exercises:
             by_exam[ex.exam.value] = by_exam.get(ex.exam.value, 0) + 1
-        assert by_exam.get("associate") == 72
-        assert by_exam.get("professional") == 60
+        # Both exam levels are seeded.
+        assert by_exam.get("associate", 0) > 0
+        assert by_exam.get("professional", 0) > 0
+        assert sum(by_exam.values()) == len(exercises)
 
     def test_domain_distribution(self):
-        """Associate domain split is intact; Professional domains are present."""
+        """Every Associate and Professional domain is represented (count-agnostic)."""
         exercises, _, _ = load_exercises_from_directory()
 
         by_domain = {}
@@ -123,23 +130,13 @@ class TestExerciseCount:
             domain = ex.domain.value
             by_domain[domain] = by_domain.get(domain, 0) + 1
 
-        # Associate domains keep their authored counts. Note: Data Governance
-        # is shared, so it also carries Professional questions and is checked
-        # separately below.
-        expected_associate = {
-            "Databricks Lakehouse Platform": 17,
-            "ELT with Spark SQL and Python": 21,
-            "Incremental Data Processing": 16,
-            "Production Pipelines": 12,
-        }
-        for domain, expected_count in expected_associate.items():
-            actual = by_domain.get(domain, 0)
-            assert actual == expected_count, f"{domain}: expected {expected_count}, got {actual}"
-
-        # Data Governance is shared (6 Associate + 4 Professional = 10).
-        assert by_domain.get("Data Governance") == 10
-
-        # All 9 Professional-only domains are represented.
+        associate_domains = [
+            "Databricks Lakehouse Platform",
+            "ELT with Spark SQL and Python",
+            "Incremental Data Processing",
+            "Production Pipelines",
+            "Data Governance",  # shared with Professional
+        ]
         professional_only = [
             "Developing Code for Data Processing",
             "Data Ingestion & Acquisition",
@@ -151,5 +148,5 @@ class TestExerciseCount:
             "Debugging and Deploying",
             "Data Modelling",
         ]
-        for domain in professional_only:
-            assert by_domain.get(domain, 0) > 0, f"missing professional domain: {domain}"
+        for domain in associate_domains + professional_only:
+            assert by_domain.get(domain, 0) > 0, f"no exercises in domain: {domain}"

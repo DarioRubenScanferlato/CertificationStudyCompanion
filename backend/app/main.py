@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from app import store
 from app.anki import export_to_anki
 from app.content import filter_exercises, load_exercises_from_directory
 from app.feedback import (
@@ -17,6 +18,7 @@ from app.feedback import (
 )
 from app.models import MCQ, Difficulty, Domain, ExamType, ExerciseType
 from app.session import build_session
+from app.store import init_db
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -26,6 +28,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load exercises on startup."""
+    # Create the local SQLite attempt store if absent (AR-16 / Story 7.1).
+    init_db()
     logger.info("Loading exercises...")
     exercises, error_count, error_log = load_exercises_from_directory()
     app.state.exercises = exercises
@@ -377,7 +381,10 @@ def post_session(request: SessionByIdsRequest):
         matched = filter_exercises(matched, exam=request.exam)
 
     # Reuse the Story 5.3 randomizer; an empty match list yields an empty session.
-    session = build_session(matched)
+    # Replay is an explicit id set ("Restart" / "Practice these again") — do NOT
+    # apply unseen-first ordering (those ids are deliberately chosen and usually
+    # all already-seen); keep it freshly sampled + randomly ordered.
+    session = build_session(matched, prioritize_unseen=False)
 
     return {"success": True, "data": session, "error": None}
 
@@ -440,6 +447,11 @@ class FeedbackRequest(BaseModel):
     )
     selectedId: str = Field(..., description="Original id of the option the user selected")
     type: str = Field(default="mcq", description="Exercise type ('mcq' / 'single_choice')")
+    timeTakenMs: int | None = Field(
+        default=None,
+        ge=0,
+        description="Per-question time in milliseconds (FR-28); null if not tracked",
+    )
 
 
 # Types this endpoint can grade. Code-completion is a later epic.
@@ -485,7 +497,133 @@ def post_feedback(request: FeedbackRequest):
         logger.warning(f"Feedback validation error for '{request.exerciseId}': {e}")
         return {"success": False, "data": None, "error": str(e)}
 
+    # Record the graded attempt to the local SQLite store (FR-22/FR-28, AR-17).
+    # Best-effort write-hook: a persistence failure must never alter or break
+    # the feedback response, so it is logged and swallowed.
+    try:
+        store.record_attempt(
+            exercise_id=exercise.id,
+            exam=str(exercise.exam.value),
+            domain=str(exercise.domain.value),
+            correct=bool(result["correct"]),
+            selected_id=request.selectedId,
+            time_taken_ms=request.timeTakenMs,
+        )
+    except Exception as e:  # noqa: BLE001 - best-effort; grading must not break
+        logger.warning(f"Failed to record attempt for '{request.exerciseId}': {e}")
+
     return {"success": True, "data": result, "error": None}
+
+
+def _validate_exam(exam: str | None) -> str | None:
+    """Validate the optional ``exam`` query param case-insensitively.
+
+    Returns an error message string if invalid, else ``None`` (valid/absent).
+    Mirrors the validation loop used by GET /api/exercises and /api/sessions.
+    """
+    if not exam:
+        return None
+    valid_values = [member.value for member in ExamType]
+    if exam.strip().lower() not in [v.lower() for v in valid_values]:
+        logger.warning(f"Invalid exam type filter attempted: {exam}")
+        return f"Invalid exam type '{exam}'. Valid values are: {', '.join(valid_values)}"
+    return None
+
+
+@app.get("/api/stats")
+def get_stats(
+    exam: str = Query(None, description="Filter by exam (associate, professional)"),
+):
+    """Aggregate stats over the recorded attempt history (FR-23, rev 4).
+
+    Returns the standard ``{success, data, error}`` wrapper. On success,
+    ``data`` has the shape::
+
+        {
+            "overall": {"attempts": int, "correct": int, "accuracy": float},
+            "byDomain": {<domain>: {"attempts": int, "correct": int, "accuracy": float}},
+            "trend": [{"date", "attempts", "correct", "accuracy"}, ...]  # per day
+        }
+
+    Query Parameters:
+    - exam: Optional exam scope (associate, professional; case-insensitive).
+
+    Empty history is a successful response with zeroed overall stats and empty
+    ``byDomain`` / ``trend``, never an error. Leak-free: every value is an
+    aggregate over recorded attempts -- no exercise content, options, or
+    per-option ``correct`` flags are ever read or returned (FR-20).
+    """
+    error = _validate_exam(exam)
+    if error:
+        return {"success": False, "data": None, "error": error}
+
+    # Normalize to the canonical (lowercase) stored value so a case-variant
+    # query (?exam=Associate) matches rows instead of silently returning zeros.
+    exam_filter = exam.strip().lower() if exam else None
+    stats = store.overall_stats(exam=exam_filter)
+    trend = store.daily_stats(exam=exam_filter)
+
+    data = {
+        "overall": {
+            "attempts": stats["total"],
+            "correct": stats["correct"],
+            "accuracy": stats["accuracy"],
+        },
+        "byDomain": stats["by_domain"],
+        "trend": trend,
+    }
+    return {"success": True, "data": data, "error": None}
+
+
+@app.get("/api/readiness")
+def get_readiness(
+    exam: str = Query(None, description="Filter by exam (associate, professional)"),
+):
+    """Rolling-window readiness vs the ~70% planning heuristic (FR-25, rev 4).
+
+    Returns the standard ``{success, data, error}`` wrapper. On success,
+    ``data`` has the shape::
+
+        {
+            "overall": {"accuracy": float, "ready": bool, "window": int},
+            "byDomain": {<domain>: {"accuracy": float, "ready": bool}}
+        }
+
+    ``ready`` is ``rolling-window accuracy >= 0.70`` over the last
+    ``store.READINESS_WINDOW`` attempts (per-domain readiness uses each domain's
+    own rolling window). The ~70% bar is a *planning heuristic* surfaced as
+    guidance, not an official cut (addendum §C); the window/threshold used are
+    surfaced on the overall block (``window``) and at the top level
+    (``threshold``, ``window``).
+
+    Query Parameters:
+    - exam: Optional exam scope (associate, professional; case-insensitive).
+
+    Empty history -> overall accuracy 0.0, ready False, empty ``byDomain``;
+    success, not an error. Leak-free: aggregates over attempts only (FR-20).
+    """
+    error = _validate_exam(exam)
+    if error:
+        return {"success": False, "data": None, "error": error}
+
+    # Normalize to the canonical stored value (see GET /api/stats).
+    exam_filter = exam.strip().lower() if exam else None
+    result = store.readiness(exam=exam_filter)
+
+    data = {
+        "overall": {
+            "accuracy": result["overall"]["accuracy"],
+            "ready": result["overall"]["ready"],
+            "window": result["overall"]["window"],
+        },
+        "byDomain": {
+            domain: {"accuracy": block["accuracy"], "ready": block["ready"]}
+            for domain, block in result["byDomain"].items()
+        },
+        "threshold": result["threshold"],
+        "window": result["window"],
+    }
+    return {"success": True, "data": data, "error": None}
 
 
 if __name__ == "__main__":
