@@ -8,6 +8,8 @@ revisions:
     summary: 'PRD rev 2 — randomness & variety: Option Pool (FR-19), server-side Displayed-Option sampling + position shuffle (FR-20), randomized session order (FR-21); single-select only (FR-9 removed). Added GET /api/sessions, revised POST /api/feedback contract, session randomizer decision, re-study variety cross-cutting concern.'
   - date: '2026-06-05'
     summary: 'UX QoL pass (EXPERIENCE.md) — closed 3 gaps: G1 GET /api/exercises/count (leak-free Start-screen match count); G2 POST /api/sessions {exerciseIds} for replay (Restart-same / Practice-incorrect, keeps FR-20/21 freshness); G3 frontend feedback-retention + new reducer actions/states (prev, skip, endToSummary, replay) for Back/Review-incorrect/partial-Summary. See ux-designs/ux-DataBricks-DE-cert-study-companion-2026-06-05/EXPERIENCE.md.'
+  - date: '2026-06-07'
+    summary: 'Rev 4 — PRD rev 3 scope expansion (Epics 7 & 8). REVERSED the no-persistence/stateless NFR: added a LOCAL SQLite attempt store (store.py, sqlite3 stdlib, backend/data/progress.db gitignored). POST /api/feedback now records attempts (+timeTakenMs). GET /api/sessions ordering is history-aware unseen-first (FR-24, supersedes FR-21 ordering). New GET /api/stats + GET /api/readiness (FR-23/25). Mock-Exam builder (mode=mock, domain-weighted full-length, exam-scoped, ignores unseen-first; Associate 45Q/90min, Pro 59Q/120min — FR-27). Timer + per-question timing are frontend (FR-26/28). New FE: StatsDashboard, ReadinessIndicator, Timer/Countdown, MockExam.'
 inputDocuments:
   - /Users/dariorubenscanferlato/Documents/Projects/DataBricks-DE-cert-study-companion/_bmad-output/planning-artifacts/prds/prd-DataBricks-DE-cert-study-companion-2026-06-05/prd.md
   - /Users/dariorubenscanferlato/Documents/Projects/DataBricks-DE-cert-study-companion/_bmad-output/planning-artifacts/prds/prd-DataBricks-DE-cert-study-companion-2026-06-05/addendum.md
@@ -28,7 +30,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Requirements Overview
 
-**Functional Requirements (21 total, across 4 features; FR-9 removed/tombstoned per PRD rev 2):**
+**Functional Requirements (28 total; FR-9 removed/tombstoned; FR-22–FR-28 added in PRD rev 3):**
 
 1. **Exercise Content Format & Loading (FR-1 through FR-4, FR-18):** Portable, standardized, human-authorable exercise format (YAML-authored, optionally JSON-served). Runtime file loading from a designated directory. Blueprint-aligned Domain tagging. Anki export support.
 
@@ -38,10 +40,14 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 4. **Exercise Generation (FR deferred, Phase future):** Optional in-app generation from Databricks docs; committed path is agent-skill authoring into the standardized format.
 
+5. **Answer & Stats Tracking (FR-22 through FR-25, PRD rev 3 / Epic 7):** Persist attempt history locally (FR-22), a stats dashboard with overall + per-Domain accuracy/trends/weak-areas (FR-23), **unseen-first** session prioritization (FR-24), and a readiness indicator vs the ~70% bar (FR-25). Introduces local persistence (see NFR change below).
+
+6. **Timed Practice / Mock Exam (FR-26 through FR-28, PRD rev 3 / Epic 8):** Optional per-session countdown with auto-end (FR-26), a domain-weighted full-length **Mock-Exam mode** at real exam timing — Associate 45Q/90min, Pro 59Q/120min (FR-27), and per-question timing that feeds the stats (FR-28). Timer/timing are client-side.
+
 **Non-Functional Requirements (Shaping Architecture):**
 
 - **Code-Completion feedback latency: < 100ms from keystroke to rendered feedback.** Target is client-side computation; no perceptible server round-trip. This is the primary driver of the frontend technology choice (React/vanilla JS vs. HTMX).
-- **Single-user, local, no persistence (MVP).** No database, no auth, no server-side user data, no sync. File-based content only.
+- **~~Single-user, local, no persistence (MVP).~~ → Single-user, local, with LOCAL persistence (PRD rev 3, 2026-06-07).** No accounts, no auth, no multi-user/server-side user data, no sync. Content stays file-based; the user's own **answer history** is persisted in a **local SQLite store** (`sqlite3` stdlib, no pip). This **reverses the prior no-persistence stance and the stateless-session property** — `GET /api/sessions` and `POST /api/feedback` now read/write that store. See the Persistence decision in Core Architectural Decisions.
 - **Content portability (FR-18).** Exercise format must export cleanly to Anki so studying is never gated on app completion. This is the linchpin of the Build-vs-Borrow strategy.
 - **Playfulness in Code-Completion.** Wordle-like guess-and-narrow loop is the differentiator; implementation must preserve delight, not reduce it to a correctness check.
 
@@ -455,18 +461,52 @@ or on error:
 **Choice:** A server-side session randomizer, invoked when `GET /api/sessions` builds a session. It is stateless and non-deterministic per request.
 
 **Responsibilities:**
-- **Exercise-order randomization (FR-21):** shuffle the full filtered Exercise set fresh each session; no resume-in-order or SRS weighting in MVP.
-- **Displayed-Option sampling (FR-20):** for each MCQ, sample **1** correct option from the pool's correct set and **3** incorrect options from the pool's incorrect set (uniform-at-random, no anti-repeat memory in MVP).
+- **Exercise-order (FR-21 → FR-24, rev 4):** ordering is now **history-aware (unseen-first)** — unanswered Exercises before seen ones (within the active filters), seen fallback ordered least-recently-seen; randomize *within* the unseen group. Option sampling/shuffle stay random. (Mock-Exam mode ignores unseen-first — see below.)
+- **Displayed-Option sampling (FR-20):** for each MCQ, sample **1** correct option from the pool's correct set and **3** incorrect options from the pool's incorrect set (uniform-at-random, no anti-repeat memory).
 - **Option-position shuffle (FR-20):** randomize the slot order of the 4 Displayed Options so the correct answer isn't position-stable.
 - **Answer non-leakage:** strip `correct` flags; the response carries only `{ id, text }` per Displayed Option.
 
 **Rationale:**
 - Coheres with the existing pattern: correctness is already evaluated server-side via `POST /api/feedback`. Keeping sampling server-side means the full pool and correct flags never reach the browser, so the client cannot pre-compute the answer (the failure mode of a client-side tier).
-- Stateless RNG per request gives the re-study "freshness" effect for free with no persistence — aligned with the no-persistence NFR.
+- ~~Stateless RNG per request gives freshness for free with no persistence.~~ **(rev 4)** Sampling/shuffle remain stateless RNG; **ordering** now reads the attempt store (unseen-first). The randomizer is no longer fully stateless.
 
-**Scoring contract:** `POST /api/feedback` receives `displayedOptionIds` + `selectedId` and scores against exactly the 4 options the user saw (single-select: correct iff `selectedId` is the displayed correct option). The former multi-select all-or-nothing path (old FR-9) is removed.
+**Scoring contract:** `POST /api/feedback` receives `displayedOptionIds` + `selectedId` (+ optional `timeTakenMs`, rev 4) and scores against exactly the 4 options the user saw (single-select: correct iff `selectedId` is the displayed correct option). The former multi-select all-or-nothing path (old FR-9) is removed.
 
-**Implementation note:** lives in `content.py` (or a small `session.py` helper) alongside filtering; `feedback.py` owns scoring. RNG is standard-library; no seed in MVP (vary naturally per request).
+**Implementation note:** lives in `content.py` / `session.py` alongside filtering; `feedback.py` owns scoring. RNG is standard-library.
+
+---
+
+**Decision: Local Persistence — SQLite attempt store (rev 4, FR-22)**
+
+**Choice:** A **local SQLite** database (`sqlite3`, Python stdlib — **no pip dependency**), created-if-absent at startup, holding the single user's answer history. This **reverses the prior no-persistence / stateless-session NFR**; single-user/local is retained (no accounts, no server, no sync).
+
+**Why SQLite over a JSON file:** attempt-level history + the queries the stats/readiness/unseen-first features need (and the still-deferred SRS) are natural in SQL and trivial at this scale; stdlib means zero new dependency. JSON was the considered, rejected alternative (addendum §E).
+
+**Schema (indicative):** `attempts(id INTEGER PK, exercise_id TEXT, exam TEXT, domain TEXT, correct INTEGER, selected_id TEXT, time_taken_ms INTEGER, answered_at TEXT)`. Stats are aggregations over it; "seen" = a row exists for `exercise_id`.
+- **Location:** gitignored local file, e.g. `backend/data/progress.db` (add `backend/data/` to `.gitignore`).
+- **Module:** new `backend/app/store.py` — `record_attempt(...)`, `attempted_ids(filters)`, `domain_accuracy()`, `overall_stats()`, `last_seen_map()`; opens a connection per request (or a module-level connection with `check_same_thread=False`). Create-table-if-not-exists on startup (lifespan).
+
+**Write hook:** `POST /api/feedback` (already grades server-side) calls `store.record_attempt(...)` with exercise id, exam, domain, correctness, selected id, and the client-supplied `timeTakenMs` (FR-28). Recording failures must not break grading (best-effort write, logged).
+
+**Read paths:** `GET /api/sessions` consults `store.attempted_ids` for unseen-first (FR-24); new `GET /api/stats` (FR-23) and `GET /api/readiness` (FR-25) aggregate the store.
+
+---
+
+**Decision: Stats & Readiness endpoints (rev 4, FR-23/FR-25)**
+
+**Choice:** Read-only endpoints over the attempt store, standard `{success, data, error}` wrapper.
+- `GET /api/stats` → overall accuracy + attempts, per-Domain accuracy/attempts, and a trend series (e.g. by day). Optional `exam` filter.
+- `GET /api/readiness` → rolling-window accuracy vs the **~70%** planning heuristic, overall + per-Domain readiness flags. (~70% is guidance, not an official cut — addendum §C.)
+
+**Frontend:** a `StatsDashboard` page/section + a `ReadinessIndicator` component (DESIGN.md tokens; weak domains visually distinct).
+
+---
+
+**Decision: Mock-Exam session builder (rev 4, FR-27)**
+
+**Choice:** A builder variant (e.g. `GET /api/sessions?mode=mock&exam=...`, or a dedicated `GET /api/mock-exam`) that assembles a **domain-weighted, full-length** set scoped to one Exam — Associate ≈45Q/90min, Professional ≈59Q/120min, per the §C weights — and stamps the exam **duration** in the response. It **ignores unseen-first** (a mock must be representative, not unseen-biased) and may repeat seen questions. Exam-style scoring reuses the §4.5 per-Domain breakdown at the end.
+
+**Timer is frontend (FR-26/FR-28):** the countdown, auto-submit-at-zero, and per-question elapsed timing live in React; the client sends `timeTakenMs` with each `POST /api/feedback`. No server-side timer/clock. New frontend: a `Timer`/`Countdown` component (used by both the optional session timer and Mock-Exam mode) and a `MockExam` flow/page; SessionSelect gains a "timed?" / "mock exam" affordance.
 
 ---
 
@@ -850,13 +890,15 @@ project-root/
 ### Architectural Boundaries
 
 **API Boundaries:**
-- `GET /api/sessions` → Builds a Practice Session: filtered (FR-5), **order-randomized** (FR-21) Exercises, each MCQ carrying **4 sampled + shuffled, flag-less Displayed Options** (FR-20). Primary runner entry point.
-- `POST /api/sessions` → Builds a session from an explicit `exerciseIds[]` (UX replay: "Restart same session" / "Practice these N again"); freshly sampled/shuffled/reordered so replays stay fresh.
-- `GET /api/exercises/count` → Match count `{count}` for the Start-screen filter preview; no pools/options/flags (leak-free).
-- `GET /api/exercises` → Inspect/list authored exercises (admin/debug, FR-5 filtering); not used by the practice UI.
-- `POST /api/feedback` → MCQ answer submission `{exerciseId, displayedOptionIds, selectedId}`; returns `{correct, correctOptionId, explanation, references}` (FR-8, FR-10). Single-select scoring only.
+- `GET /api/sessions` → Builds a Practice Session: filtered (FR-5), **unseen-first ordered** (FR-24, rev 4 — was order-randomized FR-21) Exercises, each MCQ carrying **4 sampled + shuffled, flag-less Displayed Options** (FR-20). Accepts `exam` (FR-7.x). Optional `mode=mock` → Mock-Exam builder (FR-27: domain-weighted, full-length, exam-scoped, ignores unseen-first, returns the exam `durationMinutes`). Primary runner entry point.
+- `POST /api/sessions` → Builds a session from an explicit `exerciseIds[]` (UX replay); freshly sampled/shuffled.
+- `GET /api/exercises/count` → Match count `{count}` for the Start-screen filter preview; leak-free. Accepts `exam`.
+- `GET /api/exercises` → Inspect/list authored exercises (admin/debug); not used by the practice UI.
+- `POST /api/feedback` → MCQ answer submission `{exerciseId, displayedOptionIds, selectedId, timeTakenMs?}`; returns `{correct, correctOptionId, explanation, references}` (FR-8, FR-10). Single-select scoring. **(rev 4)** also **records the attempt** to the SQLite store (FR-22/FR-28) — best-effort, never blocks grading.
+- `GET /api/stats` → **(rev 4, FR-23)** overall + per-Domain accuracy/attempts + trend, over the attempt store. Optional `exam`.
+- `GET /api/readiness` → **(rev 4, FR-25)** rolling-window accuracy vs ~70%, overall + per-Domain readiness.
 - `POST /api/feedback/code-completion` → (Phase 2) Code submission + token-level feedback (FR-14)
-- `GET /api/export/anki` → Anki export (FR-18; runner-only FR-20/21 randomness not applied)
+- `GET /api/export/anki` → Anki export (FR-18)
 
 **Component Boundaries:**
 - **SessionSelect** (Frontend) → User selects domain/difficulty → calls `GET /api/sessions?domain=...&difficulty=...` → receives order-randomized exercises with pre-sampled, shuffled Displayed Options → routes to MCQPractice
@@ -886,6 +928,8 @@ project-root/
 | **FR-1–4, FR-18, FR-19** | Exercise format (incl. Option Pool ≥1/≥3), loading, validation, portability | `api.js` (calls endpoints) | `content.py`, `export.py`, `models.py` (Option Pool validation) | `exercises/` (YAML) |
 | **FR-5–12** | MCQ Practice (MVP priority) | `SessionSelect.jsx`, `MCQPractice.jsx`, `Feedback.jsx`, `SessionSummary.jsx` | `main.py` (/api endpoints), `feedback.py` (single-select correctness) | `associate/` YAML MCQs |
 | **FR-20, FR-21** | Server-side sampling, option shuffle, randomized session order | `SessionSelect.jsx`/`MCQPractice.jsx` (consume `/api/sessions`) | `content.py` / `session.py` (session randomizer), `main.py` (`GET /api/sessions`) | — |
+| **FR-22–25** | Answer & Stats Tracking (Epic 7) | `StatsDashboard.jsx`, `ReadinessIndicator.jsx`, `api.js` | `store.py` (SQLite), `main.py` (`GET /api/stats`, `/api/readiness`; record in `POST /api/feedback`), `session.py` (unseen-first) | `backend/data/progress.db` (gitignored) |
+| **FR-26–28** | Timed Practice / Mock Exam (Epic 8) | `Timer.jsx`/`Countdown.jsx`, `MockExam.jsx`, `SessionSelect.jsx` (timed/mock affordance) | `session.py` (mock-exam builder), `main.py` (`mode=mock`) | — |
 | **FR-13–17** | Code-Completion (Phase 2) | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js` | `feedback.py` (code variant), `models.py` (CodeCompletion schema) | `associate/` code exercises |
 
 ### Integration Points
@@ -1000,7 +1044,7 @@ Project structure (`exercises/` at root, `frontend/` and `backend/` as peer dire
 | NFR | Architectural Support |
 |-----|----------------------|
 | Code-Completion feedback < 100ms | Client-side tokenizer + instant DOM updates via React state ✓ |
-| Single-user, local, no persistence | No auth layer; in-memory SessionContext only; no database ✓ |
+| Single-user, local, **local persistence (rev 4)** | No auth/multi-user/sync; content file-based; answer history in a local SQLite store (`store.py`), read/written by sessions + feedback ✓ |
 | Portability (Anki export) | `export.py` + standalone `export_anki.py` script ensures content survives app evolution ✓ |
 | Content extensibility | Shared `id/domain/difficulty/explanation` fields support 8 future exercise types ✓ |
 

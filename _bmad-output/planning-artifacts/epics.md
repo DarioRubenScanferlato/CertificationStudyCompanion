@@ -8,6 +8,8 @@ inputDocuments:
 revisions:
   - date: '2026-06-05'
     summary: 'Added Epic 5 (MCQ Variety & Randomization — FR-7/19/20/21, AR-13/14/15) and Epic 6 (Session Control & Study QoL — UX-DR1–12, gaps G1/G2/G3) with 6 stories each. FR-9 removed. Sourced from PRD rev 2, architecture rev 3, EXPERIENCE.md.'
+  - date: '2026-06-07'
+    summary: 'Added Epic 7 (Answer & Stats Tracking — FR-22–25, AR-16/17; 5 stories) and Epic 8 (Timed Practice / Mock Exam — FR-26–28, AR-18; 4 stories). NFR-2/NFR-3 revised (local SQLite persistence; reverses no-persistence). FR-24 supersedes FR-21 ordering. Sourced from PRD rev 3 §4.5/§4.6, architecture rev 4, addendum §E.'
 ---
 
 # DataBricks-DE-cert-study-companion - Epic Breakdown
@@ -60,15 +62,29 @@ This document provides the complete epic and story breakdown for DataBricks-DE-c
 
 **FR-20:** Sample & shuffle Displayed Options — When presenting an MCQ, the runner samples **1 correct + 3 incorrect** options from the pool and renders them in **randomized positions**. Two presentations of the same question can differ in correct option and/or distractors; the correct option is not position-stable. Computed **server-side**; correct flags never sent to the client. *(New, PRD rev 2.)*
 
-**FR-21:** Randomize Exercise order per Practice Session — Exercises in a session are presented in randomized order, re-randomized fresh each session; no resume-in-order or SRS weighting in MVP. Computed server-side. *(New, PRD rev 2.)*
+**FR-21:** Randomize Exercise order per Practice Session — *(superseded for ordering by FR-24 unseen-first, PRD rev 3; option sampling/shuffle remain random).* Computed server-side. *(PRD rev 2.)*
+
+**FR-22:** Persist attempt history — Each answered Exercise is recorded to a durable local store (exercise id, exam, domain, correct, selected id, time taken, timestamp); history survives restarts; recorded at grade time (POST /api/feedback); displayed-but-unanswered ≠ attempt. *(New, PRD rev 3.)*
+
+**FR-23:** Stats dashboard — Overall accuracy + total attempts, per-Domain accuracy, trend over time, and weak-Domain highlighting. *(New, PRD rev 3.)*
+
+**FR-24:** Unseen-first prioritization — Session building serves not-yet-answered Exercises (within active filters) before seen ones; all-seen fallback orders least-recently-seen; randomize within the unseen group. *(New, PRD rev 3; supersedes FR-21 ordering.)*
+
+**FR-25:** Readiness indicator — Rolling-window accuracy vs the ~70% pass bar, overall + per-Domain (guidance, not a guarantee). *(New, PRD rev 3.)*
+
+**FR-26:** Optional session countdown — Any Practice Session can run with an optional countdown (set/auto duration, visible remaining time, auto-end to summary at zero); off = unchanged behavior. *(New, PRD rev 3.)*
+
+**FR-27:** Mock-Exam mode — Domain-weighted, full-length set scoped to one Exam under real exam timing (Associate ≈45Q/90min, Pro ≈59Q/120min), auto-submit at zero, exam-style final score; ignores unseen-first. *(New, PRD rev 3.)*
+
+**FR-28:** Per-question timing — Time taken per answered question is captured client-side and stored with the attempt (feeds FR-22/FR-23). *(New, PRD rev 3.)*
 
 ### Non-Functional Requirements
 
 **NFR-1:** Code-Completion feedback latency — Positional Feedback must feel instant (target < 100ms from keystroke to rendered feedback); comparison is small and should be computable client-side.
 
-**NFR-2:** Single-user, local, no persistence — Single-user local app with no accounts, no auth, no server-side user data; no persistence in MVP (session is ephemeral memory-only).
+**NFR-2:** Single-user, local, **local persistence** *(revised PRD rev 3)* — Single-user local app, no accounts/auth/multi-user/server-side user data/sync. The user's own answer history is persisted to a **local SQLite store** (reverses the prior no-persistence stance; the session runner is no longer stateless).
 
-**NFR-3:** File-based content — No database; content is YAML files loaded at startup into memory.
+**NFR-3:** Storage — Content stays file-based (YAML loaded at startup); answer history lives in a local SQLite DB (`sqlite3` stdlib, gitignored `backend/data/progress.db`). *(Revised PRD rev 3.)*
 
 **NFR-4:** Portable format — Exercise format is portable to Anki and other tools so studying is never blocked on app completion.
 
@@ -103,6 +119,12 @@ This document provides the complete epic and story breakdown for DataBricks-DE-c
 **AR-14:** Session API contract — `GET /api/sessions` is the runner entry point, returning order-randomized exercises each with 4 flag-less Displayed Options (`{id, text}`); `GET /api/exercises` is demoted to admin/debug so pools/correct flags never reach the practice UI. `POST /api/feedback` takes `{exerciseId, displayedOptionIds, selectedId}` and returns `{correct, correctOptionId, explanation, references}`. (Architecture rev 2.)
 
 **AR-15:** Pydantic Option Pool validation — `models.py` enforces ≥1 correct / ≥3 incorrect for `single_choice`; the legacy "single_choice ⇒ exactly one correct" rule is relaxed to allow interchangeable alternatives; `multi_choice` is rejected. (Architecture rev 2.)
+
+**AR-16:** Local SQLite attempt store — `backend/app/store.py` using `sqlite3` (stdlib, no pip); gitignored `backend/data/progress.db`; create-table-if-not-exists on startup (lifespan); `attempts(id, exercise_id, exam, domain, correct, selected_id, time_taken_ms, answered_at)`; helpers for record/aggregations/attempted-ids/last-seen. Best-effort writes never block grading. (Architecture rev 4.)
+
+**AR-17:** Stats/readiness + unseen-first endpoints — `GET /api/stats` and `GET /api/readiness` aggregate the store; `GET /api/sessions` ordering reads the store for unseen-first; `POST /api/feedback` records the attempt (+`timeTakenMs`). Standard `{success,data,error}` wrapper. (Architecture rev 4.)
+
+**AR-18:** Mock-Exam builder + frontend timer — backend `mode=mock` builder (domain-weighted, full-length, exam-scoped, ignores unseen-first, stamps `durationMinutes`); timer/countdown + per-question timing are client-side (send `timeTakenMs` with feedback); new FE components StatsDashboard, ReadinessIndicator, Timer/Countdown, MockExam. (Architecture rev 4.)
 
 ### UX Design Requirements (EXPERIENCE.md)
 
@@ -156,7 +178,14 @@ Functional/quality-of-life behaviors layered on the existing MVP. Source: `ux-de
 | FR-18 | Epic 2 | Portable/exportable content |
 | FR-19 | Epic 5 | MCQ Option Pool (≥1 correct / ≥3 incorrect) + validation |
 | FR-20 | Epic 5 | Server-side option sampling + position shuffle |
-| FR-21 | Epic 5 | Randomized Exercise order per session |
+| FR-21 | Epic 5 | Randomized order (superseded for ordering by FR-24) |
+| FR-22 | Epic 7 | Persist attempt history (SQLite store) |
+| FR-23 | Epic 7 | Stats dashboard (overall + per-domain) |
+| FR-24 | Epic 7 | Unseen-first session prioritization |
+| FR-25 | Epic 7 | Readiness indicator (vs ~70%) |
+| FR-26 | Epic 8 | Optional session countdown + auto-end |
+| FR-27 | Epic 8 | Mock-Exam mode (domain-weighted, exam-timed) |
+| FR-28 | Epic 8 | Per-question timing (feeds stats) |
 
 ### UX-DR Coverage Map (Epic 6)
 
@@ -222,6 +251,24 @@ Give the learner control over the practice session: end/exit/restart, navigation
 **FRs/ARs covered:** UX-DR1–UX-DR12; backend `GET /api/exercises/count` (G1) and `POST /api/sessions {exerciseIds}` (G2); frontend feedback-retention + reducer actions/states (G3); **exam filter / session scoping (Story 6.7 — added after Professional content landed so sessions don't mix exams).**
 
 **Priority:** After Epic 5, before Epic 4. Builds on Epic 5's refactored single-select runner (clean dependency; Epic 5 stands alone). Source: EXPERIENCE.md (final).
+
+### Epic 7: Answer & Stats Tracking
+Persist the learner's answer history locally and turn it into study guidance.
+
+**What users accomplish:** Their answers are remembered across sessions; they see overall + per-Domain accuracy, trends, and weak areas; they get served questions they haven't seen before first; and a readiness signal tells them how close they are to the ~70% pass bar per Domain.
+
+**FRs/ARs covered:** FR-22, FR-23, FR-24, FR-25 (+FR-28 record hook); AR-16, AR-17; revises NFR-2/NFR-3.
+
+**Priority:** Next after Epic 6, before Epic 8 and Epic 4. Introduces local SQLite persistence (reverses no-persistence). Source: PRD rev 3 §4.5, architecture rev 4, addendum §E.
+
+### Epic 8: Timed Practice / Mock Exam
+Add exam-realistic time pressure: an optional countdown for any session, and a full domain-weighted Mock-Exam mode at real exam timing.
+
+**What users accomplish:** Run any practice session against a countdown that auto-ends; or take a full Mock Exam (Associate 45Q/90min, Pro 59Q/120min, domain-weighted) with an exam-style score; per-question timing feeds the stats.
+
+**FRs/ARs covered:** FR-26, FR-27, FR-28; AR-18.
+
+**Priority:** After Epic 7 (its mock-exam builder + per-question timing depend on Epic 7's store + feedback record hook), before Epic 4. Source: PRD rev 3 §4.6, architecture rev 4.
 
 ---
 
@@ -827,5 +874,163 @@ So that **a session never mixes Associate and Professional questions now that bo
 **And** the match count (Story 6.1) reflects the selected exam
 **And** backend filtering reuses the existing `filter_exercises` exam support; the frontend `DOMAINS` constant is organized per-exam
 **And** tests cover exam filtering on both endpoints and the per-exam domain UI
+
+---
+
+<!-- ===================== EPIC 7: Answer & Stats Tracking ===================== -->
+
+### Story 7.1: SQLite Attempt Store
+
+As a **the app**,
+I want **a local SQLite store for the learner's answer history**,
+So that **progress persists across restarts and powers stats, readiness, and unseen-first**.
+
+**Acceptance Criteria:**
+
+**Given** the backend starts
+**When** the app initializes (lifespan)
+**Then** a new `backend/app/store.py` (using stdlib `sqlite3`, **no pip**) creates an `attempts` table if absent at a gitignored local path (`backend/data/progress.db`)
+**And** the schema is `attempts(id INTEGER PK, exercise_id, exam, domain, correct, selected_id, time_taken_ms, answered_at)`
+**And** `store.py` exposes helpers: `record_attempt(...)`, `attempted_ids(filters)`, `last_seen_map(filters)`, `overall_stats(...)`, `domain_accuracy(...)`
+**And** `backend/data/` is added to `.gitignore`
+**And** `pytest` tests (using a temp DB) cover create-if-absent, record, and each query helper
+
+---
+
+### Story 7.2: Record Attempts on Feedback
+
+As a **a student**,
+I want **every answer I submit to be recorded**,
+So that **my history is captured automatically as I practice**.
+
+**Acceptance Criteria:**
+
+**Given** the SQLite store (Story 7.1) exists
+**When** `POST /api/feedback` grades an answer
+**Then** it records an attempt (`exercise_id`, `exam`, `domain`, `correct`, `selected_id`, `time_taken_ms`, `answered_at`) via `store.record_attempt`
+**And** the request accepts an optional `timeTakenMs` field (FR-28) and stores it (null if absent)
+**And** a store-write failure is logged and does **not** break grading (best-effort; the feedback response is unchanged)
+**And** `pytest` tests assert an attempt row is written on feedback and that a store error still returns a normal feedback response
+
+---
+
+### Story 7.3: Unseen-First Session Ordering
+
+As a **a student**,
+I want **questions I haven't answered yet served before ones I've already done**,
+So that **I cover new material before repeating myself**.
+
+**Acceptance Criteria:**
+
+**Given** a filtered set for `GET /api/sessions` and recorded history
+**When** the session is built
+**Then** not-yet-answered Exercises (within the filters) are ordered before seen ones; within the unseen group order is randomized
+**And** when all matching Exercises are seen, the session still proceeds, ordered least-recently-seen first (no empty/blocked state)
+**And** option sampling/position-shuffle (FR-20) remain random and unchanged
+**And** this supersedes FR-21's pure-random ordering; `pytest` tests cover unseen-first, the all-seen fallback, and that sampling stays random
+
+---
+
+### Story 7.4: Stats & Readiness Endpoints
+
+As a **the frontend**,
+I want **stats and readiness endpoints over the attempt history**,
+So that **the dashboard and readiness indicator have data**.
+
+**Acceptance Criteria:**
+
+**Given** recorded attempts
+**When** I call `GET /api/stats`
+**Then** it returns overall accuracy + attempt count, per-Domain accuracy/attempts, and a trend series, in the `{success,data,error}` wrapper (optional `exam` filter)
+**When** I call `GET /api/readiness`
+**Then** it returns rolling-window accuracy vs the ~70% bar, overall + per-Domain readiness
+**And** both reflect only answered attempts and are leak-free (no `correct` flags from content)
+**And** `pytest` tests cover both endpoints incl. the empty-history case
+
+---
+
+### Story 7.5: Stats Dashboard & Readiness Indicator (Frontend)
+
+As a **a student**,
+I want **to see my accuracy, weak areas, and readiness**,
+So that **I know what to study next**.
+
+**Acceptance Criteria:**
+
+**Given** the stats/readiness endpoints (Story 7.4)
+**When** I open the stats view
+**Then** `frontend/src/pages/StatsDashboard.jsx` shows overall + per-Domain accuracy, attempts, and a trend, with weak Domains visually distinct
+**And** a `ReadinessIndicator` component shows readiness vs ~70% overall and per-Domain (guidance, not a guarantee)
+**And** `api.js` gains `getStats()` / `getReadiness()`; the view is reachable from the app shell
+**And** vitest tests mock the api and cover the dashboard + indicator rendering (incl. empty state)
+
+---
+
+<!-- ===================== EPIC 8: Timed Practice / Mock Exam ===================== -->
+
+### Story 8.1: Session Countdown Timer (Frontend)
+
+As a **a student**,
+I want **an optional countdown on a practice session**,
+So that **I can train under time pressure**.
+
+**Acceptance Criteria:**
+
+**Given** the Start screen
+**When** I enable a timer and start a session
+**Then** a `Timer`/`Countdown` component shows remaining time and decrements; at zero the session auto-ends to the (partial) Summary via `endToSummary`
+**And** with the timer off, behavior is unchanged from the untimed runner
+**And** the timer respects `prefers-reduced-motion` and is announced accessibly
+**And** vitest tests cover countdown display, auto-end at zero, and timer-off parity
+
+---
+
+### Story 8.2: Per-Question Timing
+
+As a **the app**,
+I want **to measure how long each answer takes**,
+So that **timing feeds the stats and the timed experience**.
+
+**Acceptance Criteria:**
+
+**Given** an MCQ is presented
+**When** the user submits
+**Then** the client measures elapsed time for that question and sends `timeTakenMs` with `POST /api/feedback` (recorded by Story 7.2)
+**And** timing is per-question (reset on advance), not whole-session
+**And** vitest tests assert `submitFeedback` is called with a numeric `timeTakenMs`
+
+---
+
+### Story 8.3: Mock-Exam Builder (Backend)
+
+As a **a student**,
+I want **a full-length, domain-weighted exam scoped to one exam level**,
+So that **I can rehearse the real test**.
+
+**Acceptance Criteria:**
+
+**Given** `GET /api/sessions?mode=mock&exam=...`
+**When** a mock exam is built
+**Then** it assembles a domain-weighted, full-length set scoped to that Exam (Associate ≈45Q/90min, Pro ≈59Q/120min per addendum §C weights), **ignoring** unseen-first (representative, may repeat seen)
+**And** the response stamps the exam `durationMinutes` and otherwise matches the session shape (flag-less Displayed Options)
+**And** it never mixes exams (respects the exam filter)
+**And** `pytest` tests cover sizing/weighting per exam, duration stamping, exam-scoping, and that unseen-first is not applied
+
+---
+
+### Story 8.4: Mock-Exam Flow & Result (Frontend)
+
+As a **a student**,
+I want **to take a timed mock exam end-to-end and see an exam-style score**,
+So that **I get a realistic readiness check**.
+
+**Acceptance Criteria:**
+
+**Given** the mock-exam builder (8.3) and timer (8.1)
+**When** I choose "Mock Exam" for an Exam on the Start screen
+**Then** `frontend/src/pages/MockExam.jsx` (or a SessionSelect mode) starts the domain-weighted set under the exam's countdown, auto-submitting at zero
+**And** at the end an exam-style result shows overall score vs the ~70% bar plus the per-Domain breakdown (reusing Story 6.6 / Story 7 stats)
+**And** the mock run records attempts like any session (Story 7.2)
+**And** vitest tests cover starting a mock, the countdown/auto-submit, and the result screen
 
 ---

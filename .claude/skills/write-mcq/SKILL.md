@@ -28,7 +28,7 @@ Each exercise is an item under a top-level `exercises:` list.
 | `code_context` | optional | A code snippet shown with the question (rendered monospace). Use for "read this snippet, pick the answer" items. |
 | `options` | yes | The **Option Pool** — see Option Pool rules below. Option ids `a, b, c, d, e, ...`. |
 | `answer` | optional | Derived from the `correct: true` flags; include for readability (e.g. `[a]` or `[a, b]` when the pool has alternatives). |
-| `explanation` | yes | Why the correct answer is right AND why each distractor is wrong. |
+| `explanation` | yes | Why the correct answer is right AND why each distractor is wrong. **Never reference options by letter (A, B, C, …) — option letters are not shown in the UI, so the user can't tell which option you mean. Refer to options by paraphrasing their content instead.** |
 | `references` | recommended | The **official doc URLs you actually reviewed**, prefer `https://docs.databricks.com/...`. |
 | `tags` | recommended | Lowercase topic tags, e.g. `[delta, performance]`. |
 | `source` | optional | Provenance / anti-braindump flag. Defaults to `original`. |
@@ -95,7 +95,7 @@ Do **not** write questions from memory. For each topic/question:
         text: "<another plausible distractor>"
         correct: false
     answer: [a]
-    explanation: "<why a is correct and why b/c/d/e are wrong>"
+    explanation: "<why the correct option is right and why each distractor is wrong — refer to options by their content, never by letter>"
     references:
       - "https://docs.databricks.com/en/..."
     tags: [auto-loader, ingestion]
@@ -147,4 +147,5 @@ Option Pool with interchangeable **correct alternatives** (single-select; runner
 - Correct alternatives are interchangeable, never jointly required.
 - Distractors are wrong but believable (common misconceptions or legacy/superseded approaches).
 - Explanations address every option, not just the correct one.
+- Explanations **never reference options by letter** (A, B, C, …). Option letters are not displayed in the UI and are randomized per view, so a letter reference is meaningless to the user. Identify options by paraphrasing their content (e.g. "the option that sets `mergeSchema`") instead.
 - Don't duplicate questions already in the target file — skim existing `question` text first.

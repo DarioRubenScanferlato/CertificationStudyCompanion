@@ -152,3 +152,22 @@ Shared fields (`id`, `domain`, `difficulty`, `explanation`, `exam`, `source`, `t
 8. **Cognitive-load mismatch** — keep a teaching/explanation layer so it tests API knowledge, not letter frequency. → FR-17.
 
 **Design recommendation carried into PRD:** token-level (Nerdle-style) feedback, ignore non-semantic whitespace (typing.io), single-line/fill-in-blank scope, validate against canonical + accepted-alternatives. Recommend a design spike before committing FR-13–FR-16 (PRD note + OQ-3).
+
+---
+
+## E. Persistence & Timed-Practice technical notes (input to architecture rev 4 — decided 2026-06-07)
+
+Supports PRD §4.5 (Answer & Stats Tracking) and §4.6 (Timed Practice / Mock Exam). These reverse the prior **no-persistence / stateless-session** stance; single-user/local is retained.
+
+**Persistence store: SQLite (Python stdlib `sqlite3`, no pip dependency).**
+- Chosen over a JSON file because the stats + readiness + (eventual, still-deferred) SRS phases want attempt-level history and queries ("weakest domain", "least-recently-seen", future "due"). For ~132 questions perf is irrelevant; the choice is future-fit. JSON was the considered alternative (simpler, matches the file-based stance) — rejected for the analytics horizon.
+- Location: a gitignored local DB (e.g. `backend/data/progress.db` or an XDG data dir). Single-user, no migrations framework needed initially; create-if-absent schema on startup.
+- Indicative schema: `attempts(id, exercise_id, exam, domain, correct, selected_id, time_taken_ms, answered_at)`; stats are aggregations over it. "Seen" = exists in `attempts` for that `exercise_id`. "Unseen-first" = left-anti-join the filtered set against distinct attempted ids, fall back to order-by `max(answered_at)` ascending.
+- **Record hook:** `POST /api/feedback` already grades server-side — write the attempt there (it has exercise, correctness, and can receive `time_taken_ms`).
+- **Stateless reversal:** `GET /api/sessions` / `build_session` become history-aware (read the store to partition unseen vs seen). New read endpoints for stats/readiness (e.g. `GET /api/stats`, `GET /api/readiness`).
+
+**Mock-Exam session builder:** a domain-weighted, full-length sampler scoped to one Exam — Associate ≈45Q/90min, Professional ≈59Q/120min (§C weights). Likely a variant of the existing session builder (or a `mode=mock` param) that ignores unseen-first (a mock should be representative, not unseen-biased) and stamps the exam duration.
+
+**Timer:** the countdown + auto-submit are frontend (per-question timing captured client-side and sent with the feedback request as `time_taken_ms`). Backend stores it; no server-side timer needed.
+
+**Readiness:** rolling-window accuracy vs ~70% (planning heuristic, §C) overall + per-domain — a query/computation over `attempts`, surfaced as guidance.

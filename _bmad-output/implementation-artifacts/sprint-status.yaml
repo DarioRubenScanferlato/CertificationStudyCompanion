@@ -45,7 +45,20 @@ development_status:
   6-6-summary-review-and-replay: done
   6-7-exam-filter-session-scoping: done
 
-  # EPIC 4: Code-Completion Practice (Phase 2 — after Epics 5 & 6)
+  # EPIC 7: Answer & Stats Tracking (next priority — before Epic 8 & Epic 4)
+  7-1-sqlite-attempt-store: ready-for-dev
+  7-2-record-attempts-on-feedback: ready-for-dev
+  7-3-unseen-first-session-ordering: ready-for-dev
+  7-4-stats-and-readiness-endpoints: ready-for-dev
+  7-5-stats-dashboard-readiness-indicator: ready-for-dev
+
+  # EPIC 8: Timed Practice / Mock Exam (after Epic 7)
+  8-1-session-countdown-timer: ready-for-dev
+  8-2-per-question-timing: ready-for-dev
+  8-3-mock-exam-builder-backend: ready-for-dev
+  8-4-mock-exam-flow-and-result: ready-for-dev
+
+  # EPIC 4: Code-Completion Practice (Phase 2 — after Epics 7 & 8)
   4-1-create-code-completion-page-template-display: ready-for-dev
   4-2-implement-code-tokenizer: ready-for-dev
   4-3-implement-positional-feedback-algorithm: ready-for-dev
@@ -61,14 +74,14 @@ development_status:
 # blocked         — Story blocked, reason documented in story file
 
 summary:
-  total_stories: 35
-  ready_for_dev: 5
+  total_stories: 44
+  ready_for_dev: 14
   in_progress: 0
   review: 0
   approved: 0
   merged: 10
   done: 20
   blocked: 0
-  last_updated: 2026-06-06
-  completed: "30 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done, Epic 5: 5.1-5.6 done, Epic 6: 6.1-6.7 done)"
-  ready_for_dev_detail: "5 ready (Epic 4: 4.1-4.5, Code-Completion / Phase 2). Epic 6 (Session Control & Study QoL, incl. 6.7 exam filter) implemented & verified 2026-06-06: backend 200 tests, frontend 94 tests, ruff + eslint clean. Uncommitted."
+  last_updated: 2026-06-07
+  completed: "30 (Epic 1: 1.1-1.5 merged, Epic 2: 2.1-2.5 merged, Epic 3: 3.1-3.7 done, Epic 5: 5.1-5.6 done, Epic 6: 6.1-6.7 done; committed 446d81f)"
+  ready_for_dev_detail: "14 ready. Priority: Epic 7 (7.1-7.5 Answer & Stats Tracking) → Epic 8 (8.1-8.4 Timed Practice / Mock Exam) → Epic 4 (4.1-4.5 Code-Completion / Phase 2). Epics 7 & 8 from PRD rev 3 / architecture rev 4."

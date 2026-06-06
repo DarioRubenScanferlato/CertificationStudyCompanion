@@ -2,8 +2,8 @@
 title: Databricks DE Cert Study Companion
 status: final
 created: 2026-06-05
-updated: 2026-06-05
-revision: 2 (option-pool + randomization update)
+updated: 2026-06-07
+revision: 3 (scope expansion — stats tracking + timed practice)
 ---
 
 # PRD: Databricks DE Cert Study Companion
@@ -265,10 +265,73 @@ As with MCQs, the Explanation (and references) is shown once the Exercise conclu
 **Functional Requirements:** *(deferred — not specified at FR depth in v1)*
 - `[NOTE FOR PM] If/when pursued: define source-doc ingestion, generation quality controls (no hallucinated APIs, correct answers verifiable), and dedup against existing Exercises. The 4.1 format already carries a `source`/provenance field to support an anti-braindump / "original, verified" stance.]`
 
+### 4.5 Answer & Stats Tracking *(post-MVP scope expansion — decided 2026-06-07; promoted from §6.2 deferred)*
+
+**Description:** With the MCQ core working, the app now **remembers** what you've practiced across sessions and turns that history into study guidance. Every answered question is persisted locally; the app surfaces accuracy and weak areas, serves questions you haven't seen before *first*, and gives an at-a-glance sense of whether you're ready. This deliberately **reverses the prior no-persistence stance** (see §6) — it remains single-user and local (no accounts, no server-side user data, no sync); persistence is a local store on the user's machine. Technical mechanism (SQLite, schema) lives in `addendum.md`.
+
+**Functional Requirements:**
+
+#### FR-22: Persist attempt history
+Each answered Exercise is recorded to a durable local store: at minimum the Exercise `id`, correct/incorrect, a timestamp, and the time taken (per FR-28). History survives app restarts.
+
+**Consequences (testable):**
+- Answering a question, restarting the app, and viewing stats reflects the prior answer.
+- The store is local and single-user; no network/account is involved. `[ASSUMPTION: recorded at answer time via the existing grade step (POST /api/feedback); displayed-but-unanswered questions are not counted as attempts.]`
+
+#### FR-23: Stats dashboard
+The user can view study statistics: overall accuracy and total attempts, **per-Domain** accuracy, a trend over time, and highlighting of weak Domains.
+
+**Consequences (testable):**
+- Per-Domain accuracy is shown for every Domain the user has attempted.
+- The weakest Domain(s) are visually distinguishable from strong ones.
+
+#### FR-24: Unseen-first prioritization
+When building a Practice Session, the runner serves Exercises the user has **not answered before** ahead of already-seen ones (within the active filters). When the unseen pool for the filter is exhausted, it falls back to seen Exercises, preferring least-recently-seen.
+
+**Consequences (testable):**
+- With unseen Exercises available for the filter, a session draws from them before any seen Exercise appears.
+- When all matching Exercises are seen, the session still proceeds (no empty/blocked state), ordered least-recently-seen first.
+- *Supersedes the FR-21 "uniform-random, no anti-repeat memory" assumption for ordering: order is now history-aware (unseen-first), while option sampling/shuffle (FR-20) remains random.*
+
+#### FR-25: Readiness indicator
+The app shows a simple "am I ready?" signal — rolling accuracy against the **~70% pass bar**, with per-Domain readiness so the user can see which Domains still need work.
+
+**Consequences (testable):**
+- The indicator reflects recent performance (a rolling window, not just lifetime average). `[ASSUMPTION: ~70% is a planning heuristic, not an official per-domain cut — see addendum §C; surface it as guidance, not a guarantee.]`
+- Per-Domain readiness is derivable from FR-23's per-Domain accuracy.
+
+**Out of scope (this feature):** Spaced repetition / due-scheduling (SRS) — still deferred (§6.2); FR-24 unseen-first is prioritization, not SRS.
+
+### 4.6 Timed Practice / Mock Exam *(post-MVP scope expansion — decided 2026-06-07; promoted from §6.2 deferred)*
+
+**Description:** Adds exam-realistic time pressure, the part Anki can't replicate. Two flavors: a **lightweight countdown** the user can switch on for any practice session, and a dedicated **Mock-Exam mode** that mirrors the real exam — a domain-weighted, full-length set under the real clock with a single end-of-exam score.
+
+**Functional Requirements:**
+
+#### FR-26: Optional session countdown
+Any Practice Session can run with an optional countdown timer: the user sets (or accepts a default) a duration; remaining time is visible; at zero the session auto-ends to the summary.
+
+**Consequences (testable):**
+- With the timer on, remaining time is displayed and decrements; reaching zero ends the session and shows the summary over what was answered (partial summary).
+- With the timer off, behavior is unchanged from the untimed runner.
+
+#### FR-27: Mock-Exam mode
+A distinct mode that assembles a **domain-weighted, full-length** Exercise set for the selected Exam and runs it under the real exam clock, then shows an exam-style final score. Real parameters: **Associate ≈ 45 questions / 90 minutes; Professional ≈ 59 questions / 120 minutes** (per addendum §C), with the per-Exam domain weights.
+
+**Consequences (testable):**
+- Starting a Mock Exam for an Exam builds a set sized to that Exam, weighted by its Domain split, scoped to that Exam (never mixing Associate/Professional — see FR-7.x exam filter).
+- The countdown uses the Exam's real duration and auto-submits at zero; the result is an exam-style overall score (with the §4.5 per-Domain breakdown).
+
+#### FR-28: Per-question timing
+The app records time taken per answered question, feeding both the timed experience and the stats (FR-22/FR-23).
+
+**Consequences (testable):**
+- A per-question elapsed time is captured on answer and stored with the attempt (FR-22).
+
 ## 5. Non-Goals (Explicit)
 
 - **Not a hands-on lab platform.** No cluster execution, no running real Spark/SQL against data. The exam has no live coding; neither does this app.
-- **Not a hosted, multi-user service in v1.** Single-user, local. No accounts, no auth, no server-side user data.
+- **Not a hosted, multi-user service in v1.** Single-user, local. No accounts, no auth, no multi-user/server-side user data, no sync. *(As of 2026-06-07, a **local** single-user store for the user's own answer history is in scope — §4.5; this is local-only persistence, not hosted user data.)*
 - **Not a content authoring UI.** Exercises are authored as files (by hand or agent skill); the app consumes them. No in-app exercise editor in v1.
 - **Not a braindump of real exam questions.** Content is original and blueprint-aligned; provenance is tracked. (Credibility + avoids candidate exam-bans.)
 - **Not a general LMS / course platform.** No videos, no curriculum sequencing, no certificates.
@@ -294,11 +357,18 @@ This makes the **content bank the primary MVP deliverable** and the app shell se
 ### 6.2 Out of Scope for MVP (phased)
 - **Code-Completion ("Wordle") Practice (4.3)** — *Phase 2.* The build-worthy novel feature, but sequenced after the exam-critical content + study path. Begin with a throwaway design spike (tokenizer + rendering).
 - **Heavyweight content validation / partial-load** (the elaborated form of FR-3) — *cut for v1.* Single author; a clear failure is enough.
-- **Timed mock-exam mode** — *later phase.* Domain-weighted full set + countdown + final score. `[NOTE FOR PM] Emotionally load-bearing for exam realism; revisit if timeline permits before the exam — Anki does not replicate the timed-exam feel.]`
-- **Weak-area analytics & readiness** — *later phase.* Requires persisting Practice Session history.
-- **Spaced repetition (SRS)** — *later phase.* (Note: borrowing Anki for MCQ gives SRS for free in the interim.)
+- ~~**Timed mock-exam mode**~~ → **PROMOTED to active scope (§4.6, FR-26/27/28; Epic 8)** — 2026-06-07.
+- ~~**Weak-area analytics & readiness**~~ → **PROMOTED to active scope (§4.5, FR-22–FR-25; Epic 7)** — 2026-06-07. Brings in **local persistence** (reverses the prior no-persistence stance).
+- **Spaced repetition (SRS)** — *still deferred.* (FR-24 unseen-first is prioritization, not SRS; borrowing Anki gives SRS in the interim.)
 - **In-app Exercise generation from docs (4.4)** — *optional/deferred.* Agent-skill authoring is the committed path.
 - **Sharing / hosting / multi-user** — *future, not committed.* Portable format keeps the door open.
+
+### 6.3 Post-MVP scope expansion *(decided 2026-06-07)*
+The exam-critical MVP shipped (Epics 1–6: content system, MCQ runner, variety/randomization, session QoL, both Associate + Professional content). With that working, two phases previously deferred in §6.2 are promoted to active scope — **building a richer MCQ study experience before the Code-Completion drill (Epic 4, still Phase 2)**:
+- **Epic 7 — Answer & Stats Tracking** (§4.5): local SQLite persistence, attempt history, stats dashboard, unseen-first prioritization, readiness indicator.
+- **Epic 8 — Timed Practice / Mock Exam** (§4.6): optional session countdown + full Mock-Exam mode.
+
+This reverses **NFR: no persistence** (the runner is no longer stateless — it reads/writes a local history store) and supersedes the FR-21 uniform-random ordering assumption (now history-aware, FR-24). Single-user/local is retained. Architecture impact (SQLite layer, schema, record-on-feedback hook, mock-exam session builder) is captured in `addendum.md` for the architecture phase.
 
 ## 7. Success Metrics
 
@@ -311,6 +381,8 @@ This makes the **content bank the primary MVP deliverable** and the app shell se
 **Secondary**
 - **SM-3:** Authoring a new Exercise and getting it into the study path takes only writing a file (+ a one-shot export) — **no app code changes**. Validates FR-1–FR-3, FR-18.
 - **SM-4 (Phase 2):** The Code-Completion feedback feels instant and *teaches* syntax (Dario can recall a drilled snippet unaided afterward). Validates FR-13–FR-17.
+- **SM-5 (stats):** History persists across sessions and the dashboard shows per-Domain accuracy + a readiness signal Dario actually uses to decide what to drill next; unseen-first means he isn't re-served questions he's already done while fresh ones remain. Validates FR-22–FR-25.
+- **SM-6 (timed):** Dario can take a full domain-weighted Mock Exam under the real clock (Associate 45Q/90min, Pro 59Q/120min) and gets an exam-style score — the timed-exam feel Anki can't give. Validates FR-26–FR-28.
 
 **Counter-metrics (do not optimize)**
 - **SM-C1:** Don't optimize for **app features / polish** at the expense of **content volume and exam readiness**. Counterbalances SM-1; a beautiful app with 12 questions fails the actual job. This is the whole point of the Build-vs-Borrow decision (§6.0) — borrow the runner, invest the hours in content.
@@ -332,7 +404,10 @@ This makes the **content bank the primary MVP deliverable** and the app shell se
 - §4.1 / FR-2 — Content is read from files at runtime, not compiled into the app.
 - §4.1 / FR-19 — Multiple correct Options in an Option Pool are interchangeable *alternatives* (any one is valid alone), not a jointly-required set.
 - §4.2 / FR-20 — Displayed-Option sampling is uniform-at-random per presentation, with no anti-repeat memory in MVP.
-- §4.2 / FR-21 — Exercise order is re-randomized fresh each session; no resume-in-order or spaced-repetition weighting in MVP.
+- §4.2 / FR-21 — Exercise order is re-randomized fresh each session; no resume-in-order weighting. *(Superseded for ordering by FR-24 unseen-first as of 2026-06-07; option sampling/shuffle remains random.)*
+- §4.5 / FR-22 — Attempts are recorded at grade time (POST /api/feedback); displayed-but-unanswered questions don't count as attempts. Store is local, single-user.
+- §4.5 / FR-25 — ~70% pass bar is a planning heuristic (addendum §C), surfaced as guidance not a guarantee; readiness uses a rolling window.
+- §4.6 / FR-27 — Mock-Exam sizing/timing uses the verified per-Exam parameters (Associate 45Q/90min, Professional 59Q/120min) and per-Exam domain weights (addendum §C).
 - §4.1 / FR-18 — Anki is the borrow/export target; a one-shot converter (script) is acceptable rather than live two-way sync.
 - §4.2 / FR-6 — Backward navigation within a session is allowed but not required for MVP.
 - §4.2 / FR-10 — Reference links open externally in the browser.
