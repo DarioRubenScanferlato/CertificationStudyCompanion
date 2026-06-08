@@ -297,4 +297,62 @@ describe('Summary component', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start a new session' }))
     expect(reset).toHaveBeenCalled()
   })
+
+  describe('Mock Exam result (Story 8.4)', () => {
+    it('shows an exam-style readiness banner over the FULL set vs the ~70% bar', () => {
+      // 2 of 3 correct = 67% over the full set -> below the 70% bar.
+      mockSession({
+        mode: 'mock',
+        feedback: {
+          q1: { correct: true, correctOptionId: 'a' },
+          q2: { correct: false, correctOptionId: 'a' },
+          q3: { correct: true, correctOptionId: 'b' },
+        },
+      })
+      render(<Summary />)
+      expect(screen.getByText('Mock exam results')).toBeInTheDocument()
+      const banner = screen.getByTestId('mock-result-banner')
+      expect(banner).toBeInTheDocument()
+      expect(banner).toHaveTextContent('67%')
+      expect(banner).toHaveTextContent(/70% target/i)
+      expect(banner).toHaveTextContent(/Below the pass bar/i)
+      // Per-domain breakdown is still rendered (reused from practice).
+      expect(screen.getByText('By domain')).toBeInTheDocument()
+    })
+
+    it('reads On track when the full-set score meets the ~70% bar', () => {
+      // 3 of 3 correct = 100% -> on track.
+      mockSession({
+        mode: 'mock',
+        feedback: {
+          q1: { correct: true, correctOptionId: 'a' },
+          q2: { correct: true, correctOptionId: 'a' },
+          q3: { correct: true, correctOptionId: 'b' },
+        },
+      })
+      render(<Summary />)
+      const banner = screen.getByTestId('mock-result-banner')
+      expect(banner).toHaveTextContent('100%')
+      expect(banner).toHaveTextContent(/On track/i)
+    })
+
+    it('counts unanswered questions against the score (exam-style)', () => {
+      // Only 1 of 3 answered (correct); the other 2 are unanswered -> 33%.
+      mockSession({
+        mode: 'mock',
+        feedback: { q1: { correct: true, correctOptionId: 'a' } },
+      })
+      render(<Summary />)
+      expect(screen.getByTestId('mock-result-banner')).toHaveTextContent('33%')
+    })
+
+    it('does NOT render the mock banner for a normal practice session', () => {
+      mockSession({
+        feedback: { q1: { correct: true, correctOptionId: 'a' } },
+      })
+      render(<Summary />)
+      expect(screen.queryByTestId('mock-result-banner')).not.toBeInTheDocument()
+      expect(screen.getByText('Session complete')).toBeInTheDocument()
+    })
+  })
 })

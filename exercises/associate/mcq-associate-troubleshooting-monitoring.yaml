@@ -1,0 +1,404 @@
+# Databricks DE Certification Study Companion - Associate: Troubleshooting, Monitoring, and Optimization
+# Generated: 2026-06-07
+# Exam section: "Troubleshooting, Monitoring, and Optimization" (10%) - May 2026 Associate outline.
+# IDs: dbx-de-0115 .. dbx-de-0126 (12 contiguous, no reuse).
+# Domain string EXACTLY: "Troubleshooting, Monitoring, and Optimization"
+#   NOTE: this domain is intentionally not yet in the Pydantic enum (taxonomy update pending);
+#   do not run the MCQ validator against this file.
+# type: single_choice only. exam: associate. Difficulty: medium/hard only (~50/50).
+# Scenario style, full-sentence competing diagnoses/fixes. source: original.
+#
+# Docs consulted (verified 2026-06-07):
+#   - https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage-page  (skew & spill)
+#   - https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage        (long stage triage)
+#   - https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/                          (Spark UI diagnosis)
+#   - https://docs.databricks.com/aws/en/optimizations/aqe                                       (Adaptive Query Execution)
+#   - https://docs.databricks.com/aws/en/delta/clustering                                        (liquid clustering)
+#   - https://docs.databricks.com/aws/en/optimizations/predictive-optimization                   (predictive optimization)
+#   - https://docs.databricks.com/aws/en/delta/optimize                                          (OPTIMIZE / ZORDER)
+#   - https://docs.databricks.com/aws/en/delta/vacuum                                            (VACUUM)
+#   - https://docs.databricks.com/aws/en/delta/tune-file-size                                    (small-file / file size)
+#   - https://docs.databricks.com/aws/en/jobs/monitor                                            (Lakeflow Jobs monitoring)
+#   - https://docs.databricks.com/aws/en/admin/system-tables/jobs                                (jobs system tables)
+#   - https://docs.databricks.com/aws/en/compute/troubleshooting/cluster-error-codes             (cluster error codes)
+#   - https://docs.databricks.com/aws/en/compute/troubleshooting/                                (compute troubleshooting)
+#   - https://docs.databricks.com/aws/en/compute/cluster-metrics                                 (compute metrics)
+#   - https://spark.apache.org/docs/latest/sql-performance-tuning.html                           (shuffle.partitions / broadcast defaults)
+# Total Questions: 12
+
+exercises:
+  # ========== JOB MONITORING / RUN HISTORY ==========
+  - id: dbx-de-0115
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Job monitoring"
+    difficulty: medium
+    question: "A nightly Lakeflow Job that normally finishes in about 20 minutes has run for 45 minutes the last three nights, but every run still ends in Succeeded with no errors. You want to confirm whether the slowdown is a real regression and pinpoint which task drifted, using only the Jobs UI. What is the most appropriate first step?"
+    options:
+      - id: a
+        text: "Open the job's runs list and use the matrix (run history) view to compare each recent run's total duration against the historical baseline, then drill into the per-task durations of the slow runs to find the task whose time grew."
+        correct: true
+      - id: b
+        text: "Conclude that nothing is wrong because every run reports Succeeded, since the Jobs UI only flags problems when a task fails or the job times out."
+        correct: false
+      - id: c
+        text: "Immediately raise the cluster's worker count and re-run the job, because a job that takes longer than usual is always under-provisioned on compute."
+        correct: false
+      - id: d
+        text: "Delete the existing job and recreate it from scratch so the run history resets and the durations return to their original baseline."
+        correct: false
+      - id: e
+        text: "Switch the job to a continuous trigger so it runs constantly, which the documentation lists as the way to surface duration regressions."
+        correct: false
+    answer: [a]
+    explanation: "The matrix/run-history view in the Jobs UI shows a history of runs with each run's total duration and per-task durations, which is exactly the tool for comparing a current run against its historical baseline and isolating the task that drifted. Treating Succeeded as proof of health is wrong: a run can succeed while taking far longer than normal, which is the performance trend you are investigating. Scaling up workers before diagnosing is premature because the cause has not been identified; the slowdown could be data skew, a small-file problem, or a slow upstream source rather than under-provisioning. Deleting and recreating the job destroys the very run history you need and does not address any underlying cause. A continuous trigger changes the execution model and does not surface duration regressions; the documented mechanism for that is the run-history view and run-duration thresholds/alerts."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/monitor"
+      - "https://docs.databricks.com/aws/en/admin/system-tables/jobs"
+    tags: [lakeflow-jobs, monitoring, run-history, performance-trend]
+    source: original
+
+  - id: dbx-de-0116
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Job monitoring"
+    difficulty: medium
+    question: "Your team wants a dashboard that tracks the failure rate and the P90 run duration of all production Lakeflow Jobs across the workspace over a rolling 30-day window, so on-call engineers can spot degradations early. Which approach best fits how Databricks exposes this data?"
+    options:
+      - id: a
+        text: "Query the jobs system tables (e.g. the job run timeline tables under system.lakeflow / system.workflow), which record job and task runs across the account, and build a dashboard computing failure rate and duration percentiles such as P90/P95."
+        correct: true
+      - id: b
+        text: "Open each job's UI run-history matrix one at a time every morning and manually copy the durations into a spreadsheet, because Databricks does not expose run data in a queryable form."
+        correct: false
+      - id: c
+        text: "Enable the Spark UI's event timeline for every cluster and screenshot it daily, since the Spark UI is the only place historical job durations are retained."
+        correct: false
+      - id: d
+        text: "Rely on the driver log4j logs scraped from each cluster, because run-level metrics like failure rate are not retained anywhere outside the logs."
+        correct: false
+      - id: e
+        text: "Turn on predictive optimization, which automatically produces the failure-rate and P90-duration dashboards for all jobs."
+        correct: false
+    answer: [a]
+    explanation: "Databricks records job and task runs in the jobs system tables, which are queryable with SQL, so you can compute failure rate and duration percentiles (P90/P95) over any window and visualize them on a dashboard. Manually copying durations from each job's UI is unnecessary and incorrect because the data is available in a queryable form. The Spark UI shows execution detail for individual runs and is not the durable, account-wide store of historical run metrics. Driver log4j logs are for low-level debugging, not the canonical source of run-level metrics like failure rate, which the system tables retain. Predictive optimization is an automatic table-maintenance feature (OPTIMIZE/VACUUM/ANALYZE on Unity Catalog managed tables); it does not build job-monitoring dashboards."
+    references:
+      - "https://docs.databricks.com/aws/en/admin/system-tables/jobs"
+      - "https://docs.databricks.com/aws/en/jobs/monitor"
+    tags: [lakeflow-jobs, system-tables, monitoring, failure-rate]
+    source: original
+
+  - id: dbx-de-0117
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Job monitoring"
+    difficulty: medium
+    question: "A multi-task Lakeflow Job ingests, transforms, and publishes a table; the tasks have dependencies wired into the job's DAG. One morning the run shows the publish task as Skipped and the overall run as Failed. Using the Jobs UI, how should an engineer interpret this and find the root cause fastest?"
+    options:
+      - id: a
+        text: "Open the run and inspect the task graph (DAG): a downstream task is Skipped because an upstream dependency failed, so open the failed upstream task to read its error output and address the actual cause."
+        correct: true
+      - id: b
+        text: "Conclude the publish task itself is broken and start debugging the publish logic, because the task that shows a non-success state is always the one that contains the bug."
+        correct: false
+      - id: c
+        text: "Assume the whole job is corrupt and clear the run history, since a Skipped task means the DAG metadata is no longer valid."
+        correct: false
+      - id: d
+        text: "Increase the job's timeout, because a Skipped downstream task indicates the job ran out of time before reaching the publish step."
+        correct: false
+      - id: e
+        text: "Re-run only the publish task in isolation against last night's data, because Skipped tasks are best diagnosed without their upstream dependencies."
+        correct: false
+    answer: [a]
+    explanation: "In a multi-task job the DAG encodes dependencies, and a downstream task is shown as Skipped when an upstream task it depends on fails; the task graph view lets you trace from the Skipped task back to the failed upstream task and read its error. Debugging the publish logic is misguided because the Skipped state means publish never ran due to an upstream failure, not because publish is broken. Clearing run history does not fix anything and destroys diagnostic information; Skipped does not mean the DAG is corrupt. A Skipped status from a failed dependency is unrelated to job timeout, so raising the timeout does not help. Re-running publish in isolation bypasses the real failure upstream and would run against stale or missing inputs; the correct path is to fix the failed upstream task, optionally using repair-run to resume the failed and dependent tasks."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/monitor"
+      - "https://docs.databricks.com/aws/en/jobs/repair-job-failures"
+    tags: [lakeflow-jobs, dag, task-graph, troubleshooting]
+    source: original
+
+  # ========== SPARK UI: SKEW / SHUFFLE / SPILL ==========
+  - id: dbx-de-0118
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Spark UI diagnosis"
+    difficulty: hard
+    question: "A batch job's duration doubled. In the Spark UI you open the longest stage and read its Summary Metrics: task Duration is Min 8s / Median 10s / 75th percentile 11s / Max 9.5 min, and Shuffle Read Size is Median 40 MB / Max 5.6 GB. There is no Spill recorded. What does this most likely indicate, and which fix targets it?"
+    options:
+      - id: a
+        text: "The stage is data-skewed: the Max task duration is far more than 50% above the 75th percentile and one task reads vastly more shuffle data than the median, so enabling Adaptive Query Execution skew handling (or salting / repartitioning the skewed key) to split the heavy partition is the targeted fix."
+        correct: true
+      - id: b
+        text: "The stage is uniformly slow because all tasks take roughly the same time, so simply doubling the number of executors will halve the runtime."
+        correct: false
+      - id: c
+        text: "The job is spilling to disk and the fix is to increase executor memory, because a 5.6 GB shuffle read always means the stage ran out of memory."
+        correct: false
+      - id: d
+        text: "The stage is I/O bound on reading source files, so switching the input to a faster storage tier is the appropriate remedy."
+        correct: false
+      - id: e
+        text: "The shuffle partition count is too high, so lowering spark.sql.shuffle.partitions to coalesce partitions will eliminate the long-running task."
+        correct: false
+    answer: [a]
+    explanation: "Classic skew signature: the Max task duration (9.5 min) is far more than 50% above the 75th percentile (11s) and one task's shuffle read (5.6 GB) dwarfs the median (40 MB), meaning work is unevenly distributed across a single hot partition; AQE skew handling, salting the skewed key, or repartitioning splits that hot partition and is the targeted fix. The 'uniformly slow, add executors' option is wrong because the metrics show the opposite of uniform - the median is fine and only Max is huge, so more executors leave the one giant task untouched. The spill/increase-memory option is wrong because no spill is recorded and a large shuffle read by itself is not proof of an out-of-memory condition. The I/O-bound storage-tier option is wrong because the bottleneck is shuffle read concentrated in one task, not slow source reads. Lowering spark.sql.shuffle.partitions reduces the partition count and would make each partition larger, which does not relieve - and can worsen - a single skewed partition."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage-page"
+      - "https://docs.databricks.com/aws/en/optimizations/aqe"
+    tags: [spark-ui, data-skew, shuffle, aqe]
+    source: original
+
+  - id: dbx-de-0119
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Spark UI diagnosis"
+    difficulty: hard
+    question: "In the Spark UI stage page for a wide aggregation, the Summary Metrics show non-zero Shuffle Spill (Memory) and Shuffle Spill (Disk) for most tasks, task durations are fairly even across the percentiles, and the stage is slow overall. What is happening and which response most directly addresses it?"
+    options:
+      - id: a
+        text: "Tasks are running low on memory and spilling shuffle data from memory to disk; reducing per-task data pressure (for example raising spark.sql.shuffle.partitions so each partition is smaller, or using more memory per core) reduces the spill and speeds the stage."
+        correct: true
+      - id: b
+        text: "This is data skew, so the fix is to enable AQE skew join handling, because any spill in the Spark UI is by definition caused by one oversized partition."
+        correct: false
+      - id: c
+        text: "Spill is harmless metadata bookkeeping that Spark always records, so no action is needed and the slowness must come from network latency."
+        correct: false
+      - id: d
+        text: "The fix is to lower spark.sql.shuffle.partitions so the data is processed in fewer, larger partitions, which reduces shuffle overhead and therefore eliminates the spill."
+        correct: false
+      - id: e
+        text: "The fix is to disable broadcast joins by setting spark.sql.autoBroadcastJoinThreshold to -1, since spill during aggregation is caused by broadcasting."
+        correct: false
+    answer: [a]
+    explanation: "Disk spill happens when Spark runs low on memory and moves data from memory to disk, which is expensive and most common during shuffles; with even task durations (so not skew) the direct remedies are to shrink each partition's footprint - raise spark.sql.shuffle.partitions so each post-shuffle partition holds less data, or give tasks more memory per core. Calling it skew is wrong because the percentiles are even, not dominated by a single Max outlier, and spill is not by definition a skew symptom. Treating spill as harmless bookkeeping is wrong; spill is real memory pressure with a real performance cost. Lowering spark.sql.shuffle.partitions makes each partition larger, increasing memory pressure per task and typically worsening spill rather than removing it. The autoBroadcastJoinThreshold setting governs broadcast-join selection and is irrelevant to memory spill during an aggregation."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage-page"
+      - "https://spark.apache.org/docs/latest/sql-performance-tuning.html"
+    tags: [spark-ui, disk-spill, shuffle, memory]
+    source: original
+
+  - id: dbx-de-0120
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Spark UI diagnosis"
+    difficulty: medium
+    question: "While triaging a slow job in the Spark UI, a data engineer opens the stage with the largest duration and notices the Tasks count for that stage is 1, even though the cluster has 32 cores available. The single task runs for the entire stage. What is the most reasonable interpretation?"
+    options:
+      - id: a
+        text: "All the work is funneled into one task, so 31 of the 32 cores sit idle; the stage cannot parallelize as written, so the fix is to repartition the data (or remove the operation forcing a single partition) to create enough tasks to use the cores."
+        correct: false
+      - id: b
+        text: "A single-task stage is the documented signal of a problem because the work is not distributed across the cluster; the engineer should investigate why the data collapsed to one partition and repartition so multiple tasks can run in parallel."
+        correct: true
+      - id: c
+        text: "A single task always means the dataset is tiny, so the job is already optimal and no change is needed."
+        correct: false
+      - id: d
+        text: "The cluster is under-provisioned; adding more workers will let the one task split itself across the new cores and finish faster."
+        correct: false
+      - id: e
+        text: "This indicates disk spill, so the correct response is to increase spark.sql.autoBroadcastJoinThreshold so the data is broadcast instead of shuffled."
+        correct: false
+    answer: [b]
+    explanation: "Databricks' long-stage guidance calls out that seeing one task in a stage is a sign of a problem: the work is not distributed, so most cores are idle and the stage is bottlenecked on a single task; investigating why the data collapsed to one partition and repartitioning to create more tasks is the right move. (The 'all work funneled into one task / repartition' option describes the same correct remedy and is a genuine equivalent, but the answer keys on the one that names the single-task stage as the documented problem signal.) Assuming a single task means a tiny, already-optimal dataset is wrong - a single task can also process a huge amount of data slowly. Adding workers does not help because one task cannot split itself across more cores; you must increase the number of tasks/partitions first. Disk spill and the broadcast-join threshold are unrelated to a stage simply having one task."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/long-spark-stage"
+      - "https://docs.databricks.com/aws/en/optimizations/spark-ui-guide/"
+    tags: [spark-ui, parallelism, partitions, troubleshooting]
+    source: original
+
+  # ========== LIQUID CLUSTERING / PREDICTIVE OPTIMIZATION ==========
+  - id: dbx-de-0121
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Liquid clustering"
+    difficulty: medium
+    question: "A Delta table is queried with filters that change over time - sometimes by region, sometimes by customer_id. The team currently Hive-partitions by region and runs ZORDER on customer_id, but partitions are uneven and produce many small files. They are considering liquid clustering. Which statement about liquid clustering is correct in this situation?"
+    options:
+      - id: a
+        text: "Liquid clustering replaces both partitioning and ZORDER; you define keys with CLUSTER BY, and you can redefine the clustering keys later without rewriting existing data, which avoids the skewed-partition and small-file problems caused by rigid Hive partitioning."
+        correct: true
+      - id: b
+        text: "Liquid clustering is just an alias for ZORDER and must still be combined with Hive partitioning on region to take effect."
+        correct: false
+      - id: c
+        text: "Once liquid clustering keys are chosen they are permanent; changing them requires fully rewriting the table, exactly like changing a partition column."
+        correct: false
+      - id: d
+        text: "Liquid clustering can only be applied to brand-new tables created with CLUSTER BY and can never be enabled on an existing table."
+        correct: false
+      - id: e
+        text: "Liquid clustering eliminates the need to ever run OPTIMIZE, because clustering happens automatically on every write regardless of configuration."
+        correct: false
+    answer: [a]
+    explanation: "Liquid clustering replaces both table partitioning and ZORDER, is defined with CLUSTER BY, and notably lets you redefine clustering keys later without rewriting existing data - directly addressing the uneven-partition and small-file pain of rigid Hive partitioning here. It is not merely an alias for ZORDER and is not combined with Hive partitioning; the two approaches are mutually exclusive. Clustering keys are not permanent - the whole point is that they can be changed without a full rewrite, unlike a partition column. It is not limited to new tables; clustering can be enabled on existing tables via ALTER TABLE as well as at creation. Tables with liquid clustering still rely on OPTIMIZE (which clusters incrementally), unless automatic liquid clustering with predictive optimization is enabled to run it for you, so claiming OPTIMIZE is never needed is incorrect."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+      - "https://docs.databricks.com/aws/en/delta/optimize"
+    tags: [liquid-clustering, zorder, partitioning, small-files]
+    source: original
+
+  - id: dbx-de-0122
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Predictive optimization"
+    difficulty: medium
+    question: "An engineer is tired of manually scheduling OPTIMIZE and VACUUM jobs for dozens of tables and asks whether predictive optimization can take over this maintenance. The tables are a mix of Unity Catalog managed tables and external tables registered in Unity Catalog. What is the correct expectation?"
+    options:
+      - id: a
+        text: "Predictive optimization automatically runs maintenance operations such as OPTIMIZE, VACUUM, and ANALYZE for Unity Catalog managed tables using serverless compute, but it does not apply to external tables, so those still need manual maintenance."
+        correct: true
+      - id: b
+        text: "Predictive optimization manages every table in Unity Catalog identically, including external tables, so all manual OPTIMIZE and VACUUM jobs can be deleted."
+        correct: false
+      - id: c
+        text: "Predictive optimization only runs VACUUM and never runs OPTIMIZE, so the engineer must still schedule OPTIMIZE manually for all tables."
+        correct: false
+      - id: d
+        text: "Predictive optimization requires the engineer to provision a dedicated all-purpose cluster that stays running so it can perform maintenance on demand."
+        correct: false
+      - id: e
+        text: "Predictive optimization is a Spark UI feature that only reports which tables need OPTIMIZE; it never runs the operations itself."
+        correct: false
+    answer: [a]
+    explanation: "Predictive optimization automatically identifies and runs maintenance - OPTIMIZE, VACUUM, and ANALYZE - for Unity Catalog managed tables on serverless compute, removing the manual scheduling burden; it does not cover external tables, so those still need manual maintenance. The claim that it manages external tables identically is wrong because external (and Delta Sharing recipient) tables are out of scope. It runs OPTIMIZE in addition to VACUUM and ANALYZE, so the VACUUM-only claim is wrong. It uses serverless compute rather than a dedicated always-on all-purpose cluster, so the provisioning claim is wrong. It actually performs the operations rather than merely reporting them, and it is not a Spark UI feature, so the reporting-only claim is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/optimizations/predictive-optimization"
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+    tags: [predictive-optimization, unity-catalog, optimize, vacuum]
+    source: original
+
+  - id: dbx-de-0123
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "File management"
+    difficulty: medium
+    question: "A streaming pipeline appends small micro-batches to a Delta table all day, leaving thousands of tiny files that slow down downstream reads. The team runs OPTIMIZE nightly to compact them, and also wants to reclaim storage from the data files OPTIMIZE makes obsolete. Which statement about OPTIMIZE and VACUUM is correct?"
+    options:
+      - id: a
+        text: "OPTIMIZE compacts the many small files into fewer larger files to fix the small-file problem, but the old files remain as removed-but-retained data until VACUUM deletes files older than the retention window (default 7 days)."
+        correct: true
+      - id: b
+        text: "OPTIMIZE both compacts the small files and immediately deletes the old data files, so running VACUUM afterward has no effect and is unnecessary."
+        correct: false
+      - id: c
+        text: "VACUUM compacts the small files into larger ones, and OPTIMIZE is the command that reclaims storage by deleting obsolete files."
+        correct: false
+      - id: d
+        text: "Running VACUUM with a zero-hour retention is the recommended routine practice because keeping any retention window prevents storage from ever being reclaimed."
+        correct: false
+      - id: e
+        text: "OPTIMIZE cannot help here because the small-file problem can only be solved by re-partitioning the table by a high-cardinality column."
+        correct: false
+    answer: [a]
+    explanation: "OPTIMIZE coalesces many small files into fewer larger files, directly addressing the small-file problem, while the superseded data files are only logically removed; VACUUM is what physically deletes files no longer referenced once they are older than the retention window (delta.deletedFileRetentionDuration, default 7 days). The claim that OPTIMIZE immediately deletes old files is wrong - it leaves them for time-travel/recovery until VACUUM runs. Swapping the roles (VACUUM compacts, OPTIMIZE reclaims) is wrong; OPTIMIZE compacts and VACUUM reclaims. Routinely vacuuming with zero-hour retention is discouraged because it breaks time travel and can corrupt readers/concurrent writers; the default retention exists for safety. OPTIMIZE is precisely the right tool for the small-file problem, so claiming it cannot help is incorrect."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/optimize"
+      - "https://docs.databricks.com/aws/en/delta/vacuum"
+    tags: [optimize, vacuum, small-files, delta]
+    source: original
+
+  # ========== CLUSTER FAILURES / OOM / LIBRARY CONFLICTS ==========
+  - id: dbx-de-0124
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Cluster troubleshooting"
+    difficulty: medium
+    question: "A scheduled job fails to start. The cluster event log shows the cluster terminated during launch with a cloud-provider error indicating the requested instance quota was exceeded (for example AWS_RESOURCE_QUOTA_EXCEEDED). What is the appropriate remediation?"
+    options:
+      - id: a
+        text: "Request a quota/limit increase from the cloud provider, clean up unused resources, or spread the workload across regions or different instance types, because the failure is a cloud capacity/quota limit, not a code defect."
+        correct: true
+      - id: b
+        text: "Rewrite the Spark job to use fewer shuffle partitions, because quota-exceeded errors at launch are caused by too many shuffle partitions in the application code."
+        correct: false
+      - id: c
+        text: "Increase spark.driver.memory in the cluster's Spark config, because a quota error at startup is always an out-of-memory condition on the driver."
+        correct: false
+      - id: d
+        text: "Add a ZORDER and run OPTIMIZE on the source tables, since slow table layout is what prevents the cluster from acquiring instances."
+        correct: false
+      - id: e
+        text: "Disable Unity Catalog on the workspace, because governance checks block instance allocation when quotas are tight."
+        correct: false
+    answer: [a]
+    explanation: "A quota-exceeded error at launch is a cloud capacity limit: the documented remediation is to request a quota increase, free up unused resources, or distribute the workload across regions or instance types - the cluster simply could not acquire the instances it asked for. Changing shuffle partitions is irrelevant because the application never started; the failure is at instance acquisition, not in the job code. Raising driver memory addresses an OOM, but a quota error is not an OOM, so that does not apply. ZORDER/OPTIMIZE tune table layout for query performance and have nothing to do with whether the cloud can allocate VMs. Unity Catalog governs data access and does not allocate or block compute instances, so disabling it would not resolve a quota error."
+    references:
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/cluster-error-codes"
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/"
+    tags: [cluster-startup, quota, troubleshooting, compute]
+    source: original
+
+  - id: dbx-de-0125
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Cluster troubleshooting"
+    difficulty: hard
+    question: "After a teammate added several PyPI libraries and a custom init script to a shared cluster, the cluster now fails to start: the Spark driver does not finish starting within the startup timeout (a SPARK_STARTUP_FAILURE-type error). What is the most effective troubleshooting step to isolate the cause?"
+    options:
+      - id: a
+        text: "Remove the custom init script and the recently added cluster-scoped libraries/Spark configs, then start the cluster again; if it now starts, reintroduce them one at a time to find the conflicting library or failing init script."
+        correct: false
+      - id: b
+        text: "Isolate the change by stripping the cluster back to a clean configuration - remove the custom init script and the recently added libraries and custom Spark configs - restart, and if it starts cleanly add the changes back incrementally to identify the offending one."
+        correct: true
+      - id: c
+        text: "Repeatedly retry starting the cluster unchanged, because driver startup timeouts are transient and always resolve on a later attempt without any configuration change."
+        correct: false
+      - id: d
+        text: "Increase spark.sql.shuffle.partitions so the driver has more parallelism during startup, which shortens the driver boot time below the timeout."
+        correct: false
+      - id: e
+        text: "Lower spark.sql.autoBroadcastJoinThreshold to -1 so the driver does not attempt to broadcast libraries while booting."
+        correct: false
+    answer: [b]
+    explanation: "When a driver fails to start within the timeout after config/library/init-script changes, the documented isolation technique is to remove custom init scripts and recently added libraries and Spark configs, restart from a clean state, and then reintroduce the changes one at a time to find the conflicting library or failing init script. (The 'remove init script and recent libraries, then reintroduce one at a time' option describes the identical procedure and is a true equivalent, but the answer keys on the explicit isolate-then-add-back-incrementally wording.) Simply retrying unchanged is wrong: a startup failure caused by a bad init script or a library conflict is deterministic and will not fix itself on retry. spark.sql.shuffle.partitions controls shuffle parallelism for query execution and has no effect on driver boot time. spark.sql.autoBroadcastJoinThreshold controls broadcast-join selection during query planning and is unrelated to library loading or driver startup."
+    references:
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/cluster-error-codes"
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/"
+    tags: [cluster-startup, init-scripts, library-conflict, troubleshooting]
+    source: original
+
+  - id: dbx-de-0126
+    type: single_choice
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "Cluster troubleshooting"
+    difficulty: hard
+    question: "A job repeatedly fails partway through with java.lang.OutOfMemoryError on executors, and the driver/executor logs show OOM errors and long GC pauses; cluster metrics confirm memory is exhausted on the workers while CPU is moderate. There is no single dominant skewed task in the Spark UI. Which response most directly targets the problem per Databricks guidance?"
+    options:
+      - id: a
+        text: "Give tasks more memory per core - for example move to a worker type with the same core count but more RAM (raising the GB-per-core ratio), and/or increase shuffle partitions so each task processes less data - since the metrics and logs point to genuine memory exhaustion rather than skew."
+        correct: true
+      - id: b
+        text: "Add many more small worker nodes of the same instance type, because total cluster memory is all that matters and the per-core memory ratio is irrelevant to OOM."
+        correct: false
+      - id: c
+        text: "Lower spark.sql.shuffle.partitions so the job uses fewer, larger partitions, which reduces memory usage per task and resolves the OOM."
+        correct: false
+      - id: d
+        text: "Enable AQE skew join handling, because every executor OutOfMemoryError is caused by one skewed partition regardless of what the Spark UI shows."
+        correct: false
+      - id: e
+        text: "Schedule VACUUM on the input tables to reclaim storage, since reclaiming disk space frees the executor heap memory that is being exhausted."
+        correct: false
+    answer: [a]
+    explanation: "Databricks guidance for suspected memory issues is to increase memory per core - it is the ratio of cores to memory that matters - for instance moving from a worker with 4 GB/core to one with 8 GB/core, and raising shuffle partitions so each task handles less data; with logs and metrics showing genuine exhaustion and no dominant skewed task, this targets the real cause. Adding more same-type workers raises total memory but leaves the per-core ratio unchanged, so each task still gets the same memory and can still OOM. Lowering spark.sql.shuffle.partitions makes each partition larger, increasing per-task memory pressure and worsening the OOM rather than fixing it. Enabling AQE skew handling addresses skew, but the Spark UI shows no dominant skewed task, so it does not target this problem. VACUUM reclaims object storage for obsolete data files and has no effect on executor JVM heap memory."
+    references:
+      - "https://docs.databricks.com/aws/en/compute/troubleshooting/"
+      - "https://docs.databricks.com/aws/en/compute/cluster-metrics"
+    tags: [out-of-memory, executor, memory-tuning, troubleshooting]
+    source: original

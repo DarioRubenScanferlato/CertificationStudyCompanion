@@ -77,29 +77,35 @@ class TestCountFiltering:
 
     def test_domain_filter_narrows(self, client):
         full = client.get("/api/exercises/count").json()["data"]["count"]
-        narrowed = client.get("/api/exercises/count?domain=Data%20Governance").json()["data"][
-            "count"
-        ]
+        narrowed = client.get("/api/exercises/count?domain=Governance%20and%20Security").json()[
+            "data"
+        ]["count"]
         assert 0 < narrowed < full
 
     def test_domain_plus_difficulty_narrows_further(self, client):
-        domain_only = client.get("/api/exercises/count?domain=Data%20Governance").json()["data"][
-            "count"
-        ]
-        both = client.get("/api/exercises/count?domain=Data%20Governance&difficulty=easy").json()[
+        domain_only = client.get("/api/exercises/count?domain=Governance%20and%20Security").json()[
             "data"
         ]["count"]
+        both = client.get(
+            "/api/exercises/count?domain=Governance%20and%20Security&difficulty=easy"
+        ).json()["data"]["count"]
         assert both <= domain_only
 
     def test_filter_is_case_insensitive(self, client):
-        upper = client.get("/api/exercises/count?domain=Data%20Governance").json()["data"]["count"]
-        lower = client.get("/api/exercises/count?domain=data%20governance").json()["data"]["count"]
+        upper = client.get("/api/exercises/count?domain=Governance%20and%20Security").json()[
+            "data"
+        ]["count"]
+        lower = client.get("/api/exercises/count?domain=governance%20and%20security").json()[
+            "data"
+        ]["count"]
         assert upper == lower
 
     def test_count_matches_sessions_population(self, client):
         """Count for a domain equals the session population for that domain."""
-        count = client.get("/api/exercises/count?domain=Data%20Governance").json()["data"]["count"]
-        session = client.get("/api/sessions?domain=Data%20Governance").json()["data"]
+        count = client.get("/api/exercises/count?domain=Governance%20and%20Security").json()[
+            "data"
+        ]["count"]
+        session = client.get("/api/sessions?domain=Governance%20and%20Security").json()["data"]
         assert count == len(session)
 
 

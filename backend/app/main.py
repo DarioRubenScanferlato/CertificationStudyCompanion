@@ -17,7 +17,7 @@ from app.feedback import (
     score_single_select,
 )
 from app.models import MCQ, Difficulty, Domain, ExamType, ExerciseType
-from app.session import build_session
+from app.session import MOCK_EXAM_CONFIGS, build_mock_session, build_session
 from app.store import init_db
 
 # Configure logging
@@ -75,7 +75,7 @@ def api_health():
 
 @app.get("/api/exercises")
 def get_exercises(
-    domain: str = Query(None, description="Filter by domain (one of the 5 Associate domains)"),
+    domain: str = Query(None, description="Filter by domain (one of the 7 Associate sections)"),
     difficulty: str = Query(None, description="Filter by difficulty (easy, medium, hard)"),
     exam: str = Query(None, description="Filter by exam (associate, professional)"),
     exercise_type: str = Query(
@@ -86,9 +86,11 @@ def get_exercises(
     Get exercises with optional filtering.
 
     Query Parameters:
-    - domain: Filter by one of the 5 Associate domains (case-insensitive)
-      Valid values: "Databricks Lakehouse Platform", "ELT with Spark SQL and Python",
-      "Incremental Data Processing", "Production Pipelines", "Data Governance"
+    - domain: Filter by one of the 7 Associate sections (case-insensitive)
+      Valid values: "Databricks Intelligence Platform", "Data Ingestion and Loading",
+      "Data Transformation and Modeling", "Working with Lakeflow Jobs",
+      "Implementing CI/CD", "Troubleshooting, Monitoring, and Optimization",
+      "Governance and Security"
     - difficulty: Filter by difficulty level (easy, medium, hard)
     - exam: Filter by exam type (associate, professional)
     - exercise_type: Filter by exercise type (single_choice, multi_choice, code_completion)
@@ -142,6 +144,7 @@ def get_session(
     domain: str = Query(None, description="Filter by domain (case-insensitive)"),
     difficulty: str = Query(None, description="Filter by difficulty (easy, medium, hard)"),
     exam: str = Query(None, description="Filter by exam (associate, professional)"),
+    mode: str = Query(None, description="'mock' for a full-length domain-weighted mock exam"),
 ):
     """
     Build a randomized practice session.
@@ -203,6 +206,27 @@ def get_session(
 
     if errors:
         return {"success": False, "data": [], "error": "; ".join(errors)}
+
+    # Mock-Exam mode (FR-27): a full-length, domain-weighted set scoped to one
+    # exam, NOT unseen-first. Exam is required (a mock is exam-specific) and the
+    # response stamps the exam's countdown duration (the timer is frontend).
+    if mode and mode.strip().lower() == "mock":
+        if not exam:
+            return {
+                "success": False,
+                "data": [],
+                "error": "Mock exam requires an 'exam' (associate or professional).",
+            }
+        exam_norm = exam.strip().lower()
+        exam_enum = ExamType(exam_norm)
+        scoped = filter_exercises(exercises, exam=exam_norm)
+        session = build_mock_session(scoped, exam=exam_enum)
+        return {
+            "success": True,
+            "data": session,
+            "error": None,
+            "durationMinutes": MOCK_EXAM_CONFIGS[exam_enum].duration_minutes,
+        }
 
     # Default-exam policy: never pass exam=None to filter_exercises (a no-op
     # that would mix the Associate + Professional corpora). Default to

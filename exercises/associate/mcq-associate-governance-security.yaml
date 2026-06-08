@@ -1,0 +1,208 @@
+# Databricks DE Certification Study Companion - MCQ: Governance and Security
+# Exam: Data Engineer Associate (May 2026 blueprint)
+# Domain: "Governance and Security" (15%)
+# Generated: 2026-06-07
+# Total Questions: 6 (dbx-de-0142 .. dbx-de-0147)
+# Focus: under-covered topics - Unity Catalog ABAC policies (governed tags driving
+#        row filters / column masks), GRANT/REVOKE/DENY to principals and the
+#        hive_metastore-only scope of DENY, managed vs external tables and
+#        SET MANAGED / UNSET MANAGED conversion, UDF-based row/column security
+#        with is_account_group_member.
+# All items use domain EXACTLY: "Governance and Security"; type single_choice; source original.
+
+exercises:
+  - id: dbx-de-0142
+    type: single_choice
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Unity Catalog ABAC"
+    difficulty: hard
+    question: "A governance team must mask the values in any column classified as PII across hundreds of existing tables and every table created in the future in the prod_finance catalog. They have applied an account-level governed tag classification = pii to the relevant columns. They want a single, centrally managed rule rather than editing each table, and they want new tables to be covered automatically. Which approach best meets these requirements in Unity Catalog?"
+    options:
+      - id: a
+        text: "Create an ABAC column mask policy at the catalog level whose MATCH COLUMNS clause uses has_tag_value('classification', 'pii') so the mask UDF is applied automatically to every current and future tagged column in the catalog."
+        correct: true
+      - id: b
+        text: "Run ALTER TABLE ... ALTER COLUMN ... SET MASK on each table individually, scripting the statement in a loop so it can be re-run whenever a new table appears."
+        correct: false
+      - id: c
+        text: "Create a dynamic view over each table that wraps the sensitive column in a CASE expression gated by is_account_group_member, and grant users access only to the views."
+        correct: false
+      - id: d
+        text: "GRANT SELECT on the catalog only to the governance group and REVOKE SELECT from everyone else, so the tagged columns are hidden from ordinary users."
+        correct: false
+      - id: e
+        text: "Apply the governed tag classification = pii at the catalog level and rely on tag inheritance alone to redact the column values for all users."
+        correct: false
+    answer: [a]
+    explanation: "ABAC column mask policies attach at the catalog, schema, or table level and are evaluated dynamically against governed-tag metadata. A catalog-level policy whose MATCH COLUMNS condition tests has_tag_value('classification','pii') applies the mask UDF to every column carrying that tag, including columns on tables created later, which is exactly the central, inheriting, future-proof control required. Scripting ALTER TABLE ... SET MASK per table is the asset-by-asset approach ABAC is designed to replace, and it does not automatically cover future tables. Building a dynamic view per table is also per-asset, breaks references to the base table name, and is the legacy pattern rather than the centrally governed one. Granting SELECT only to the governance group changes who can read the table but does not mask a column for users who are allowed to read the rest of the row, and over-restricts access. Applying the governed tag alone does nothing on its own: tags are inert metadata that only redact values when a policy references them, so inheritance of the tag does not mask anything."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/core-concepts"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/policies"
+    tags: [unity-catalog, abac, column-mask, governed-tags]
+    source: original
+
+  - id: dbx-de-0143
+    type: single_choice
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Unity Catalog ABAC"
+    difficulty: medium
+    question: "A team created an ABAC row filter policy on the customers catalog that references the governed tag region. After deploying the policy, an analyst who has never been granted SELECT on the orders table in that catalog still cannot query the table at all and receives a permission error. The governance lead expected the policy to control what that analyst sees. What is the correct understanding of the situation?"
+    options:
+      - id: a
+        text: "ABAC row filter and column mask policies do not grant access on their own; they only filter or mask data for tables the user can already access, so the analyst still needs SELECT granted on the table."
+        correct: true
+      - id: b
+        text: "A row filter policy automatically grants SELECT to every principal in the affected scope, so the analyst's error indicates the policy failed to deploy."
+        correct: false
+      - id: c
+        text: "Row filter policies replace GRANT statements entirely, so the team should REVOKE all existing SELECT grants and let the policy decide visibility."
+        correct: false
+      - id: d
+        text: "The analyst is blocked because row filter policies can only be attached at the table level, not the catalog level, and the catalog-level policy is invalid."
+        correct: false
+      - id: e
+        text: "The policy only applies after the analyst is added to the table owner role, which implicitly grants the necessary read access."
+        correct: false
+    answer: [a]
+    explanation: "Row filter and column mask policies in Unity Catalog operate on top of, not in place of, the privilege model. They only filter rows or mask columns for users who can already access the table; they never grant access themselves. The analyst lacking SELECT on the table is therefore blocked entirely, and still needs a SELECT grant before the filter can shape what they see. The claim that a policy auto-grants SELECT inverts this relationship. Treating the policy as a replacement for GRANT and revoking all grants would lock everyone out, since access still flows from privileges. Row filter policies are not restricted to the table level; they can attach at catalog, schema, or table scope, so a catalog-level policy is valid. Making the analyst the table owner would grant access but is unrelated to how the policy works and is not the correct fix for read access."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/core-concepts"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/"
+    tags: [unity-catalog, abac, row-filter, privileges]
+    source: original
+
+  - id: dbx-de-0144
+    type: single_choice
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Access Control"
+    difficulty: hard
+    question: "A data engineer wants to make sure a contractor group can never read a particular schema in a Unity Catalog catalog, even though the group inherits SELECT on the parent catalog through a broad grant. They try to run DENY SELECT ON SCHEMA main.restricted TO contractors and the statement is rejected. What is the correct explanation and remedy?"
+    options:
+      - id: a
+        text: "DENY is not supported by Unity Catalog (it applies only to the hive_metastore catalog), so the engineer should instead avoid the broad inherited grant - for example grant SELECT at the schema level only to the groups that need it rather than at the catalog level."
+        correct: true
+      - id: b
+        text: "DENY is fully supported on Unity Catalog securables; the statement failed only because of a typo, and re-running it correctly will block the contractor group while leaving the catalog grant intact."
+        correct: false
+      - id: c
+        text: "DENY works in Unity Catalog but only against tables, so the engineer should issue a separate DENY SELECT on each table in the schema instead of on the schema."
+        correct: false
+      - id: d
+        text: "The remedy is to GRANT SELECT ON SCHEMA main.restricted TO contractors with a negative privilege flag, which Unity Catalog interprets as a denial."
+        correct: false
+      - id: e
+        text: "DENY is unsupported in Unity Catalog, so the engineer should REVOKE the catalog-level SELECT from the contractor group and re-grant catalog SELECT to every other group individually instead."
+        correct: false
+    answer: [a]
+    explanation: "The DENY statement exists in Databricks SQL but its documentation states it applies only to the hive_metastore catalog and is not supported by Unity Catalog, which is why the statement is rejected. Unity Catalog has no negative-privilege concept; access is controlled purely by where you place GRANTs. The right approach is to stop relying on the broad inherited catalog grant and instead grant SELECT at the schema (or table) level only to the principals that should have it, so the contractor group simply never receives access to the restricted schema. Claiming DENY is fully supported and only failed on a typo is incorrect for Unity Catalog. Claiming DENY works against tables but not schemas is also wrong, since DENY is not a Unity Catalog feature at all. There is no negative GRANT flag in Unity Catalog. Revoking the catalog grant and re-granting catalog SELECT to every other group restores the same overly broad inheritance and is needlessly fragile compared with granting at the narrower scope."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/security-deny.html"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+    tags: [unity-catalog, grant, revoke, deny, privileges]
+    source: original
+
+  - id: dbx-de-0145
+    type: single_choice
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Access Control"
+    difficulty: medium
+    question: "An automated nightly job runs under a service principal and must read from a curated schema and write to a reporting schema in Unity Catalog. A new engineer proposes granting the required privileges to their own user account so the job 'inherits' them while it runs. What is the most appropriate way to authorize the job?"
+    options:
+      - id: a
+        text: "Grant the read and write privileges directly to the service principal (the job's identity), since service principals are first-class principals in Unity Catalog and a job runs with the privileges of the identity it executes as, not the engineer who created it."
+        correct: true
+      - id: b
+        text: "Grant the privileges to the engineer's user account, because a job always executes with the privileges of the user who authored it."
+        correct: false
+      - id: c
+        text: "Add the service principal as the owner of both schemas so it can run without any explicit privilege grants."
+        correct: false
+      - id: d
+        text: "Privileges cannot be granted to service principals in Unity Catalog, so the engineer must wrap the logic in a dynamic view owned by an admin and let the job read through it."
+        correct: false
+      - id: e
+        text: "Grant the privileges to the account-level admins group and add the service principal to that group temporarily during each run."
+        correct: false
+    answer: [a]
+    explanation: "In Unity Catalog a principal is a user, a group, or a service principal, and privileges should be granted to the identity the workload actually runs as. A scheduled job executes under its configured service principal, so granting SELECT on the curated schema and the appropriate write privileges (such as on the reporting schema) directly to that service principal is the correct, least-privilege approach. Granting to the engineer's personal account is wrong because the job runs as the service principal, not as the author, and tying production access to a personal account is fragile. Making the service principal the owner of both schemas would over-privilege it (owners hold all privileges, including the ability to grant to others) when it only needs read and write. Service principals can absolutely receive grants, so the claim that they cannot is false. Adding the service principal to the account admins group grants sweeping administrative power far beyond what the job needs and violates least privilege."
+    references:
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges"
+      - "https://docs.databricks.com/aws/en/data-governance/unity-catalog/manage-privileges/privileges"
+    tags: [unity-catalog, service-principal, grant, principals]
+    source: original
+
+  - id: dbx-de-0146
+    type: single_choice
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Managed and External Tables"
+    difficulty: hard
+    question: "A team has a Delta table registered in Unity Catalog as an external table backed by a cloud storage path. They want it to become a Unity Catalog managed table so they get managed-storage optimizations, while keeping the same table name, existing permissions, and history, and minimizing downtime for concurrent readers and writers. They are on Databricks Runtime 17.0. Which approach should they use?"
+    options:
+      - id: a
+        text: "Run ALTER TABLE ... SET MANAGED to convert the external Delta table in place, which retains the table name, configurations, permissions, views, and history and minimizes reader/writer downtime; UNSET MANAGED can roll it back within the supported window if needed."
+        correct: true
+      - id: b
+        text: "Create a brand-new managed table with CREATE TABLE AS SELECT from the external table, then drop the external table and rename the new one to match."
+        correct: false
+      - id: c
+        text: "Drop the external table and recreate it as managed; because dropping an external table deletes the underlying data files, the data will be re-registered automatically under managed storage."
+        correct: false
+      - id: d
+        text: "Move the underlying files into the metastore's managed storage location with a cloud copy tool, then run ALTER TABLE ... SET LOCATION to point the table at the new path."
+        correct: false
+      - id: e
+        text: "Convert the table to managed by running CONVERT TO DELTA on the external path, which switches its table type from EXTERNAL to MANAGED in Catalog Explorer."
+        correct: false
+    answer: [a]
+    explanation: "ALTER TABLE ... SET MANAGED converts an external Delta table to a Unity Catalog managed table in place on Databricks Runtime 17.0 or above (or serverless). Databricks recommends it over CTAS precisely because it keeps the same name, configurations, permissions, and views, retains history, handles concurrent writes, and supports rolling back with UNSET MANAGED within the supported window, satisfying all the stated constraints. The CTAS-then-drop-and-rename path loses history and permissions and incurs more downtime, which is why the docs recommend SET MANAGED instead. Dropping the external table to recreate it is dangerous and based on a false premise: dropping an external table leaves the underlying files in place (it only removes metadata), so nothing is re-registered automatically. Manually moving files and using SET LOCATION still leaves the table external (it just points at a different path) and does not change the table type to managed. CONVERT TO DELTA only converts Parquet/Iceberg data to Delta format; it does not change a table from external to managed."
+    references:
+      - "https://docs.databricks.com/aws/en/tables/convert-external-managed"
+      - "https://docs.databricks.com/aws/en/tables/managed"
+    tags: [unity-catalog, managed-tables, external-tables, set-managed]
+    source: original
+
+  - id: dbx-de-0147
+    type: single_choice
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Row and Column Security"
+    difficulty: medium
+    question: "Analysts in the eu_analysts account-level group must see only rows where region = 'EU', while everyone else with table access should see all rows. The data engineer wants to implement this with a dynamic view over a Unity Catalog table using current, recommended functions. Which view definition correctly enforces this row-level restriction?"
+    code_context: |
+      -- Option under consideration:
+      CREATE VIEW sales.secure_orders AS
+      SELECT *
+      FROM sales.orders
+      WHERE
+        CASE
+          WHEN <group check> THEN region = 'EU'
+          ELSE TRUE
+        END;
+    options:
+      - id: a
+        text: "Use is_account_group_member('eu_analysts') for the group check, because it evaluates account-level group membership and is the recommended function for views over Unity Catalog data."
+        correct: true
+      - id: b
+        text: "Use is_member('eu_analysts') for the group check, because it is the standard function for Unity Catalog dynamic views."
+        correct: false
+      - id: c
+        text: "Use current_user() = 'eu_analysts' for the group check, comparing the logged-in user's identity to the group name."
+        correct: false
+      - id: d
+        text: "Grant SELECT only on a separate physical copy of the EU rows to the eu_analysts group and skip the dynamic view entirely, since CASE expressions are not allowed in view definitions."
+        correct: false
+      - id: e
+        text: "Use is_account_group_member('eu_analysts') but place the check in a HAVING clause rather than the WHERE clause so the filter is applied after aggregation."
+        correct: false
+    answer: [a]
+    explanation: "is_account_group_member tests membership in an account-level group and is the function Databricks recommends for dynamic views over Unity Catalog data, so gating the WHERE/CASE logic with is_account_group_member('eu_analysts') correctly limits that group to EU rows while letting others see everything. is_member is the legacy function that checks workspace-level groups and is kept only for Hive metastore compatibility; the docs advise against using it with Unity Catalog views because it does not evaluate account-level membership. Comparing current_user() to a group name is wrong because current_user() returns an individual identity, not group membership, so it would never match the group name. Maintaining a separate physical copy of EU rows duplicates data, drifts out of sync, and is unnecessary, and the premise that CASE is disallowed in views is false. Placing the predicate in a HAVING clause is incorrect for simple row filtering: HAVING applies after grouping/aggregation, whereas this row-level restriction belongs in the WHERE clause."
+    references:
+      - "https://docs.databricks.com/aws/en/views/dynamic"
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/is_account_group_member"
+    tags: [unity-catalog, dynamic-view, row-level-security, is-account-group-member]
+    source: original

@@ -54,7 +54,7 @@ def make_mcq(
         id=exercise_id,
         type=ExerciseType.SINGLE_CHOICE,
         exam=ExamType.ASSOCIATE,
-        domain=Domain.LAKEHOUSE_PLATFORM,
+        domain=Domain.INTELLIGENCE_PLATFORM,
         difficulty=Difficulty.EASY,
         question=f"Question for {exercise_id}?",
         options=options,
@@ -146,7 +146,7 @@ class TestBuildSessionEntry:
         entry = build_session_entry(mcq)
         assert entry["exerciseId"] == mcq.id
         assert entry["type"] == "single_choice"
-        assert entry["domain"] == Domain.LAKEHOUSE_PLATFORM.value
+        assert entry["domain"] == Domain.INTELLIGENCE_PLATFORM.value
         assert entry["difficulty"] == Difficulty.EASY.value
         assert entry["question"] == mcq.question
         assert entry["codeContext"] is None

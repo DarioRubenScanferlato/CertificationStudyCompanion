@@ -32,15 +32,115 @@ endpoint story is responsible for loading exercises and passing them in.
 """
 
 import random
+from dataclasses import dataclass
 
 from app import store
-from app.models import MCQ, ExerciseType
+from app.models import MCQ, Domain, ExamType, ExerciseType
 
 # A Displayed Option is intentionally just {id, text} — no `correct` flag.
 DisplayedOption = dict[str, str]
 
 # A built session entry. See ``build_session_entry`` / ``build_session``.
 SessionEntry = dict[str, object]
+
+
+@dataclass(frozen=True)
+class MockExamConfig:
+    """Per-exam Mock-Exam shape (Story 8.3, FR-27).
+
+    Single source of truth for the full-length mock builder:
+
+    * ``total_questions`` — the exam's full length (Associate 45, Professional 59).
+    * ``duration_minutes`` — the exam clock the response stamps (Associate 90,
+      Professional 120). The backend only stamps it; the countdown is frontend
+      (FR-26/28).
+    * ``domain_weights`` — the published per-Domain weight split (percent),
+      keyed by the :class:`~app.models.Domain` members that belong to this exam.
+      Weights sum to 100; per-domain target counts are derived from these via
+      largest-remainder rounding so they total ``total_questions`` exactly.
+
+    Sourced from PRD addendum §C (both exams VERIFIED against the official
+    Databricks exam guides; OQ-1 resolved 2026-06-07).
+    """
+
+    total_questions: int
+    duration_minutes: int
+    domain_weights: dict[Domain, int]
+
+
+# Authoritative Mock-Exam config per exam (addendum §C — both verified).
+#
+# Associate: 45Q / 90min, 7 domains (May 2026 blueprint weights).
+# Professional: 59Q / 120min, 10 domains (2026 blueprint weights).
+# Each weight vector sums to 100 and is keyed only by that exam's Domain members.
+MOCK_EXAM_CONFIGS: dict[ExamType, MockExamConfig] = {
+    ExamType.ASSOCIATE: MockExamConfig(
+        total_questions=45,
+        duration_minutes=90,
+        domain_weights={
+            Domain.INTELLIGENCE_PLATFORM: 6,
+            Domain.DATA_INGESTION_LOADING: 21,
+            Domain.DATA_TRANSFORMATION_MODELING: 22,
+            Domain.LAKEFLOW_JOBS: 16,
+            Domain.CICD: 10,
+            Domain.TROUBLESHOOTING_MONITORING_OPTIMIZATION: 10,
+            Domain.GOVERNANCE_SECURITY: 15,
+        },
+    ),
+    ExamType.PROFESSIONAL: MockExamConfig(
+        total_questions=59,
+        duration_minutes=120,
+        domain_weights={
+            Domain.DEV_CODE_PROCESSING: 22,
+            Domain.COST_PERFORMANCE: 13,
+            Domain.DATA_TRANSFORMATION: 10,
+            Domain.MONITORING_ALERTING: 10,
+            Domain.DATA_SECURITY_COMPLIANCE: 10,
+            Domain.DEBUGGING_DEPLOYING: 10,
+            Domain.DATA_INGESTION: 7,
+            Domain.DATA_GOVERNANCE: 7,
+            Domain.DATA_MODELLING: 6,
+            Domain.DATA_SHARING_FEDERATION: 5,
+        },
+    ),
+}
+
+
+def _largest_remainder_targets(weights: dict[Domain, int], total: int) -> dict[Domain, int]:
+    """Allocate ``total`` across domains by their weights (largest remainder).
+
+    Each domain's ideal share is ``weight / sum(weights) * total``. Every domain
+    first gets the floor of its ideal share; the leftover seats (``total`` minus
+    the sum of the floors) are then handed out one each to the domains with the
+    largest fractional remainders (ties broken by larger weight, then Domain
+    order) so the per-domain counts sum to ``total`` exactly with no rounding
+    drift.
+
+    Returns a dict mapping every domain in ``weights`` to its integer target
+    (always sums to ``total`` when ``total >= 0`` and at least one weight is
+    positive).
+    """
+    weight_sum = sum(weights.values())
+    if weight_sum <= 0:
+        return {domain: 0 for domain in weights}
+
+    floors: dict[Domain, int] = {}
+    remainders: list[tuple[float, int, Domain]] = []
+    for domain, weight in weights.items():
+        ideal = weight * total / weight_sum
+        floor = int(ideal)
+        floors[domain] = floor
+        # Sort key: larger remainder first, then larger weight, then enum order
+        # (negated so Python's ascending sort yields the desired descending one).
+        remainders.append((ideal - floor, -weight, domain))
+
+    leftover = total - sum(floors.values())
+    # Hand the leftover seats to the largest remainders.
+    remainders.sort(key=lambda item: (-item[0], item[1], item[2].value))
+    for _, _, domain in remainders[: max(leftover, 0)]:
+        floors[domain] += 1
+
+    return floors
 
 
 def build_displayed_options(mcq: MCQ) -> list[DisplayedOption]:
@@ -183,3 +283,50 @@ def build_session(
         random.shuffle(order)
 
     return [build_session_entry(mcq) for mcq in order]
+
+
+def build_mock_session(exercises: list, *, exam: ExamType) -> list[SessionEntry]:
+    """Build a domain-weighted, full-length Mock-Exam session for one exam (FR-27).
+
+    Unlike :func:`build_session`, this is **representative, not unseen-first**:
+    it groups the (already exam-scoped) MCQs by domain, allocates per-domain
+    target counts from the exam's published weights via largest-remainder
+    rounding (summing to ``total_questions``), and samples that many per domain
+    at random — **without consulting the attempt store** (a mock may repeat
+    already-seen questions). The selected MCQs are then shuffled and rendered.
+
+    If a domain has fewer MCQs than its target, all available are taken (the
+    session is capped at the available corpus rather than crashing). Non-MCQ
+    exercises are skipped. Each entry still carries 4 sampled + shuffled,
+    flag-less ``displayedOptions``.
+
+    Args:
+        exercises: Exercises already scoped to ``exam`` (caller filters by exam).
+        exam: The exam whose :data:`MOCK_EXAM_CONFIGS` sizing/weights to apply.
+
+    Returns:
+        A list of session-entry dicts in randomized order. The caller stamps the
+        exam ``durationMinutes`` (from the config) onto the response.
+    """
+    config = MOCK_EXAM_CONFIGS.get(exam)
+    if config is None:
+        return []
+
+    mcqs = [
+        ex for ex in exercises if isinstance(ex, MCQ) and ex.type != ExerciseType.CODE_COMPLETION
+    ]
+    by_domain: dict[Domain, list[MCQ]] = {}
+    for mcq in mcqs:
+        by_domain.setdefault(mcq.domain, []).append(mcq)
+
+    targets = _largest_remainder_targets(config.domain_weights, config.total_questions)
+
+    selected: list[MCQ] = []
+    for domain, target in targets.items():
+        pool = by_domain.get(domain, [])
+        take = min(target, len(pool))
+        if take > 0:
+            selected.extend(random.sample(pool, take))
+
+    random.shuffle(selected)
+    return [build_session_entry(mcq) for mcq in selected]

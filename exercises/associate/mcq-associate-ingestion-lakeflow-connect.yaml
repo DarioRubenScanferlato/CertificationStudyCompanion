@@ -1,0 +1,238 @@
+# Databricks DE Certification Study Companion - Associate Ingestion (Lakeflow Connect gap-fillers)
+# Generated: 2026-06-07
+# Exam: Data Engineer Associate, May 2026 blueprint
+# Section: "Data Ingestion and Loading" (21%)
+# Purpose: cover the new/under-covered ingestion topics our bank is missing.
+#   We already have Auto Loader & COPY INTO basics, so these focus on:
+#     - Lakeflow Connect standard vs managed connectors (SaaS, database/CDC, query-based, streaming, file source)
+#     - Prioritizing among ingestion methods (managed -> standard -> custom; volume/frequency/governance)
+#     - JDBC/REST clients in notebooks landing data, orchestrated by Lakeflow Jobs
+#     - Semi-structured / nested data (JSON, nested) into UC-governed Delta/streaming tables
+#     - Batch vs streaming vs incremental loading into Unity-Catalog-governed tables
+# IDs: dbx-de-0127 .. dbx-de-0134 (8, contiguous)
+# Total Questions: 8
+# NOTE: domain string "Data Ingestion and Loading" is intentionally not yet in the Pydantic enum.
+exercises:
+  - id: dbx-de-0127
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Lakeflow Connect managed connectors"
+    difficulty: medium
+    question: "Your team must continuously ingest the Account, Contact, and Opportunity objects from Salesforce into Unity Catalog-governed Delta tables for downstream analytics. You want source-specific authentication, automatic schema evolution, and built-in retries without hand-coding API pagination or token refresh. Which ingestion approach best fits these requirements?"
+    options:
+      - id: a
+        text: "Configure a Lakeflow Connect managed SaaS connector for Salesforce, which uses a Unity Catalog connection plus a managed ingestion pipeline to land the objects into governed streaming tables."
+        correct: true
+      - id: b
+        text: "Write a notebook that calls the Salesforce REST API directly, paginates results manually, and appends the JSON to a Delta table on a schedule."
+        correct: false
+      - id: c
+        text: "Point Auto Loader at a cloud storage directory and rely on its cloudFiles source to pull records directly from Salesforce."
+        correct: false
+      - id: d
+        text: "Use COPY INTO with a Salesforce file format to idempotently load the objects from the Salesforce API into a Delta table."
+        correct: false
+    answer: [a]
+    explanation: "Lakeflow Connect provides fully-managed SaaS connectors (Salesforce among them) built on a Unity Catalog connection securable, a managed ingestion pipeline running on serverless compute, and governed destination streaming tables; the connector handles source-specific authentication, automated schema evolution, and automated retries, which is exactly what is needed here. Hand-writing a REST client that paginates and refreshes tokens reintroduces all the maintenance the managed connector removes, so it is the wrong fit when a managed connector exists for the source. Auto Loader's cloudFiles source ingests files that have already landed in cloud object storage; it cannot reach into a SaaS API like Salesforce, so that option is wrong. COPY INTO loads files from cloud object storage into Delta tables and has no concept of a Salesforce API file format, so that option is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/overview"
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/"
+    tags: [lakeflow-connect, managed-connector, saas, salesforce, unity-catalog]
+    source: original
+
+  - id: dbx-de-0128
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Lakeflow Connect database connectors"
+    difficulty: hard
+    question: "You need near-real-time replication of an on-premises Microsoft SQL Server database into Unity Catalog tables, capturing inserts, updates, and deletes incrementally rather than re-reading full tables. Which Lakeflow Connect setup correctly describes the required components?"
+    options:
+      - id: a
+        text: "A Lakeflow Connect database (CDC) connector that uses an ingestion gateway to extract change logs and snapshots into a Unity Catalog staging volume, then an ingestion pipeline that applies the changes incrementally to destination streaming tables."
+        correct: true
+      - id: b
+        text: "A managed SaaS connector that authenticates to SQL Server and writes full snapshots of every table on each run, with no gateway or staging storage."
+        correct: false
+      - id: c
+        text: "An Auto Loader stream pointed at the SQL Server transaction log files on the database host, reading them as cloudFiles."
+        correct: false
+      - id: d
+        text: "A COPY INTO command scheduled hourly that truncates and reloads each destination table from a SQL Server export."
+        correct: false
+    answer: [a]
+    explanation: "The SQL Server database connector in Lakeflow Connect uses change data capture: an ingestion gateway extracts snapshots, change logs, and metadata from the source database into a Unity Catalog staging volume, and a separate ingestion pipeline applies those changes incrementally to destination streaming tables (Delta tables with incremental-processing support). Calling it a SaaS connector that writes full snapshots with no gateway or staging is wrong because database connectors specifically add a gateway and staging storage and rely on CDC, not repeated full snapshots. Auto Loader reads files that have landed in cloud object storage and cannot tail a SQL Server transaction log on the database host, so that option is wrong. A scheduled COPY INTO that truncates and reloads is a full-refresh batch pattern that captures neither incremental changes nor deletes efficiently, so it does not meet the near-real-time CDC requirement."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/cdc-overview"
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/"
+    tags: [lakeflow-connect, database-connector, cdc, sql-server, ingestion-gateway]
+    source: original
+
+  - id: dbx-de-0129
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Prioritizing ingestion methods"
+    difficulty: hard
+    question: "An architect is deciding how to ingest a brand-new source. Databricks documentation recommends a layered strategy across Lakeflow Connect's managed connectors, Lakeflow Spark Declarative Pipelines, and Structured Streaming. Which decision rule reflects the recommended approach?"
+    options:
+      - id: a
+        text: "Start with the most managed layer (a managed connector if one exists for the source); only if it cannot satisfy the requirements (for example it does not support the source) drop down to a more customizable layer such as declarative pipelines or Structured Streaming."
+        correct: true
+      - id: b
+        text: "Always begin with Structured Streaming for maximum control, then migrate to a managed connector only if performance is unacceptable."
+        correct: false
+      - id: c
+        text: "Choose the layer strictly by data volume: under a million files use Structured Streaming, otherwise use a managed connector regardless of whether one exists for the source."
+        correct: false
+      - id: d
+        text: "Default to writing a custom JDBC notebook for every source because it offers the broadest source coverage with the least Databricks-specific configuration."
+        correct: false
+    answer: [a]
+    explanation: "Databricks guidance is to start with the most managed layer and only drop down to a more customizable layer (declarative pipelines, then Structured Streaming) when the managed option cannot meet the requirements, such as when no managed connector supports the source. Beginning with Structured Streaming by default inverts the recommendation, which favors the most managed option first to minimize maintenance, so that is wrong. Selecting purely on a volume threshold and ignoring whether a managed connector even exists for the source misstates the rule; the primary driver is whether the managed layer can satisfy the requirements, not a single volume cutoff. Defaulting to a custom JDBC notebook for every source maximizes hand-maintained code and contradicts the start-managed-first principle, so it is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion"
+      - "https://docs.databricks.com/aws/en/ingestion/overview"
+    tags: [lakeflow-connect, ingestion-strategy, managed-connector, prioritization]
+    source: original
+
+  - id: dbx-de-0130
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Custom REST ingestion with Lakeflow Jobs"
+    difficulty: medium
+    question: "A niche internal HR system exposes only a custom REST API, and no Lakeflow Connect managed connector exists for it. You must pull data daily and land it in Unity Catalog. Which approach is the most appropriate given the constraints?"
+    options:
+      - id: a
+        text: "In a notebook, call the REST API with a client library, write the responses into cloud storage or a UC table, and schedule the notebook as a task in a Lakeflow Job so the pull runs daily and is orchestrated and monitored."
+        correct: true
+      - id: b
+        text: "Force-fit the Salesforce managed connector by overriding its endpoint URL to point at the HR system's REST API."
+        correct: false
+      - id: c
+        text: "Use COPY INTO with the REST endpoint URL as the source location so the API is polled idempotently each day."
+        correct: false
+      - id: d
+        text: "Abandon ingestion into Unity Catalog because only sources with a prebuilt managed connector can be governed by Unity Catalog."
+        correct: false
+    answer: [a]
+    explanation: "When no managed connector supports a source, the documented fallback is to drop down to a more customizable layer: a notebook that uses a REST/JDBC client to fetch the data and land it in cloud storage or a UC table, scheduled and orchestrated as a task in a Lakeflow Job for daily, monitored runs. Overriding a Salesforce connector's endpoint to point at an unrelated HR API is not a supported configuration, so that option is wrong. COPY INTO loads files from cloud object storage into Delta tables and cannot poll an arbitrary REST endpoint as a source location, so that option is wrong. Unity Catalog can govern tables populated by any ingestion method, including custom notebook code, so claiming only prebuilt connectors can be governed is false."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/overview"
+      - "https://docs.databricks.com/aws/en/ingestion"
+    tags: [rest-api, lakeflow-jobs, orchestration, custom-ingestion, unity-catalog]
+    source: original
+
+  - id: dbx-de-0131
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Lakeflow Connect file source connectors"
+    difficulty: medium
+    question: "Business users drop semi-structured JSON files with deeply nested objects into a corporate SharePoint document library. You must ingest these into a Unity Catalog-governed table with minimal custom code, preserving the nested structure. Which approach best matches the situation?"
+    options:
+      - id: a
+        text: "Use a Lakeflow Connect file source connector for SharePoint, which ingests the structured and unstructured files into governed destination tables and preserves the semi-structured/nested content for downstream parsing."
+        correct: true
+      - id: b
+        text: "Manually download the files from SharePoint to a laptop, flatten the JSON in a spreadsheet, and upload CSVs through the UI."
+        correct: false
+      - id: c
+        text: "Point Auto Loader directly at the SharePoint site URL using the cloudFiles source to stream the documents."
+        correct: false
+      - id: d
+        text: "Use a database CDC connector with an ingestion gateway to capture changes from the SharePoint library's transaction log."
+        correct: false
+    answer: [a]
+    explanation: "Lakeflow Connect includes file source connectors that ingest structured and unstructured files from enterprise file storage such as SharePoint and Google Drive into Unity Catalog-governed destination tables, which is the low-code path that preserves the nested JSON for later parsing. Manually downloading, flattening in a spreadsheet, and uploading CSVs destroys the nested structure and is not a repeatable governed pipeline, so it is wrong. Auto Loader's cloudFiles source reads from cloud object storage paths, not a SharePoint site URL, so pointing it directly at SharePoint is wrong. A database CDC connector with an ingestion gateway targets relational databases via change logs; a SharePoint document library is a file source, not a database with a transaction log, so that option is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/"
+      - "https://docs.databricks.com/aws/en/ingestion/sharepoint"
+    tags: [lakeflow-connect, file-source-connector, sharepoint, json, nested-data]
+    source: original
+
+  - id: dbx-de-0132
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Lakeflow Connect standard connectors"
+    difficulty: hard
+    question: "You must ingest events from an Apache Kafka topic into Unity Catalog. You want a declarative, orchestrated, and monitored pipeline rather than managing fault tolerance and checkpoints by hand, but no fully managed SaaS connector applies to a self-hosted Kafka cluster. Which approach best fits?"
+    options:
+      - id: a
+        text: "Use the Kafka standard connector within Lakeflow Spark Declarative Pipelines, which offers a more managed experience than raw Structured Streaming while still supporting the message-bus source into governed streaming tables."
+        correct: true
+      - id: b
+        text: "Configure a managed SaaS connector for Kafka through a Unity Catalog connection, since Kafka is one of the prebuilt managed SaaS sources."
+        correct: false
+      - id: c
+        text: "Schedule COPY INTO to read directly from the Kafka topic offsets into a Delta table every few minutes."
+        correct: false
+      - id: d
+        text: "Use Auto Loader's cloudFiles source pointed at the Kafka broker host to incrementally read topic partitions as files."
+        correct: false
+    answer: [a]
+    explanation: "Message buses such as Apache Kafka are served by standard connectors, which can run in Structured Streaming for full customization or in Lakeflow Spark Declarative Pipelines for a more managed, declarative, orchestrated, and monitored experience into governed streaming tables; the declarative-pipeline layer matches the stated preference. Kafka is a standard/message-bus connector, not a prebuilt managed SaaS connector, so configuring a managed SaaS Kafka connector is wrong. COPY INTO loads files from cloud object storage into Delta tables and cannot read Kafka topic offsets, so that option is wrong. Auto Loader's cloudFiles source ingests files from cloud object storage, not partitions streamed from a Kafka broker, so pointing it at the broker host is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion"
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/"
+    tags: [lakeflow-connect, standard-connector, kafka, declarative-pipelines, streaming]
+    source: original
+
+  - id: dbx-de-0133
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Batch vs streaming vs incremental loading"
+    difficulty: medium
+    question: "A nightly job currently runs COPY INTO over thousands of new files arriving each day in a cloud storage path, but file counts are growing toward millions per day and the team wants automatic schema-drift detection and continuous, incremental processing into a Unity Catalog table. Which change best addresses the new requirements?"
+    options:
+      - id: a
+        text: "Switch to Auto Loader, which scales to millions of files, incrementally processes new files as they arrive, and can detect schema drift and rescue unexpected data."
+        correct: true
+      - id: b
+        text: "Keep COPY INTO but raise the schedule to run every minute, since COPY INTO is the recommended choice for millions of files."
+        correct: false
+      - id: c
+        text: "Replace it with a database CDC connector and ingestion gateway, since CDC is required to scale beyond a few thousand files."
+        correct: false
+      - id: d
+        text: "Read the entire directory with a full-refresh batch read each night and overwrite the destination table to guarantee correctness."
+        correct: false
+    answer: [a]
+    explanation: "Auto Loader is recommended when files arrive in the order of millions over time; it incrementally and efficiently processes new files as they land, scales to near-real-time ingestion of millions of files per hour, and detects schema drift while rescuing data that would otherwise be lost, which matches every new requirement. COPY INTO is the recommended tool for thousands of files, not millions, and running it every minute does not give it Auto Loader's scaling or schema-drift handling, so that option is wrong. A database CDC connector with an ingestion gateway is for relational database sources, not for files landing in cloud object storage, so it does not apply here. A full-refresh overwrite of the whole directory each night discards the incremental processing the team wants and grows more expensive as volume rises, so it is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/"
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/"
+    tags: [auto-loader, copy-into, incremental, schema-evolution, batch-vs-streaming]
+    source: original
+
+  - id: dbx-de-0134
+    type: single_choice
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Query-based connectors"
+    difficulty: hard
+    question: "You must periodically ingest data from a legacy PostgreSQL reporting replica, but the DBA will not enable change data capture or logical replication on it, and you cannot deploy a gateway against the transaction log. You still want a managed Lakeflow Connect experience landing into Unity Catalog. Which approach is most appropriate?"
+    options:
+      - id: a
+        text: "Use a Lakeflow Connect query-based connector, which queries the source database directly on a schedule without requiring CDC configuration, and lands results into governed tables."
+        correct: true
+      - id: b
+        text: "Use the database CDC connector anyway and accept that it will silently fall back to query mode when CDC is disabled."
+        correct: false
+      - id: c
+        text: "Use a managed SaaS connector, since PostgreSQL is classified as a SaaS application source in Lakeflow Connect."
+        correct: false
+      - id: d
+        text: "Use Auto Loader with a JDBC cloudFiles format to poll the PostgreSQL replica without CDC."
+        correct: false
+    answer: [a]
+    explanation: "A query-based connector ingests data by querying the source database directly on a schedule, without requiring change data capture configuration, which is exactly the constraint here (no CDC, no gateway against the transaction log) while still providing a managed Lakeflow Connect experience into governed tables. The CDC database connector explicitly depends on change capture and a gateway and does not silently degrade to query mode, so relying on that fallback is wrong. PostgreSQL is a relational database, not a SaaS application source, so calling it a SaaS connector mischaracterizes the connector type. Auto Loader ingests files from cloud object storage and has no JDBC cloudFiles format for polling a database, so that option is wrong."
+    references:
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/"
+      - "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/cdc-overview"
+    tags: [lakeflow-connect, query-based-connector, postgresql, no-cdc, unity-catalog]
+    source: original

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSession } from '../context/SessionContext'
-import { getSession, getExerciseCount } from '../api'
+import { getSession, getExerciseCount, getMockSession } from '../api'
 import { DOMAINS_BY_EXAM, DIFFICULTIES, EXAMS, DEFAULT_EXAM } from '../constants'
 
 /**
@@ -17,6 +17,10 @@ export default function SessionSelect() {
   const [error, setError] = useState(null)
   const [count, setCount] = useState(null)
   const [countLoading, setCountLoading] = useState(false)
+  // Optional session countdown (Story 8.1). Off by default — when off, the
+  // session starts exactly as the untimed runner does. Default 20 minutes.
+  const [timed, setTimed] = useState(false)
+  const [durationMinutes, setDurationMinutes] = useState(20)
 
   // The Domain dropdown is scoped to the selected exam's domains.
   const domainOptions = DOMAINS_BY_EXAM[exam] ?? []
@@ -66,9 +70,40 @@ export default function SessionSelect() {
         setError('No exercises match those filters. Try broadening your selection.')
         return
       }
-      startSession(sessionEntries)
+      // Timer off => start exactly as the untimed runner (no options). Timer on
+      // => thread the chosen duration through to the session.
+      if (timed && durationMinutes > 0) {
+        startSession(sessionEntries, { timerDurationSeconds: durationMinutes * 60 })
+      } else {
+        startSession(sessionEntries)
+      }
     } catch (e) {
       setError(e.message || 'Failed to load exercises. Is the backend running?')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Start a full-length, domain-weighted Mock Exam for the selected exam
+  // (Story 8.4 / FR-27). Ignores the Domain/difficulty filters — the mock is
+  // exam-scoped and weighted server-side — and runs under the exam's real
+  // countdown (durationMinutes stamped by the builder), auto-submitting at zero.
+  async function handleMockStart() {
+    setLoading(true)
+    setError(null)
+    try {
+      const { entries, durationMinutes } = await getMockSession({ exam })
+      if (!entries || entries.length === 0) {
+        setError('No mock exam is available for this exam yet.')
+        return
+      }
+      startSession(entries, {
+        mode: 'mock',
+        durationMinutes,
+        timerDurationSeconds: durationMinutes ? durationMinutes * 60 : null,
+      })
+    } catch (e) {
+      setError(e.message || 'Failed to load the mock exam. Is the backend running?')
     } finally {
       setLoading(false)
     }
@@ -132,6 +167,38 @@ export default function SessionSelect() {
           </select>
         </div>
 
+        {/* Optional countdown (Story 8.1) — off by default. */}
+        <div>
+          <label htmlFor="timed" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              id="timed"
+              type="checkbox"
+              checked={timed}
+              onChange={(e) => setTimed(e.target.checked)}
+              className="rounded border-gray-300 text-databricks-500 focus:outline-none focus:ring-2 focus:ring-databricks-500"
+            />
+            Timed session
+          </label>
+          {timed && (
+            <div className="mt-2">
+              <label
+                htmlFor="duration"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Duration (minutes)
+              </label>
+              <input
+                id="duration"
+                type="number"
+                min="1"
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-databricks-500"
+              />
+            </div>
+          )}
+        </div>
+
         {count !== null && !countLoading && (
           <p
             className={`text-sm ${count === 0 ? 'text-amber-700' : 'text-gray-600'}`}
@@ -157,6 +224,25 @@ export default function SessionSelect() {
         >
           {loading ? 'Loading…' : 'Start Session'}
         </button>
+
+        {/* Mock Exam (Story 8.4 / FR-27): a full-length, domain-weighted,
+            time-boxed run for the selected exam. Ignores the Domain/difficulty
+            filters — the set is exam-scoped and weighted server-side. */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={handleMockStart}
+            disabled={loading}
+            className="w-full bg-white border border-databricks-500 text-databricks-600 hover:bg-databricks-50 disabled:opacity-50 font-medium py-2.5 rounded transition-colors"
+          >
+            {loading
+              ? 'Loading…'
+              : `Mock Exam (${exam === EXAMS.PROFESSIONAL ? '≈59Q / 120 min' : '≈45Q / 90 min'})`}
+          </button>
+          <p className="mt-1.5 text-xs text-gray-500">
+            Full-length, timed, domain-weighted — a realistic readiness check.
+          </p>
+        </div>
       </div>
     </div>
   )

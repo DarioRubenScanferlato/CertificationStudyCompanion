@@ -31,19 +31,24 @@ class Difficulty(str, Enum):
 class Domain(str, Enum):
     """Exam domain.
 
-    Associate has 5 domains; Professional has 10 (2026 blueprint, verified
-    against databricks.com/learn/certification/data-engineer-professional).
-    ``DATA_GOVERNANCE`` is shared by both exams.
+    Associate has 7 sections (May 2026 blueprint, verified against the official
+    "Databricks Certified Data Engineer Associate Exam Guide - May 2026"), and
+    Professional has 10 domains (2026 blueprint, verified against
+    databricks.com/learn/certification/data-engineer-professional). The two
+    exams now use independent taxonomies (the Associate exam was restructured in
+    May 2026); ``DATA_GOVERNANCE`` belongs to the Professional exam only.
     """
 
-    # Associate domains (5 total)
-    LAKEHOUSE_PLATFORM = "Databricks Lakehouse Platform"
-    ELT_SPARK = "ELT with Spark SQL and Python"
-    INCREMENTAL_PROCESSING = "Incremental Data Processing"
-    PRODUCTION_PIPELINES = "Production Pipelines"
-    DATA_GOVERNANCE = "Data Governance"  # shared with Professional
+    # Associate sections (May 2026 blueprint, 7 total)
+    INTELLIGENCE_PLATFORM = "Databricks Intelligence Platform"
+    DATA_INGESTION_LOADING = "Data Ingestion and Loading"
+    DATA_TRANSFORMATION_MODELING = "Data Transformation and Modeling"
+    LAKEFLOW_JOBS = "Working with Lakeflow Jobs"
+    CICD = "Implementing CI/CD"
+    TROUBLESHOOTING_MONITORING_OPTIMIZATION = "Troubleshooting, Monitoring, and Optimization"
+    GOVERNANCE_SECURITY = "Governance and Security"
 
-    # Professional domains (2026 blueprint, 10 total; Data Governance shared above)
+    # Professional domains (2026 blueprint, 10 total)
     DEV_CODE_PROCESSING = "Developing Code for Data Processing"
     DATA_INGESTION = "Data Ingestion & Acquisition"
     DATA_TRANSFORMATION = "Data Transformation, Cleansing, and Quality"
@@ -53,6 +58,7 @@ class Domain(str, Enum):
     DATA_SECURITY_COMPLIANCE = "Ensuring Data Security and Compliance"
     DEBUGGING_DEPLOYING = "Debugging and Deploying"
     DATA_MODELLING = "Data Modelling"
+    DATA_GOVERNANCE = "Data Governance"
 
 
 class Option(BaseModel):

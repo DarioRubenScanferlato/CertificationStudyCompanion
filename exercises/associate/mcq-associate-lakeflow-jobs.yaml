@@ -1,0 +1,208 @@
+# Databricks DE Certification Study Companion - MCQ: Lakeflow Jobs
+# Exam: Data Engineer Associate (May 2026 blueprint)
+# Section: "Working with Lakeflow Jobs" (16%)
+# Generated: 2026-06-07
+# Total Questions: 7 (dbx-de-0135 .. dbx-de-0141)
+# Focus: trigger types (scheduled / file-arrival / table-update / continuous),
+#        control flow (If/else condition, Run if, For each), task types &
+#        DAG dependencies, monitoring job status via the task graph.
+# Docs consulted (docs.databricks.com, aws/en):
+#   /jobs/triggers, /jobs/file-arrival-triggers, /jobs/trigger-table-update,
+#   /jobs/control-flow, /jobs/if-else, /jobs/run-if, /jobs/for-each, /jobs/pipeline
+
+exercises:
+  - id: dbx-de-0135
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: medium
+    subdomain: "Trigger types"
+    question: "A data engineer must run a Lakeflow Job that ingests partner CSV extracts. The partner uploads files to a Unity Catalog external location at unpredictable times, sometimes several times an hour and sometimes not for a full day. The job must run promptly when data lands but should not waste compute when nothing has arrived. Which trigger configuration best fits these constraints?"
+    options:
+      - id: a
+        text: "Configure a file arrival trigger on the Unity Catalog external location so the job runs only when new files are detected there."
+        correct: true
+      - id: b
+        text: "Configure a scheduled trigger that runs the job every 15 minutes around the clock so it never misses an upload."
+        correct: false
+      - id: c
+        text: "Configure a continuous trigger so a new run starts immediately each time the previous run finishes."
+        correct: false
+      - id: d
+        text: "Configure a table update trigger that monitors the partner's source object storage path for changes."
+        correct: false
+    answer: [a]
+    explanation: "A file arrival trigger watches a Unity Catalog external location (or volume) and makes a best-effort check about once a minute, starting a run only when new files appear, which matches data that arrives irregularly without burning compute while idle. The fixed-interval schedule wastes compute on the many empty cycles when no file has landed and still adds up to 15 minutes of latency when data does arrive. The continuous trigger keeps the job perpetually running back-to-back, which is the opposite of the idle-when-empty requirement and is designed for always-on streaming, not sporadic file ingestion. The table update trigger reacts to updates of monitored tables, not to raw files landing in a storage path, so it cannot observe the incoming CSVs."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/file-arrival-triggers"
+      - "https://docs.databricks.com/aws/en/jobs/triggers"
+    tags: [triggers, file-arrival, unity-catalog, ingestion]
+    source: original
+
+  - id: dbx-de-0136
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: hard
+    subdomain: "Trigger types"
+    question: "A reporting job aggregates two upstream Delta tables, dim_customer and fact_sales, which are refreshed independently by separate pipelines. Business requires the report to recompute only after BOTH upstream tables have received fresh data, and never more than once per hour even if the tables update many times. Which approach satisfies these requirements with the least custom code?"
+    options:
+      - id: a
+        text: "Use a table update trigger that monitors both tables with the 'All tables are updated' option, and set a minimum time between triggers of one hour."
+        correct: true
+      - id: b
+        text: "Use a table update trigger that monitors both tables with the 'Any table is updated' option so the report stays as fresh as possible."
+        correct: false
+      - id: c
+        text: "Use a file arrival trigger on the storage paths of both tables so the report runs whenever either table's files change."
+        correct: false
+      - id: d
+        text: "Use a scheduled trigger that runs hourly and rely on the schedule alone to ensure both tables are current."
+        correct: false
+    answer: [a]
+    explanation: "A table update trigger can monitor multiple tables, and the 'All tables are updated' choice fires only once every monitored table has received an update, satisfying the both-must-be-fresh rule; the optional minimum time between triggers enforces the at-most-once-per-hour cap. The 'Any table is updated' choice would fire as soon as either table changes, violating the requirement that both be refreshed first. Pointing a file arrival trigger at the tables' storage paths is unreliable because managed Delta tables are not raw files dropped in a watched folder, and it could not express the 'both updated' logic. A plain hourly schedule has no awareness of whether either upstream table actually refreshed, so the report could run on stale data or recompute needlessly."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/trigger-table-update"
+      - "https://docs.databricks.com/aws/en/jobs/triggers"
+    tags: [triggers, table-update, dependencies, scheduling]
+    source: original
+
+  - id: dbx-de-0137
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: hard
+    subdomain: "Control flow"
+    question: "An ingestion task in a Lakeflow Job sets a task value named bad_records using dbutils.jobs.taskValues.set. The team wants the job to run an expensive quarantine-and-alert task only when bad_records is greater than zero, and otherwise proceed straight to publishing. Which control-flow construct expresses this branching decision based on the emitted value?"
+    options:
+      - id: a
+        text: "Add an If/else condition task whose expression compares the upstream task value (for example {{tasks.ingest.values.bad_records}} > 0), then attach the quarantine task to the true branch and the publish task to the false branch."
+        correct: true
+      - id: b
+        text: "Add the quarantine task with a Run if dependency of 'At least one failed' so it runs whenever the ingestion task reports bad records."
+        correct: false
+      - id: c
+        text: "Wrap the quarantine task in a For each task that iterates over the bad_records value to decide whether to run."
+        correct: false
+      - id: d
+        text: "Add a Run if dependency of 'All done' on the quarantine task so it always runs after ingestion and internally checks the count."
+        correct: false
+    answer: [a]
+    explanation: "The If/else condition task is designed for value-based branching: it evaluates a boolean expression built from task values, job parameters, or task parameters, then routes execution down a true branch or a false branch, which directly models 'quarantine when bad_records > 0, otherwise publish.' A Run if dependency of 'At least one failed' keys off task run status, not on an emitted numeric value, and a clean ingestion that simply found bad rows did not fail. The For each task loops a nested task over a list of inputs to fan out parallel work; it is not a conditional branch. A Run if of 'All done' merely lets the task run regardless of upstream status and pushes the decision into task code, which defeats the purpose of declarative branching the question asks for."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/if-else"
+      - "https://docs.databricks.com/aws/en/jobs/control-flow"
+    tags: [control-flow, if-else, taskvalues, branching]
+    source: original
+
+  - id: dbx-de-0138
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: medium
+    subdomain: "Control flow"
+    question: "A metadata-driven job must run the same notebook transformation against 40 different source tables whose names are stored in a list, passing one table name per execution and allowing up to 5 of them to run at the same time. The engineer wants to avoid manually creating 40 separate tasks. Which approach should be used?"
+    options:
+      - id: a
+        text: "Use a For each task that iterates over a JSON array of the 40 table names, runs the notebook as its nested task with {{input}} as a parameter, and set the concurrency to 5."
+        correct: true
+      - id: b
+        text: "Use an If/else condition task that checks the table list and branches once per table to the notebook."
+        correct: false
+      - id: c
+        text: "Create one notebook task and set the job's maximum concurrent runs to 40 so the same task processes all tables in parallel."
+        correct: false
+      - id: d
+        text: "Use a continuous trigger so the notebook task automatically re-runs once for each table in the list."
+        correct: false
+    answer: [a]
+    explanation: "The For each task runs a nested task in a loop over a JSON-formatted array of inputs, passing a different value per iteration via {{input}}, and lets you cap how many iterations run in parallel, which is exactly the fan-out over 40 table names with a concurrency of 5. An If/else condition task only evaluates a single boolean and branches true/false; it does not iterate over a list. Raising the job's maximum concurrent runs lets multiple independent runs of the whole job overlap but does not feed each run a distinct table name from the list. A continuous trigger simply restarts the job when a run ends; it has no notion of iterating through list elements."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/for-each"
+      - "https://docs.databricks.com/aws/en/jobs/control-flow"
+    tags: [control-flow, for-each, looping, metadata-driven]
+    source: original
+
+  - id: dbx-de-0139
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: hard
+    subdomain: "Control flow"
+    question: "In a Lakeflow Job, a cleanup task should run only when one or more of its three upstream load tasks have FAILED, so that it can roll back partial writes; if every load succeeds, the cleanup task must be skipped. Which Run if dependency setting on the cleanup task achieves this?"
+    options:
+      - id: a
+        text: "Set the Run if dependency to 'At least one failed' so the cleanup task runs when any upstream load fails and is excluded when all succeed."
+        correct: true
+      - id: b
+        text: "Set the Run if dependency to 'All done' so the cleanup task always runs after the loads regardless of their status."
+        correct: false
+      - id: c
+        text: "Set the Run if dependency to 'All failed' so the cleanup task runs only when every upstream load fails."
+        correct: false
+      - id: d
+        text: "Set the Run if dependency to 'All succeeded' so the cleanup task runs after the loads complete."
+        correct: false
+    answer: [a]
+    explanation: "The 'At least one failed' condition runs the downstream task when one or more dependencies fail and marks it Excluded when none fail, which precisely matches 'roll back when any load failed, skip when all succeed.' 'All done' would run the cleanup on every outcome, including fully successful runs, which is wrong. 'All failed' only triggers when every single load fails, so a job where two of three loads failed would skip the needed cleanup. 'All succeeded' (the default) is the inverse of what is wanted: it runs only when nothing failed, exactly the case in which no rollback is needed."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/run-if"
+      - "https://docs.databricks.com/aws/en/jobs/control-flow"
+    tags: [control-flow, run-if, dependencies, error-handling]
+    source: original
+
+  - id: dbx-de-0140
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: medium
+    subdomain: "Task types and dependencies"
+    question: "A Lakeflow Job must (1) trigger an existing triggered Lakeflow Spark Declarative Pipeline to refresh curated tables, and only after it completes (2) refresh a SQL dashboard for stakeholders. The engineer wants Databricks to orchestrate these steps natively rather than hand-coding the sequencing. How should the job be built?"
+    options:
+      - id: a
+        text: "Add a pipeline task that runs the declarative pipeline, then add a dashboard task that depends on the pipeline task so it runs only after the pipeline finishes."
+        correct: true
+      - id: b
+        text: "Put both steps in a single notebook task that first calls the pipeline's REST API and then refreshes the dashboard programmatically."
+        correct: false
+      - id: c
+        text: "Add two tasks with no dependency between them and rely on the alphabetical task order to run the pipeline before the dashboard."
+        correct: false
+      - id: d
+        text: "Use a continuous trigger on a dashboard task so the dashboard keeps refreshing until the pipeline's tables are current."
+        correct: false
+    answer: [a]
+    explanation: "Lakeflow Jobs provide first-class task types: a pipeline task launches a triggered Lakeflow Spark Declarative Pipeline, and a dashboard task refreshes a dashboard; declaring the dashboard task's 'Depends on' the pipeline task builds the DAG so the dashboard runs only after the pipeline completes. Cramming both steps into one notebook that calls REST APIs abandons native orchestration, loses per-step retry and lineage in the task graph, and is the hand-coding the requirement says to avoid. Two tasks with no dependency run in parallel; task ordering is governed by declared dependencies, not by name, so the dashboard could refresh before the tables are ready. A continuous trigger keeps restarting a run and does not model 'run the dashboard once after the pipeline succeeds.'"
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/pipeline"
+      - "https://docs.databricks.com/aws/en/jobs/control-flow"
+    tags: [task-types, pipeline-task, dashboard-task, dependencies, dag]
+    source: original
+
+  - id: dbx-de-0141
+    type: single_choice
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    difficulty: medium
+    subdomain: "Monitoring and DAG"
+    question: "An on-call engineer opens a failed multi-task Lakeflow Job. The runs page shows the task graph with one early ingestion task in a failed state, several downstream transformation and publish tasks marked 'Upstream failed,' and no error logs on those downstream tasks. What is the most accurate interpretation, and the right next step?"
+    options:
+      - id: a
+        text: "The downstream tasks never executed because their dependency was not satisfied; investigate the failed ingestion task's logs first, since it is the upstream blocker in the DAG."
+        correct: true
+      - id: b
+        text: "Every task with 'Upstream failed' independently failed; collect and triage error logs from each of them in parallel."
+        correct: false
+      - id: c
+        text: "The 'Upstream failed' tasks were skipped intentionally by a Run if condition and require no investigation."
+        correct: false
+      - id: d
+        text: "The job graph contains a cycle, so the downstream tasks deadlocked; restructure the dependencies to break the loop."
+        correct: false
+    answer: [a]
+    explanation: "In the task graph, an 'Upstream failed' state means a task's dependency did not satisfy its run-if condition, so the task never started, which is why those downstream tasks have no error logs; the real cause is the single failed upstream ingestion task, so its logs are where to look first. The claim that each 'Upstream failed' task independently failed is wrong because they did not run at all. Nothing indicates an intentional Run if skip; 'Upstream failed' is a propagated blockage, not an 'Excluded' state, and it does warrant investigation of the blocker. A Lakeflow Jobs task graph is a Directed Acyclic Graph by construction, so a dependency cycle causing a deadlock is not possible."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/run-if"
+      - "https://docs.databricks.com/aws/en/jobs/control-flow"
+    tags: [monitoring, dag, run-if, troubleshooting]
+    source: original

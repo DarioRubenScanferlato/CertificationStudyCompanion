@@ -14,7 +14,7 @@ class TestMCQModel:
             id="dbx-de-0001",
             type=ExerciseType.SINGLE_CHOICE,
             exam=ExamType.ASSOCIATE,
-            domain=Domain.LAKEHOUSE_PLATFORM,
+            domain=Domain.INTELLIGENCE_PLATFORM,
             difficulty=Difficulty.EASY,
             question="What is Delta Lake?",
             options=[
@@ -37,7 +37,7 @@ class TestMCQModel:
             id="dbx-de-alt",
             type=ExerciseType.SINGLE_CHOICE,
             exam=ExamType.ASSOCIATE,
-            domain=Domain.LAKEHOUSE_PLATFORM,
+            domain=Domain.INTELLIGENCE_PLATFORM,
             difficulty=Difficulty.EASY,
             question="Which command creates a managed table?",
             options=[
@@ -58,7 +58,7 @@ class TestMCQModel:
                 id="dbx-de-few-distractors",
                 type=ExerciseType.SINGLE_CHOICE,
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.LAKEHOUSE_PLATFORM,
+                domain=Domain.INTELLIGENCE_PLATFORM,
                 difficulty=Difficulty.EASY,
                 question="Test?",
                 options=[
@@ -76,7 +76,7 @@ class TestMCQModel:
                 id="dbx-de-multi",
                 type=ExerciseType.MULTI_CHOICE,
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.ELT_SPARK,
+                domain=Domain.DATA_TRANSFORMATION_MODELING,
                 difficulty=Difficulty.MEDIUM,
                 question="Which are true? (Select all)",
                 options=[
@@ -96,7 +96,7 @@ class TestMCQModel:
                 id="dbx-de-dup",
                 type=ExerciseType.SINGLE_CHOICE,
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.LAKEHOUSE_PLATFORM,
+                domain=Domain.INTELLIGENCE_PLATFORM,
                 difficulty=Difficulty.EASY,
                 question="Which one?",
                 options=[
@@ -114,7 +114,7 @@ class TestMCQModel:
             MCQ(
                 id="test",
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.LAKEHOUSE_PLATFORM,
+                domain=Domain.INTELLIGENCE_PLATFORM,
                 difficulty=Difficulty.EASY,
                 question="Test?",
                 options=[],
@@ -128,7 +128,7 @@ class TestMCQModel:
             MCQ(
                 id="test",
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.LAKEHOUSE_PLATFORM,
+                domain=Domain.INTELLIGENCE_PLATFORM,
                 difficulty=Difficulty.EASY,
                 question="Test?",
                 options=[
@@ -145,7 +145,7 @@ class TestMCQModel:
         mcq = MCQ(
             id="test",
             exam=ExamType.ASSOCIATE,
-            domain=Domain.LAKEHOUSE_PLATFORM,
+            domain=Domain.INTELLIGENCE_PLATFORM,
             difficulty=Difficulty.EASY,
             question="Test?",
             options=[
@@ -168,7 +168,7 @@ class TestCodeCompletionModel:
         cc = CodeCompletion(
             id="dbx-code-0001",
             exam=ExamType.ASSOCIATE,
-            domain=Domain.ELT_SPARK,
+            domain=Domain.DATA_TRANSFORMATION_MODELING,
             difficulty=Difficulty.EASY,
             language="pyspark",
             question="Read a Delta table",
@@ -186,7 +186,7 @@ class TestCodeCompletionModel:
             CodeCompletion(
                 id="test",
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.ELT_SPARK,
+                domain=Domain.DATA_TRANSFORMATION_MODELING,
                 difficulty=Difficulty.EASY,
                 language="pyspark",
                 question="Test?",
@@ -201,7 +201,7 @@ class TestCodeCompletionModel:
             CodeCompletion(
                 id="test",
                 exam=ExamType.ASSOCIATE,
-                domain=Domain.ELT_SPARK,
+                domain=Domain.DATA_TRANSFORMATION_MODELING,
                 difficulty=Difficulty.EASY,
                 language="pyspark",
                 question="Test?",
@@ -215,7 +215,7 @@ class TestCodeCompletionModel:
         cc = CodeCompletion(
             id="dbx-code-0002",
             exam=ExamType.ASSOCIATE,
-            domain=Domain.ELT_SPARK,
+            domain=Domain.DATA_TRANSFORMATION_MODELING,
             difficulty=Difficulty.MEDIUM,
             language="sql",
             question="Filter rows",
@@ -231,20 +231,23 @@ class TestDomainEnum:
     """Tests for Domain enum."""
 
     def test_all_domains_present(self):
-        """All 5 Associate + 10 Professional domains are defined.
+        """All 7 Associate sections + 10 Professional domains are defined.
 
-        Data Governance is shared by both exams, so the enum has 14 distinct
-        members (5 + 10 - 1 shared).
+        The Associate exam was restructured in May 2026 into 7 sections and now
+        uses an independent taxonomy from Professional, so the enum has 17
+        distinct members (7 + 10).
         """
         domains = [d.value for d in Domain]
-        assert len(domains) == 14
-        # Associate (5)
-        assert "Databricks Lakehouse Platform" in domains
-        assert "ELT with Spark SQL and Python" in domains
-        assert "Incremental Data Processing" in domains
-        assert "Production Pipelines" in domains
-        assert "Data Governance" in domains  # shared
-        # Professional (2026 blueprint; +9 new beyond the shared Data Governance)
+        assert len(domains) == 17
+        # Associate (May 2026 blueprint, 7 sections)
+        assert "Databricks Intelligence Platform" in domains
+        assert "Data Ingestion and Loading" in domains
+        assert "Data Transformation and Modeling" in domains
+        assert "Working with Lakeflow Jobs" in domains
+        assert "Implementing CI/CD" in domains
+        assert "Troubleshooting, Monitoring, and Optimization" in domains
+        assert "Governance and Security" in domains
+        # Professional (2026 blueprint, 10 domains)
         assert "Developing Code for Data Processing" in domains
         assert "Data Ingestion & Acquisition" in domains
         assert "Data Transformation, Cleansing, and Quality" in domains
@@ -254,13 +257,22 @@ class TestDomainEnum:
         assert "Ensuring Data Security and Compliance" in domains
         assert "Debugging and Deploying" in domains
         assert "Data Modelling" in domains
+        assert "Data Governance" in domains  # Professional-only
 
     def test_domain_values(self):
         """Test domain string values match blueprint."""
-        assert Domain.LAKEHOUSE_PLATFORM.value == "Databricks Lakehouse Platform"
-        assert Domain.ELT_SPARK.value == "ELT with Spark SQL and Python"
-        assert Domain.INCREMENTAL_PROCESSING.value == "Incremental Data Processing"
-        assert Domain.PRODUCTION_PIPELINES.value == "Production Pipelines"
+        # Associate (May 2026)
+        assert Domain.INTELLIGENCE_PLATFORM.value == "Databricks Intelligence Platform"
+        assert Domain.DATA_INGESTION_LOADING.value == "Data Ingestion and Loading"
+        assert Domain.DATA_TRANSFORMATION_MODELING.value == "Data Transformation and Modeling"
+        assert Domain.LAKEFLOW_JOBS.value == "Working with Lakeflow Jobs"
+        assert Domain.CICD.value == "Implementing CI/CD"
+        assert (
+            Domain.TROUBLESHOOTING_MONITORING_OPTIMIZATION.value
+            == "Troubleshooting, Monitoring, and Optimization"
+        )
+        assert Domain.GOVERNANCE_SECURITY.value == "Governance and Security"
+        # Professional
         assert Domain.DATA_GOVERNANCE.value == "Data Governance"
 
 
@@ -297,7 +309,7 @@ class TestExerciseFromYAML:
         mcq = MCQ(
             id="test",
             exam=ExamType.ASSOCIATE,
-            domain=Domain.LAKEHOUSE_PLATFORM,
+            domain=Domain.INTELLIGENCE_PLATFORM,
             difficulty=Difficulty.MEDIUM,
             question="Q?",
             options=[
@@ -323,7 +335,7 @@ class TestExerciseValidation:
         mcq = MCQ(
             id="dbx-json",
             exam=ExamType.ASSOCIATE,
-            domain=Domain.LAKEHOUSE_PLATFORM,
+            domain=Domain.INTELLIGENCE_PLATFORM,
             difficulty=Difficulty.EASY,
             question="Q?",
             options=[
@@ -337,5 +349,5 @@ class TestExerciseValidation:
         )
         json_data = mcq.dict()
         assert json_data["id"] == "dbx-json"
-        assert json_data["domain"] == "Databricks Lakehouse Platform"  # Enum value
+        assert json_data["domain"] == "Databricks Intelligence Platform"  # Enum value
         assert json_data["type"] == "single_choice"  # Enum value

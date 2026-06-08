@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSession } from '../context/SessionContext'
 import { getSessionByIds } from '../api'
+import { PASS_THRESHOLD } from '../constants'
 
 /**
  * Build overall and per-domain score breakdowns from the session feedback.
@@ -51,7 +52,7 @@ export function computeResults(exercises, feedback, questionState = {}) {
 }
 
 export default function Summary() {
-  const { exercises, feedback, questionState, startSession, reset } = useSession()
+  const { exercises, feedback, questionState, startSession, reset, mode } = useSession()
   const { correct, answered, total, byDomain, skipped, unanswered } = computeResults(
     exercises,
     feedback,
@@ -60,6 +61,15 @@ export default function Summary() {
   // Score is over the answered subset (ended-early summaries exclude skipped /
   // unanswered from the denominator shown).
   const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0
+
+  // Mock Exam (Story 8.4 / FR-27): an exam-style result. Unlike practice, a mock
+  // scores over the FULL set (unanswered/skipped count against you, as on the
+  // real exam) and is compared to the ~70% pass-bar heuristic — guidance, not a
+  // guarantee. Practice summaries are unchanged.
+  const isMock = mode === 'mock'
+  const examPct = total > 0 ? Math.round((correct / total) * 100) : 0
+  const passThresholdPct = Math.round(PASS_THRESHOLD * 100)
+  const onTrack = total > 0 && examPct >= passThresholdPct
 
   // Exercises answered incorrectly, resolved against retained feedback only.
   const missed = exercises.filter((ex) => feedback[ex.exerciseId]?.correct === false)
@@ -96,7 +106,58 @@ export default function Summary() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Session complete</h2>
+      <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+        {isMock ? 'Mock exam results' : 'Session complete'}
+      </h2>
+
+      {/* Exam-style readiness banner (mock only): overall vs the ~70% bar. */}
+      {isMock && (
+        <div
+          data-testid="mock-result-banner"
+          className={`rounded-lg p-5 mb-6 border ${
+            onTrack
+              ? 'bg-green-50 border-green-200'
+              : 'bg-red-50 border-red-200'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p
+                className={`text-sm font-semibold ${
+                  onTrack ? 'text-green-800' : 'text-red-800'
+                }`}
+              >
+                {onTrack ? 'On track' : 'Below the pass bar'}{' '}
+                <span aria-hidden="true">{onTrack ? '✓' : '✗'}</span>
+              </p>
+              <p className="text-xs text-gray-600 mt-1">
+                {examPct}% correct ({correct}/{total}) vs a ~{passThresholdPct}% target — study
+                guidance, not a guarantee of passing the exam.
+              </p>
+            </div>
+            <span
+              className={`text-4xl font-bold shrink-0 ${
+                onTrack ? 'text-green-700' : 'text-red-700'
+              }`}
+            >
+              {examPct}%
+            </span>
+          </div>
+          {/* Track with a threshold marker, mirroring the ReadinessIndicator. */}
+          <div className="relative mt-3 h-3 w-full rounded bg-gray-200">
+            <div
+              className={`h-3 rounded ${onTrack ? 'bg-green-500' : 'bg-red-500'}`}
+              style={{ width: `${examPct}%` }}
+            />
+            <div
+              className="absolute top-0 h-3 w-0.5 bg-gray-700"
+              style={{ left: `${passThresholdPct}%` }}
+              aria-hidden="true"
+              data-testid="mock-threshold-marker"
+            />
+          </div>
+        </div>
+      )}
 
       {nothingGraded ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 text-center">

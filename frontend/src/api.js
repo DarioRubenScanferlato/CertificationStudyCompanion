@@ -103,6 +103,34 @@ export async function getSession({ exam, domain, difficulty } = {}) {
 }
 
 /**
+ * Start a full-length, domain-weighted Mock Exam scoped to one exam (FR-27).
+ * Calls GET /api/sessions?mode=mock&exam=<exam>. The builder ignores
+ * unseen-first (a mock must be representative, may repeat seen), never mixes
+ * exams, and stamps the exam's real `durationMinutes` (Associate 90, Pro 120).
+ * The response carries `durationMinutes` at the top level (the practice
+ * getSession does not) — the runner needs it to seed the countdown.
+ *
+ * @param {object} args
+ * @param {string} args.exam - exam scope ('associate' | 'professional'); required
+ * @returns {Promise<{entries: Array, durationMinutes: number|null}>}
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function getMockSession({ exam } = {}) {
+  const params = new URLSearchParams()
+  params.append('mode', 'mock')
+  if (exam) params.append('exam', exam)
+  const result = await apiRequest(`/api/sessions?${params.toString()}`)
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to load mock exam', null, result)
+  }
+  return {
+    entries: Array.isArray(result.data) ? result.data : [],
+    durationMinutes:
+      typeof result.durationMinutes === 'number' ? result.durationMinutes : null,
+  }
+}
+
+/**
  * Replay a session from an explicit set of exercise ids (Summary review/replay).
  * Calls POST /api/sessions {exerciseIds}; the backend re-samples options and
  * re-randomizes order on every call, so replays stay fresh (FR-20/21). Unknown
@@ -156,18 +184,25 @@ export async function getExerciseCount({ exam, domain, difficulty } = {}) {
  * @param {string} args.exerciseId
  * @param {string[]} args.displayedOptionIds - the option ids that were shown
  * @param {string} args.selectedId - the option id the user chose
+ * @param {number} [args.timeTakenMs] - per-question elapsed time in ms (FR-28).
+ *   Optional/nullable per the backend contract; only sent when a finite number
+ *   so untracked submits stay byte-for-byte unchanged.
  * @returns {Promise<{correct, correctOptionId, explanation, references}>}
  * @throws {APIError} on network/parse error or when the API reports failure
  */
-export async function submitFeedback({ exerciseId, displayedOptionIds, selectedId }) {
+export async function submitFeedback({ exerciseId, displayedOptionIds, selectedId, timeTakenMs }) {
+  const body = {
+    exerciseId,
+    displayedOptionIds,
+    selectedId,
+    type: 'mcq',
+  }
+  if (Number.isFinite(timeTakenMs)) {
+    body.timeTakenMs = timeTakenMs
+  }
   const result = await apiRequest('/api/feedback', {
     method: 'POST',
-    body: JSON.stringify({
-      exerciseId,
-      displayedOptionIds,
-      selectedId,
-      type: 'mcq',
-    }),
+    body: JSON.stringify(body),
   })
   if (!result.success) {
     throw new APIError(result.error || 'Failed to grade answer', null, result)

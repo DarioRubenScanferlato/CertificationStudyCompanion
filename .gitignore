@@ -70,3 +70,11 @@ Thumbs.db
 
 # Local SQLite attempt store (AR-16 / Story 7.1)
 backend/data/
+
+# Test coverage reports (generated)
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+backend/htmlcov/
+**/coverage/

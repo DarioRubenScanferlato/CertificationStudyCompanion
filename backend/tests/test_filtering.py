@@ -16,8 +16,8 @@ class TestDomainFiltering:
     """Test filtering by domain."""
 
     def test_filter_by_databricks_lakehouse_platform(self, client):
-        """Test filtering by Databricks Lakehouse Platform domain."""
-        response = client.get("/api/exercises?domain=Databricks%20Lakehouse%20Platform")
+        """Test filtering by Databricks Intelligence Platform domain."""
+        response = client.get("/api/exercises?domain=Databricks%20Intelligence%20Platform")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -26,11 +26,11 @@ class TestDomainFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Databricks Lakehouse Platform"
+                assert exercise["domain"] == "Databricks Intelligence Platform"
 
     def test_filter_by_elt_spark(self, client):
-        """Test filtering by ELT with Spark SQL and Python domain."""
-        response = client.get("/api/exercises?domain=ELT%20with%20Spark%20SQL%20and%20Python")
+        """Test filtering by Data Transformation and Modeling domain."""
+        response = client.get("/api/exercises?domain=Data%20Transformation%20and%20Modeling")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -38,11 +38,11 @@ class TestDomainFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "ELT with Spark SQL and Python"
+                assert exercise["domain"] == "Data Transformation and Modeling"
 
     def test_filter_by_incremental_processing(self, client):
-        """Test filtering by Incremental Data Processing domain."""
-        response = client.get("/api/exercises?domain=Incremental%20Data%20Processing")
+        """Test filtering by Data Ingestion and Loading domain."""
+        response = client.get("/api/exercises?domain=Data%20Ingestion%20and%20Loading")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -50,11 +50,11 @@ class TestDomainFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Incremental Data Processing"
+                assert exercise["domain"] == "Data Ingestion and Loading"
 
     def test_filter_by_production_pipelines(self, client):
-        """Test filtering by Production Pipelines domain."""
-        response = client.get("/api/exercises?domain=Production%20Pipelines")
+        """Test filtering by Working with Lakeflow Jobs domain."""
+        response = client.get("/api/exercises?domain=Working%20with%20Lakeflow%20Jobs")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -62,7 +62,7 @@ class TestDomainFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Production Pipelines"
+                assert exercise["domain"] == "Working with Lakeflow Jobs"
 
     def test_filter_by_data_governance(self, client):
         """Test filtering by Data Governance domain."""
@@ -307,7 +307,7 @@ class TestCombinedFiltering:
     def test_filter_by_domain_and_difficulty(self, client):
         """Test combined filtering: domain + difficulty."""
         response = client.get(
-            "/api/exercises?domain=Databricks%20Lakehouse%20Platform&difficulty=easy"
+            "/api/exercises?domain=Databricks%20Intelligence%20Platform&difficulty=easy"
         )
         assert response.status_code == 200
         data = response.json()
@@ -316,13 +316,13 @@ class TestCombinedFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Databricks Lakehouse Platform"
+                assert exercise["domain"] == "Databricks Intelligence Platform"
                 assert exercise["difficulty"] == "easy"
 
     def test_filter_by_domain_and_exam(self, client):
         """Test combined filtering: domain + exam."""
         response = client.get(
-            "/api/exercises?domain=Databricks%20Lakehouse%20Platform&exam=associate"
+            "/api/exercises?domain=Databricks%20Intelligence%20Platform&exam=associate"
         )
         assert response.status_code == 200
         data = response.json()
@@ -331,13 +331,13 @@ class TestCombinedFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Databricks Lakehouse Platform"
+                assert exercise["domain"] == "Databricks Intelligence Platform"
                 assert exercise["exam"] == "associate"
 
     def test_filter_by_domain_difficulty_and_exam(self, client):
         """Test combined filtering: domain + difficulty + exam."""
         response = client.get(
-            "/api/exercises?domain=Databricks%20Lakehouse%20Platform&difficulty=easy&exam=associate"
+            "/api/exercises?domain=Databricks%20Intelligence%20Platform&difficulty=easy&exam=associate"
         )
         assert response.status_code == 200
         data = response.json()
@@ -346,14 +346,14 @@ class TestCombinedFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Databricks Lakehouse Platform"
+                assert exercise["domain"] == "Databricks Intelligence Platform"
                 assert exercise["difficulty"] == "easy"
                 assert exercise["exam"] == "associate"
 
     def test_filter_by_all_parameters(self, client):
         """Test combined filtering: all parameters."""
         response = client.get(
-            "/api/exercises?domain=Databricks%20Lakehouse%20Platform&difficulty=easy&exam=associate&exercise_type=single_choice"
+            "/api/exercises?domain=Databricks%20Intelligence%20Platform&difficulty=easy&exam=associate&exercise_type=single_choice"
         )
         assert response.status_code == 200
         data = response.json()
@@ -362,7 +362,7 @@ class TestCombinedFiltering:
 
         if len(data["data"]) > 0:
             for exercise in data["data"]:
-                assert exercise["domain"] == "Databricks Lakehouse Platform"
+                assert exercise["domain"] == "Databricks Intelligence Platform"
                 assert exercise["difficulty"] == "easy"
                 assert exercise["exam"] == "associate"
                 assert exercise["type"] == "single_choice"
@@ -389,7 +389,7 @@ class TestResponseFormat:
 
     def test_response_format_with_filters(self, client):
         """Test response format with filters applied."""
-        response = client.get("/api/exercises?domain=Databricks%20Lakehouse%20Platform")
+        response = client.get("/api/exercises?domain=Databricks%20Intelligence%20Platform")
         assert response.status_code == 200
         data = response.json()
 
@@ -401,7 +401,7 @@ class TestResponseFormat:
     def test_exercise_fields_in_response(self, client):
         """Test that exercise objects have required fields."""
         response = client.get(
-            "/api/exercises?domain=Databricks%20Lakehouse%20Platform&difficulty=easy"
+            "/api/exercises?domain=Databricks%20Intelligence%20Platform&difficulty=easy"
         )
         assert response.status_code == 200
         data = response.json()
@@ -467,7 +467,7 @@ class TestEndpointValidation:
     def test_multiple_query_parameters(self, client):
         """Test endpoint accepts multiple query parameters."""
         response = client.get(
-            "/api/exercises?domain=Databricks%20Lakehouse%20Platform&difficulty=easy&exam=associate&exercise_type=single_choice"
+            "/api/exercises?domain=Databricks%20Intelligence%20Platform&difficulty=easy&exam=associate&exercise_type=single_choice"
         )
         assert response.status_code == 200
         data = response.json()

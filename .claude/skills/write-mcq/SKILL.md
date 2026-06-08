@@ -33,14 +33,18 @@ Each exercise is an item under a top-level `exercises:` list.
 | `tags` | recommended | Lowercase topic tags, e.g. `[delta, performance]`. |
 | `source` | optional | Provenance / anti-braindump flag. Defaults to `original`. |
 
-### Valid `domain` values (Associate exam — copy exactly)
-- `Databricks Lakehouse Platform`
-- `ELT with Spark SQL and Python`
-- `Incremental Data Processing`
-- `Production Pipelines`
-- `Data Governance`
+### Valid `domain` values (Associate exam, **May 2026 blueprint** — copy exactly)
+- `Databricks Intelligence Platform`
+- `Data Ingestion and Loading`
+- `Data Transformation and Modeling`
+- `Working with Lakeflow Jobs`
+- `Implementing CI/CD`
+- `Troubleshooting, Monitoring, and Optimization`
+- `Governance and Security`
 
-(Professional domains exist in the addendum §C but are commented out in `models.py`; author Associate unless asked otherwise.)
+> The Associate exam was restructured in the **May 2026** exam guide into these 7 sections (weights: Platform 6%, Ingestion & Loading 21%, Transformation & Modeling 22%, Lakeflow Jobs 16%, CI/CD 10%, Troubleshooting/Monitoring/Optimization 10%, Governance & Security 15%). These supersede the old 5-domain taxonomy. The official exam is **scenario-based** (situation + constraints → "Which approach/strategy/configuration…?"), not bare recall — author stems accordingly.
+
+(Professional domains are defined in `models.py` and used by the professional exercise files; author Associate unless asked otherwise.)
 
 ## Option Pool rules (PRD FR-19 / FR-20 — the core model)
 
@@ -72,7 +76,7 @@ Do **not** write questions from memory. For each topic/question:
   - id: dbx-de-0073
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Ingestion and Loading"
     subdomain: "Auto Loader"
     difficulty: medium
     question: "<the question text>"

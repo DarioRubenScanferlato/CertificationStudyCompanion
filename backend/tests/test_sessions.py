@@ -88,12 +88,12 @@ class TestSessionFiltering:
 
     def test_filter_by_domain_narrows_results(self, client):
         full = client.get("/api/sessions").json()["data"]
-        filtered = client.get("/api/sessions?domain=Data%20Governance").json()["data"]
+        filtered = client.get("/api/sessions?domain=Governance%20and%20Security").json()["data"]
 
         assert len(filtered) > 0
         assert len(filtered) < len(full)
         for entry in filtered:
-            assert entry["domain"] == "Data Governance"
+            assert entry["domain"] == "Governance and Security"
 
     def test_filter_by_difficulty(self, client):
         response = client.get("/api/sessions?difficulty=easy")
@@ -104,11 +104,11 @@ class TestSessionFiltering:
             assert entry["difficulty"] == "easy"
 
     def test_filter_is_case_insensitive(self, client):
-        lower = client.get("/api/sessions?domain=data%20governance").json()
+        lower = client.get("/api/sessions?domain=governance%20and%20security").json()
         assert lower["success"] is True
         assert len(lower["data"]) > 0
         for entry in lower["data"]:
-            assert entry["domain"] == "Data Governance"
+            assert entry["domain"] == "Governance and Security"
 
 
 class TestEmptyAndInvalid:
@@ -116,7 +116,7 @@ class TestEmptyAndInvalid:
 
     def test_unmatched_filter_returns_empty_success(self, client):
         # No exercises currently match professional+hard.
-        response = client.get("/api/sessions?domain=Data%20Governance&difficulty=hard")
+        response = client.get("/api/sessions?domain=Governance%20and%20Security&difficulty=hard")
         assert response.status_code == 200
         data = response.json()
         # If content happens to contain such combos this still must be a valid
@@ -125,7 +125,7 @@ class TestEmptyAndInvalid:
         assert data["error"] is None
         assert isinstance(data["data"], list)
         for entry in data["data"]:
-            assert entry["domain"] == "Data Governance"
+            assert entry["domain"] == "Governance and Security"
             assert entry["difficulty"] == "hard"
 
     def test_invalid_domain_returns_error(self, client):

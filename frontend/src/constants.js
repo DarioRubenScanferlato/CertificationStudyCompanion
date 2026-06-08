@@ -13,17 +13,26 @@ export const EXAMS = {
 export const DEFAULT_EXAM = EXAMS.ASSOCIATE
 
 /**
+ * ~70% pass-bar heuristic (FR-25/FR-27). Surfaced as study guidance — NOT a
+ * guarantee of passing the real certification. Mirrors the backend
+ * READINESS_THRESHOLD and the ReadinessIndicator fallback.
+ */
+export const PASS_THRESHOLD = 0.7
+
+/**
  * Domains scoped per exam (matches backend Domain enum).
- * Associate has 5 domains; Professional has 10 (2026 blueprint).
- * "Data Governance" is SHARED — it appears in BOTH lists.
+ * Associate has 7 sections (May 2026 blueprint); Professional has 10 (2026 blueprint).
+ * The two exams use independent taxonomies; "Data Governance" is Professional-only.
  */
 export const DOMAINS_BY_EXAM = {
   [EXAMS.ASSOCIATE]: [
-    'Databricks Lakehouse Platform',
-    'ELT with Spark SQL and Python',
-    'Incremental Data Processing',
-    'Production Pipelines',
-    'Data Governance',
+    'Databricks Intelligence Platform',
+    'Data Ingestion and Loading',
+    'Data Transformation and Modeling',
+    'Working with Lakeflow Jobs',
+    'Implementing CI/CD',
+    'Troubleshooting, Monitoring, and Optimization',
+    'Governance and Security',
   ],
   [EXAMS.PROFESSIONAL]: [
     'Developing Code for Data Processing',

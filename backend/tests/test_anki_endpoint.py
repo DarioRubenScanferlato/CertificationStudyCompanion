@@ -24,7 +24,7 @@ class TestAnkiExportEndpoint:
 
     def test_export_anki_with_domain_filter(self, client):
         """Test Anki export with domain filter."""
-        response = client.get("/api/export/anki?domain=Databricks%20Lakehouse%20Platform")
+        response = client.get("/api/export/anki?domain=Databricks%20Intelligence%20Platform")
 
         assert response.status_code == 200
         assert response.headers["content-disposition"].startswith("attachment")
@@ -39,7 +39,7 @@ class TestAnkiExportEndpoint:
     def test_export_anki_with_both_filters(self, client):
         """Test Anki export with both domain and difficulty filters."""
         response = client.get(
-            "/api/export/anki?domain=Databricks%20Lakehouse%20Platform&difficulty=medium"
+            "/api/export/anki?domain=Databricks%20Intelligence%20Platform&difficulty=medium"
         )
 
         assert response.status_code == 200
@@ -102,11 +102,11 @@ class TestAnkiExportFiltering:
         all_exercises = all_response.json()["data"]
 
         # Get exercises for a specific domain
-        domain_response = client.get("/api/exercises?domain=Databricks%20Lakehouse%20Platform")
+        domain_response = client.get("/api/exercises?domain=Databricks%20Intelligence%20Platform")
         domain_exercises = domain_response.json()["data"]
 
         # Anki export should handle the same filtering
-        anki_response = client.get("/api/export/anki?domain=Databricks%20Lakehouse%20Platform")
+        anki_response = client.get("/api/export/anki?domain=Databricks%20Intelligence%20Platform")
         assert anki_response.status_code == 200
 
         # Verify domain exercises are a subset

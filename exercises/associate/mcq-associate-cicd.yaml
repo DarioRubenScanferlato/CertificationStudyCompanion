@@ -1,0 +1,356 @@
+# Databricks DE Certification Study Companion - Associate MCQ: Implementing CI/CD
+# Generated: 2026-06-07
+# Exam: Databricks Data Engineer Associate (May 2026 outline)
+# Section: Implementing CI/CD (10%)
+# Total Questions: 12 (dbx-de-0103 .. dbx-de-0114)
+# Difficulty mix: 8 medium / 4 hard (~67/33)
+# Subtopics: Git Folders, Asset/Automation Bundles (databricks.yml, targets, variables,
+#            overrides, deployment modes), Databricks CLI bundle commands, GitHub Actions CI/CD,
+#            deploying Lakeflow Jobs & Spark Declarative Pipelines as bundle resources.
+# Docs consulted (docs.databricks.com):
+#   - /aws/en/dev-tools/cli/bundle-commands
+#   - /aws/en/dev-tools/bundles, /aws/en/dev-tools/bundles/settings, /aws/en/dev-tools/bundles/reference
+#   - /aws/en/dev-tools/bundles/variables, /aws/en/dev-tools/bundles/overrides
+#   - /en/dev-tools/bundles/deployment-modes.html
+#   - /aws/en/dev-tools/bundles/resources, /aws/en/dev-tools/bundles/pipelines-tutorial, jobs-tutorial
+#   - /aws/en/dev-tools/ci-cd/github, /aws/en/dev-tools/ci-cd/, /aws/en/dev-tools/bundles/ci-cd-bundles
+#   - /aws/en/repos/, /aws/en/repos/git-operations-with-repos, /aws/en/repos/ci-cd
+
+exercises:
+  # ========== IMPLEMENTING CI/CD (12 questions) ==========
+
+  - id: dbx-de-0103
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Git Folders"
+    difficulty: medium
+    question: "A data engineer is working inside a Databricks Git folder that is cloned from the team's GitHub repository. The current production code lives on the main branch, and the engineer needs to add a new transformation without disturbing what is already deployed. They want their work isolated so it can later be reviewed before merging. Working entirely within the Databricks workspace, how should they begin this change?"
+    options:
+      - id: a
+        text: "Use Create Branch in the Git folder's Git operations dialog to make a new feature branch off main, then develop their notebook changes on that branch."
+        correct: true
+      - id: b
+        text: "Edit the notebooks directly on the main branch in the Git folder, because Databricks automatically snapshots each save as a separate branch."
+        correct: false
+      - id: c
+        text: "Detach the Git folder from the remote repository, make the edits locally in the workspace, then re-attach it to main when finished."
+        correct: false
+      - id: d
+        text: "Export the notebooks to DBFS, modify the copies there, and import them back over main once the work is validated."
+        correct: false
+    answer: [a]
+    explanation: "Databricks Git folders provide an in-workspace Git client that supports standard operations including branch creation. Creating a new feature branch from main via the Create Branch action keeps the work isolated and lets the engineer later push and open a pull request for review. Editing directly on main is wrong: Databricks does not auto-snapshot saves as branches, and committing to main would target production. Detaching and re-attaching the Git folder discards version control during the edit and is not a branching workflow. Exporting to DBFS and re-importing bypasses Git entirely, loses change tracking, and is not a reproducible review-friendly workflow."
+    references:
+      - "https://docs.databricks.com/aws/en/repos/git-operations-with-repos"
+      - "https://docs.databricks.com/aws/en/repos/"
+    tags: [git-folders, branching, version-control]
+    source: original
+
+  - id: dbx-de-0104
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Git Folders"
+    difficulty: medium
+    question: "After completing work on a feature branch inside a Databricks Git folder, an engineer has used Commit & Push to send their changes to the remote GitHub repository. The team requires that all changes to main go through peer review before being integrated. What is the appropriate next step to get this change reviewed and merged?"
+    options:
+      - id: a
+        text: "Open a pull request in the Git provider (GitHub) so reviewers can approve the branch before it is merged into main."
+        correct: true
+      - id: b
+        text: "Click Pull in the Git folder, which automatically merges the feature branch into main and requests review."
+        correct: false
+      - id: c
+        text: "Switch the Git folder to the main branch and commit again, since committing to main triggers the review process."
+        correct: false
+      - id: d
+        text: "Use the Databricks CLI command databricks repos merge to merge the feature branch directly into main."
+        correct: false
+    answer: [a]
+    explanation: "Databricks Git folders push commits to the remote repository, but pull requests and code review happen in the Git provider such as GitHub; opening a PR there lets reviewers approve before the branch is merged into main. Pull only fetches remote changes into the current branch; it does not merge a feature branch into main or request review. Committing to main directly bypasses review rather than triggering it, defeating the requirement. There is no databricks repos merge command that performs a reviewed merge; merges into main are handled through the Git provider's PR mechanism."
+    references:
+      - "https://docs.databricks.com/aws/en/repos/ci-cd"
+      - "https://docs.databricks.com/aws/en/repos/git-operations-with-repos"
+    tags: [git-folders, pull-request, code-review]
+    source: original
+
+  - id: dbx-de-0105
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Asset Bundles"
+    difficulty: medium
+    question: "A team wants to manage a Lakeflow Job and a Lakeflow Spark Declarative Pipeline as source-controlled code so the same definitions can be reviewed, version-controlled, and deployed automatically. They are evaluating how to describe these resources as files in their repository. Which approach aligns with Databricks' recommended practice for this?"
+    options:
+      - id: a
+        text: "Define the job and pipeline as resources in a Databricks Asset Bundle, with a databricks.yml configuration file at the project root describing them as code."
+        correct: true
+      - id: b
+        text: "Create the job and pipeline through the workspace UI and rely on the workspace's automatic Git backup to version them."
+        correct: false
+      - id: c
+        text: "Write a shell script that calls the Jobs and Pipelines REST APIs with hardcoded JSON payloads for every environment."
+        correct: false
+      - id: d
+        text: "Store exported JSON definitions of the job and pipeline in DBFS and re-import them manually whenever a change is needed."
+        correct: false
+    answer: [a]
+    explanation: "Databricks Asset Bundles (also called Declarative Automation Bundles) are the recommended way to express jobs and pipelines as source files, with a databricks.yml at the project root and resources defined declaratively so they can be source-controlled and deployed via CI/CD. The workspace UI does not automatically version resources in Git as a backup mechanism, so that option is incorrect. Hand-rolled REST API scripts with hardcoded payloads per environment are brittle, non-declarative, and not the recommended approach. Exporting JSON to DBFS and re-importing manually is a non-reproducible manual process that lacks the declarative, environment-aware deployment that bundles provide."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/resources"
+    tags: [asset-bundles, databricks-yml, resources, lakeflow]
+    source: original
+
+  - id: dbx-de-0106
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Asset Bundles"
+    difficulty: hard
+    question: "A team maintains one codebase for an ETL pipeline that must run in dev, test, and prod. The pipeline logic is identical across environments, but each environment uses a different catalog name, a different cluster size, and a different workspace host. They want to define the shared logic once and only specify what differs per environment. Within a Databricks Asset Bundle, which configuration strategy accomplishes this?"
+    options:
+      - id: a
+        text: "Define the pipeline and shared settings at the top level of databricks.yml, then create dev, test, and prod entries under the targets mapping that override only the catalog, cluster size, and workspace host for each environment."
+        correct: true
+      - id: b
+        text: "Maintain three separate copies of databricks.yml, one per environment, and check out a different copy depending on which environment is being deployed."
+        correct: false
+      - id: c
+        text: "Define everything once at the top level and edit the catalog, cluster size, and host values by hand right before each deployment."
+        correct: false
+      - id: d
+        text: "Put all environment-specific values into a single target and rely on the Databricks CLI to detect the current environment automatically at deploy time."
+        correct: false
+    answer: [a]
+    explanation: "Bundles support defining shared configuration at the top level and per-environment targets whose settings take precedence over top-level settings; promoting one codebase across dev/test/prod is done by overriding only the values that differ (catalog, cluster size, workspace host) within each target. Maintaining three separate databricks.yml copies defeats the single-codebase goal and is error-prone. Hand-editing values before each deploy is manual, non-reproducible, and exactly what bundles are designed to avoid. A single target cannot represent three different environments, and the CLI does not auto-detect which environment to use; you select a target explicitly with the --target option."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/overrides"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/settings"
+    tags: [asset-bundles, targets, overrides, promotion]
+    source: original
+
+  - id: dbx-de-0107
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Asset Bundles"
+    difficulty: hard
+    question: "An engineer is parameterizing a Databricks Asset Bundle so the warehouse ID used by a job differs between targets. They declare a top-level variable named warehouse_id with a default value, reference it in the job resource, and set a different value under the prod target. During a CI run they also want to pass an override for a single ad-hoc deployment without editing any files. Which mechanism lets them supply that one-off value at deploy time, and how is it reconciled with the other definitions?"
+    options:
+      - id: a
+        text: "Pass --var=\"warehouse_id=...\" on the bundle command; a value supplied this way takes precedence over the target-level value, which itself takes precedence over the top-level default."
+        correct: true
+      - id: b
+        text: "Edit the top-level default value in databricks.yml for the run and revert it afterward, because command-line variable overrides are not supported by the CLI."
+        correct: false
+      - id: c
+        text: "Set the value only in the prod target; command-line and environment-variable overrides are ignored once a target-level value exists."
+        correct: false
+      - id: d
+        text: "Hardcode the warehouse ID directly in the job resource, since variables cannot be overridden per deployment."
+        correct: false
+    answer: [a]
+    explanation: "The CLI resolves variable values in a defined precedence order: a --var option on the command takes precedence, then BUNDLE_VAR_ environment variables, then any variable-overrides file, then target-level variable mappings, and finally the top-level default. So passing --var at deploy time provides a one-off override that wins over the target value, which wins over the default; no file edits are needed. Editing and reverting the default is the brittle manual workaround that the precedence model exists to avoid, and command-line overrides are in fact supported. Target-level values do not block command-line or environment overrides; those sit higher in precedence. Hardcoding the ID removes the parameterization entirely and contradicts the whole point of variables."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/variables"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/reference"
+    tags: [asset-bundles, variables, overrides, precedence]
+    source: original
+
+  - id: dbx-de-0108
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Databricks CLI"
+    difficulty: medium
+    question: "In a GitHub Actions workflow, a team wants an early step that checks their Databricks Asset Bundle configuration for syntax problems and resource properties that do not exist in the target object schemas, without creating, modifying, or running anything in the workspace. Which Databricks CLI bundle command fits this requirement?"
+    options:
+      - id: a
+        text: "databricks bundle validate, which checks the configuration and reports warnings without making changes to workspace resources."
+        correct: true
+      - id: b
+        text: "databricks bundle deploy, which is the only way to surface configuration errors because it applies the bundle to the workspace."
+        correct: false
+      - id: c
+        text: "databricks bundle run, which executes the bundle's jobs and reports any configuration issues encountered during the run."
+        correct: false
+      - id: d
+        text: "databricks bundle init, which regenerates the configuration from a template and validates it in the process."
+        correct: false
+    answer: [a]
+    explanation: "bundle validate checks that the configuration is syntactically correct and warns about properties not found in the corresponding object schemas, all without changing workspace resources, which is exactly what an early CI step needs. deploy actually applies the bundle and creates or updates resources, so it is not a non-mutating check. run executes a defined job, pipeline, or script and requires the resources to already be deployed, so it does not serve as a pre-deployment validation. init scaffolds a brand-new bundle from a template and would overwrite or recreate project structure rather than validate existing configuration."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/bundle-commands"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/work-tasks"
+    tags: [databricks-cli, bundle-validate, ci-cd]
+    source: original
+
+  - id: dbx-de-0109
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Databricks CLI"
+    difficulty: medium
+    question: "A CI/CD pipeline has already validated a Databricks Asset Bundle. The next stage must push the bundle's job and pipeline definitions into the QA workspace so the resources are created or updated there, and then start the job once so an integration test can observe its output. Which sequence of Databricks CLI bundle commands accomplishes both steps in order?"
+    options:
+      - id: a
+        text: "databricks bundle deploy -t qa to create/update the resources in the QA target, then databricks bundle run <job> -t qa to trigger the job."
+        correct: true
+      - id: b
+        text: "databricks bundle run <job> -t qa first to deploy the resources, then databricks bundle deploy -t qa to trigger the job."
+        correct: false
+      - id: c
+        text: "databricks bundle deploy -t qa twice: the first deploy creates the resources and the second deploy automatically runs the job."
+        correct: false
+      - id: d
+        text: "databricks bundle validate -t qa to push the resources, then databricks bundle run <job> -t qa to trigger the job."
+        correct: false
+    answer: [a]
+    explanation: "deploy applies the bundle to the target workspace, creating or updating the jobs and pipelines, and run then triggers an existing job or pipeline; using -t qa scopes both to the QA target. Reversing them fails because run requires the resources to already exist, so it cannot deploy them, and deploy does not trigger a job. Deploying twice does not start a job; deploy never runs resources as a side effect. validate only checks configuration and makes no changes, so it cannot push resources to the workspace."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/bundle-commands"
+      - "https://docs.databricks.com/gcp/en/dev-tools/bundles/ci-cd-bundles"
+    tags: [databricks-cli, bundle-deploy, bundle-run, ci-cd]
+    source: original
+
+  - id: dbx-de-0110
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Databricks CLI"
+    difficulty: medium
+    question: "A new engineer is starting a fresh CI/CD project and wants to scaffold a Databricks Asset Bundle from a Databricks-provided template that prompts for project settings such as the project name and whether to include a sample job or pipeline. Which Databricks CLI bundle command is intended for this, and what does it produce?"
+    options:
+      - id: a
+        text: "databricks bundle init, which scaffolds a new bundle project from a template, prompting for configuration values to initialize the project."
+        correct: true
+      - id: b
+        text: "databricks bundle deploy, which generates the project files in the workspace and pushes them to the repository."
+        correct: false
+      - id: c
+        text: "databricks bundle generate, which is the standard way to create a brand-new bundle project from a Databricks template."
+        correct: false
+      - id: d
+        text: "databricks bundle validate --init, which both creates the project skeleton and verifies it."
+        correct: false
+    answer: [a]
+    explanation: "bundle init initializes a new bundle using a template and prompts the user for configuration values, producing the project skeleton; this is the intended scaffolding command. deploy applies an existing bundle to a workspace and does not scaffold a new project. generate creates bundle configuration from resources that already exist in a workspace (reverse-engineering existing jobs or pipelines), which is the opposite of starting from a template. There is no --init flag on validate; validate only checks configuration and cannot create a project skeleton."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/bundle-commands"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/templates"
+    tags: [databricks-cli, bundle-init, templates]
+    source: original
+
+  - id: dbx-de-0111
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Deployment modes"
+    difficulty: hard
+    question: "Several engineers deploy the same bundle to a shared development workspace and keep colliding because their jobs and pipelines overwrite each other, and scheduled jobs fire while people are still iterating. They want each engineer's deployment isolated by name and want schedules to stay paused during development, without manually renaming resources or editing every schedule. Which target setting addresses this?"
+    options:
+      - id: a
+        text: "Set mode: development on the target, which prefixes deployed resource names with the user's identity, pauses schedules and triggers, and marks pipelines as development."
+        correct: true
+      - id: b
+        text: "Set mode: production on the target, since production mode isolates each user's resources and pauses all schedules."
+        correct: false
+      - id: c
+        text: "Give each engineer a separate copy of the bundle repository, because there is no built-in way to isolate deployments by user."
+        correct: false
+      - id: d
+        text: "Add a unique suffix to every resource name by hand and set every schedule to PAUSED manually before each deploy."
+        correct: false
+    answer: [a]
+    explanation: "In development mode, deployed resources are prefixed with the current user's identity, schedules and triggers are paused unless explicitly unpaused, and Lakeflow Spark Declarative Pipelines are marked development: true, which directly prevents the name collisions and unwanted schedule firings described. Production mode does the opposite: it does not user-prefix resources, validates that pipelines are not in development, and is meant for shared, governed deployments. Copying the repository per engineer is unnecessary because mode: development provides built-in isolation. Manually suffixing names and pausing schedules is exactly the repetitive work that development mode automates."
+    references:
+      - "https://docs.databricks.com/en/dev-tools/bundles/deployment-modes.html"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/settings"
+    tags: [asset-bundles, deployment-modes, development-mode, targets]
+    source: original
+
+  - id: dbx-de-0112
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Deployment modes"
+    difficulty: hard
+    question: "A team is hardening their prod target so that deployments are attributed to a service principal rather than an individual, pipelines are never left in development mode, and the deployment is rejected if it is triggered from the wrong Git branch. They want these guardrails enforced by the bundle itself. Which target configuration best meets these goals?"
+    options:
+      - id: a
+        text: "Set mode: production on the prod target and specify run_as as the service principal; production mode validates that pipelines have development set to false and that the current Git branch matches the target's branch."
+        correct: true
+      - id: b
+        text: "Set mode: development on the prod target so that schedules are paused and resources are isolated, which is safest for production."
+        correct: false
+      - id: c
+        text: "Leave the target with no mode set and add a pre-deploy shell script that greps the branch name and edits pipeline configs to disable development."
+        correct: false
+      - id: d
+        text: "Set run_as to each developer's own identity so that deployments are traceable to whoever ran the pipeline."
+        correct: false
+    answer: [a]
+    explanation: "Production mode enforces guardrails suited to prod: it validates that pipelines have development set to false, checks that the current Git branch matches the branch configured for the target, and works with a run_as service principal so deployments are attributed to a non-personal identity. Development mode is for iteration; it user-prefixes resources and pauses schedules, which is wrong for an actual production deployment. A custom grep-and-edit shell script reinvents checks that production mode already provides and is fragile and non-declarative. Setting run_as to individual developer identities is the opposite of the requirement, which is to attribute deployments to a service principal rather than a person."
+    references:
+      - "https://docs.databricks.com/en/dev-tools/bundles/deployment-modes.html"
+      - "https://docs.databricks.com/aws/en/dev-tools/ci-cd/github"
+    tags: [asset-bundles, deployment-modes, production-mode, run-as, service-principal]
+    source: original
+
+  - id: dbx-de-0113
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "GitHub Actions"
+    difficulty: medium
+    question: "A team wants every merge to the main branch in GitHub to automatically validate, deploy, and run a Databricks Asset Bundle against their prod target, using a non-interactive identity that does not embed long-lived secrets. Which setup follows Databricks' recommended pattern for this CI/CD automation?"
+    options:
+      - id: a
+        text: "A GitHub Actions workflow triggered on merge to main that installs the Databricks CLI and runs bundle validate, deploy, and run, authenticating as a service principal configured with a GitHub Actions federation policy."
+        correct: true
+      - id: b
+        text: "A GitHub Actions workflow that stores a developer's personal access token in the repository's plaintext config and uses it to run the bundle commands."
+        correct: false
+      - id: c
+        text: "A scheduled job inside Databricks that periodically polls the GitHub repository and re-imports notebooks when main changes, without using the CLI."
+        correct: false
+      - id: d
+        text: "Manual deployment where, after each merge, an engineer opens the workspace UI and recreates the jobs and pipelines by hand to match main."
+        correct: false
+    answer: [a]
+    explanation: "Databricks recommends driving bundle CI/CD from external automation like GitHub Actions: a workflow triggered on the relevant Git event installs the CLI and runs validate, deploy, and run, authenticating as a service principal using workload identity federation (a GitHub Actions federation policy) so no long-lived secret is embedded. Storing a personal access token in plaintext config is insecure and ties deployments to an individual rather than a service principal. A Databricks-side poller that re-imports notebooks ignores bundles entirely and does not deploy job/pipeline resources declaratively. Manually recreating resources in the UI after each merge is non-reproducible and defeats the purpose of CI/CD automation."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/ci-cd/github"
+      - "https://docs.databricks.com/aws/en/dev-tools/ci-cd/"
+    tags: [github-actions, ci-cd, service-principal, asset-bundles]
+    source: original
+
+  - id: dbx-de-0114
+    type: single_choice
+    exam: associate
+    domain: "Implementing CI/CD"
+    subdomain: "Asset Bundles"
+    difficulty: medium
+    question: "A team already has a Lakeflow Spark Declarative Pipeline and a Lakeflow Job that were built interactively in their workspace, and they now want to bring these existing resources under Asset Bundle source control without manually transcribing all their settings into YAML. Which Databricks CLI capability is designed for this?"
+    options:
+      - id: a
+        text: "Use databricks bundle generate to produce bundle configuration for the existing pipeline and job, downloading their definitions into the bundle project."
+        correct: true
+      - id: b
+        text: "Use databricks bundle init, which scans the workspace for existing resources and converts them into a bundle automatically."
+        correct: false
+      - id: c
+        text: "Use databricks bundle deploy with an empty databricks.yml, which imports any unmanaged workspace resources into the bundle."
+        correct: false
+      - id: d
+        text: "Recreate the pipeline and job by hand in databricks.yml, because there is no command to capture existing workspace resources as bundle config."
+        correct: false
+    answer: [a]
+    explanation: "bundle generate creates bundle configuration for resources that already exist in a workspace (such as jobs and pipelines) and downloads their referenced definitions, which is exactly how to bring interactively built resources under bundle source control without retyping their settings. bundle init scaffolds a brand-new project from a template and does not introspect existing workspace resources. deploy applies a bundle to the workspace and creates or updates resources; with an empty configuration it would not import unmanaged resources. The claim that no command exists is false, since generate is purpose-built for this; hand-recreating everything is unnecessary."
+    references:
+      - "https://docs.databricks.com/aws/en/dev-tools/cli/bundle-commands"
+      - "https://docs.databricks.com/aws/en/dev-tools/bundles/resources"
+    tags: [databricks-cli, bundle-generate, asset-bundles, lakeflow]
+    source: original

@@ -89,12 +89,12 @@ class TestFiltering:
         """Test filtering that returns empty result.
 
         Professional exercises never live in the Associate-only domain
-        "Databricks Lakehouse Platform", so this combination is always empty.
+        "Databricks Intelligence Platform", so this combination is always empty.
         """
         filtered = filter_exercises(
             sample_exercises,
             exam="professional",
-            domain="Databricks Lakehouse Platform",
+            domain="Databricks Intelligence Platform",
         )
         assert filtered == []
 
@@ -131,11 +131,13 @@ class TestExerciseCount:
             by_domain[domain] = by_domain.get(domain, 0) + 1
 
         associate_domains = [
-            "Databricks Lakehouse Platform",
-            "ELT with Spark SQL and Python",
-            "Incremental Data Processing",
-            "Production Pipelines",
-            "Data Governance",  # shared with Professional
+            "Databricks Intelligence Platform",
+            "Data Ingestion and Loading",
+            "Data Transformation and Modeling",
+            "Working with Lakeflow Jobs",
+            "Implementing CI/CD",
+            "Troubleshooting, Monitoring, and Optimization",
+            "Governance and Security",
         ]
         professional_only = [
             "Developing Code for Data Processing",
@@ -147,6 +149,7 @@ class TestExerciseCount:
             "Ensuring Data Security and Compliance",
             "Debugging and Deploying",
             "Data Modelling",
+            "Data Governance",
         ]
         for domain in associate_domains + professional_only:
             assert by_domain.get(domain, 0) > 0, f"no exercises in domain: {domain}"

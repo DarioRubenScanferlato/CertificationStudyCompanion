@@ -74,7 +74,7 @@ class TestMissingRequiredFields:
 exercises:
   - type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -100,7 +100,7 @@ exercises:
 exercises:
   - id: test-001
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -160,7 +160,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     explanation: "Test explanation"
     options:
@@ -184,7 +184,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     options:
@@ -238,7 +238,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: expert
     question: "Test question?"
     explanation: "Test explanation"
@@ -263,7 +263,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: invalid_exam
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -288,7 +288,7 @@ exercises:
   - id: test-001
     type: invalid_type
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -320,7 +320,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -341,7 +341,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -363,7 +363,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -387,7 +387,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -421,7 +421,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -449,7 +449,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test question?"
     explanation: "Test explanation"
@@ -489,7 +489,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Complete the code"
     explanation: "Test explanation"
@@ -511,7 +511,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Complete the code"
     explanation: "Test explanation"
@@ -533,7 +533,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Complete the code"
     explanation: "Test explanation"
@@ -555,7 +555,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Complete the code"
     explanation: "Test explanation"
@@ -579,7 +579,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Complete the code"
     explanation: "Test explanation"
@@ -602,7 +602,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Complete the code"
     explanation: "Test explanation"
@@ -629,7 +629,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: bad_exam
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test?"
     explanation: "Test"
@@ -658,7 +658,7 @@ exercises:
   - id: test-001
     type: invalid_type
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test?"
     explanation: "Test"
@@ -670,7 +670,7 @@ exercises:
   - id: test-002
     type: single_choice
     exam: bad_value
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Test?"
     explanation: "Test"
@@ -696,7 +696,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "What is the Lakehouse?"
     explanation: "It combines lakes and warehouses"
@@ -717,7 +717,7 @@ exercises:
   - id: test-002
     type: invalid_type
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "Bad exercise"
     explanation: "This will fail"
@@ -729,7 +729,7 @@ exercises:
   - id: test-003
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: medium
     question: "Complete this SQL"
     explanation: "Fill in the blank"
@@ -764,7 +764,7 @@ exercises:
   - id: test-001
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: easy
     question: "What is the Lakehouse?"
     explanation: "It combines lakes and warehouses"
@@ -800,7 +800,7 @@ exercises:
   - id: test-001
     type: code_completion
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: medium
     question: "Complete this SQL query"
     explanation: "Use the users table"
@@ -826,7 +826,7 @@ exercises:
   - id: test-001
     type: multi_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     difficulty: hard
     question: "Which are benefits of Lakehouse? (select all)"
     explanation: "All are true"

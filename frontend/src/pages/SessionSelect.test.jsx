@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { SessionProvider } from '../context/SessionContext'
+import { SessionProvider, useSession } from '../context/SessionContext'
 import SessionSelect from './SessionSelect'
 import * as api from '../api'
 
@@ -10,6 +10,31 @@ function renderPage() {
   return render(
     <SessionProvider>
       <SessionSelect />
+    </SessionProvider>
+  )
+}
+
+// A tiny probe that surfaces the real context state, so timer tests can assert
+// what startSession threaded into the session without mocking the context.
+function StateProbe() {
+  const { view, timerDurationSeconds, mode } = useSession()
+  return (
+    <div>
+      <span data-testid="view">{view}</span>
+      <span data-testid="timer-seconds">{String(timerDurationSeconds)}</span>
+      <span data-testid="mode">{mode}</span>
+    </div>
+  )
+}
+
+// Alias for the mock-flow tests (reads the same context state).
+const MockProbe = StateProbe
+
+function renderPageWithProbe() {
+  return render(
+    <SessionProvider>
+      <SessionSelect />
+      <StateProbe />
     </SessionProvider>
   )
 }
@@ -24,8 +49,8 @@ describe('SessionSelect', () => {
 
   it('lists the Associate domains and difficulties by default', () => {
     renderPage()
-    expect(screen.getByRole('option', { name: 'Databricks Lakehouse Platform' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Data Governance' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Databricks Intelligence Platform' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Governance and Security' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Easy' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Hard' })).toBeInTheDocument()
   })
@@ -35,7 +60,7 @@ describe('SessionSelect', () => {
     renderPage()
 
     fireEvent.change(screen.getByLabelText('Domain'), {
-      target: { value: 'Data Governance' },
+      target: { value: 'Governance and Security' },
     })
     fireEvent.change(screen.getByLabelText('Difficulty'), {
       target: { value: 'easy' },
@@ -45,7 +70,7 @@ describe('SessionSelect', () => {
     await waitFor(() =>
       expect(api.getSession).toHaveBeenCalledWith({
         exam: 'associate',
-        domain: 'Data Governance',
+        domain: 'Governance and Security',
         difficulty: 'easy',
       })
     )
@@ -89,14 +114,14 @@ describe('SessionSelect live match count', () => {
     await screen.findByText('42 questions match')
 
     fireEvent.change(screen.getByLabelText('Domain'), {
-      target: { value: 'Data Governance' },
+      target: { value: 'Governance and Security' },
     })
 
     expect(await screen.findByText('7 questions match')).toBeInTheDocument()
     await waitFor(() =>
       expect(api.getExerciseCount).toHaveBeenCalledWith({
         exam: 'associate',
-        domain: 'Data Governance',
+        domain: 'Governance and Security',
         difficulty: undefined,
       })
     )
@@ -123,6 +148,84 @@ describe('SessionSelect live match count', () => {
   })
 })
 
+describe('SessionSelect optional countdown (Story 8.1)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    api.getExerciseCount.mockResolvedValue(10)
+    api.getSession.mockResolvedValue([{ exerciseId: 'q1' }])
+  })
+
+  it('hides the duration input until the timer is enabled', () => {
+    renderPage()
+    expect(screen.queryByLabelText('Duration (minutes)')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Timed session'))
+    expect(screen.getByLabelText('Duration (minutes)')).toBeInTheDocument()
+  })
+
+  it('threads the chosen duration (seconds) into the started session', async () => {
+    renderPageWithProbe()
+    fireEvent.click(screen.getByLabelText('Timed session'))
+    fireEvent.change(screen.getByLabelText('Duration (minutes)'), {
+      target: { value: '15' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
+
+    await waitFor(() => expect(screen.getByTestId('view')).toHaveTextContent('practice'))
+    // 15 minutes -> 900 seconds.
+    expect(screen.getByTestId('timer-seconds')).toHaveTextContent('900')
+  })
+
+  it('starts untimed (no duration) when the timer is off — parity', async () => {
+    renderPageWithProbe()
+    fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
+
+    await waitFor(() => expect(screen.getByTestId('view')).toHaveTextContent('practice'))
+    expect(screen.getByTestId('timer-seconds')).toHaveTextContent('null')
+  })
+})
+
+describe('SessionSelect Mock Exam affordance (Story 8.4)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    api.getExerciseCount.mockResolvedValue(10)
+  })
+
+  it('renders a Mock Exam control with the selected exam’s duration copy', () => {
+    renderPage()
+    // Associate by default -> 90 min copy.
+    expect(screen.getByRole('button', { name: /Mock Exam/i })).toHaveTextContent('90 min')
+    fireEvent.change(screen.getByLabelText('Exam'), { target: { value: 'professional' } })
+    expect(screen.getByRole('button', { name: /Mock Exam/i })).toHaveTextContent('120 min')
+  })
+
+  it('starts a mock run: calls getMockSession({exam}) and seeds mode + countdown', async () => {
+    api.getMockSession.mockResolvedValue({
+      entries: [{ exerciseId: 'm1' }],
+      durationMinutes: 90,
+    })
+    render(
+      <SessionProvider>
+        <SessionSelect />
+        <MockProbe />
+      </SessionProvider>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Mock Exam/i }))
+
+    await waitFor(() => expect(screen.getByTestId('view')).toHaveTextContent('practice'))
+    expect(api.getMockSession).toHaveBeenCalledWith({ exam: 'associate' })
+    expect(screen.getByTestId('mode')).toHaveTextContent('mock')
+    // 90 minutes -> 5400 seconds seeds the countdown.
+    expect(screen.getByTestId('timer-seconds')).toHaveTextContent('5400')
+  })
+
+  it('surfaces an error when no mock exam is available', async () => {
+    api.getMockSession.mockResolvedValue({ entries: [], durationMinutes: null })
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /Mock Exam/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no mock exam/i)
+  })
+})
+
 describe('SessionSelect exam scoping (Story 6.7)', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -142,17 +245,19 @@ describe('SessionSelect exam scoping (Story 6.7)', () => {
     expect(screen.getByLabelText('Exam')).toHaveValue('associate')
   })
 
-  it('lists exactly the 5 Associate domains (incl. Data Governance) by default', () => {
+  it('lists exactly the 7 Associate sections (May 2026 blueprint) by default', () => {
     renderPage()
     const names = domainOptionNames()
     expect(names).toEqual([
-      'Databricks Lakehouse Platform',
-      'ELT with Spark SQL and Python',
-      'Incremental Data Processing',
-      'Production Pipelines',
-      'Data Governance',
+      'Databricks Intelligence Platform',
+      'Data Ingestion and Loading',
+      'Data Transformation and Modeling',
+      'Working with Lakeflow Jobs',
+      'Implementing CI/CD',
+      'Troubleshooting, Monitoring, and Optimization',
+      'Governance and Security',
     ])
-    expect(names).toHaveLength(5)
+    expect(names).toHaveLength(7)
   })
 
   it('lists exactly the 10 Professional domains (incl. Data Governance) when Professional is selected', () => {
@@ -167,16 +272,16 @@ describe('SessionSelect exam scoping (Story 6.7)', () => {
     // Data Governance is shared across both exams.
     expect(names).toContain('Data Governance')
     // An Associate-only domain must NOT appear under Professional.
-    expect(names).not.toContain('Databricks Lakehouse Platform')
+    expect(names).not.toContain('Databricks Intelligence Platform')
   })
 
   it('resets the selected domain when the exam changes', async () => {
     renderPage()
     // Pick an Associate domain, then switch exams.
     fireEvent.change(screen.getByLabelText('Domain'), {
-      target: { value: 'Data Governance' },
+      target: { value: 'Governance and Security' },
     })
-    expect(screen.getByLabelText('Domain')).toHaveValue('Data Governance')
+    expect(screen.getByLabelText('Domain')).toHaveValue('Governance and Security')
 
     fireEvent.change(screen.getByLabelText('Exam'), {
       target: { value: 'professional' },

@@ -3,18 +3,19 @@
 # Purpose: close topic gaps identified vs the blueprint technical surface (addendum §C).
 # Note: IDs dbx-de-0073..0079 (Delta DML) live in mcq-associate-batch-01.yaml.
 # Total Questions: 23
-# Coverage added:
-#   - ELT with Spark SQL and Python: views, CTEs, PIVOT, higher-order funcs, semi-structured JSON, SQL UDFs (7)
-#   - Incremental Data Processing: Lakeflow Declarative Pipelines SQL/Python, AUTO CDC/SCD, Change Data Feed (6)
-#   - Databricks Lakehouse Platform: liquid clustering, UC Volumes, notebook magics, SQL warehouses (5)
-#   - Data Governance: row filters, privilege inheritance / USE CATALOG (3)
+# Coverage added (domains use the May 2026 Associate taxonomy):
+#   - Data Transformation and Modeling: views, CTEs, PIVOT, higher-order funcs, semi-structured JSON,
+#     SQL UDFs, Lakeflow Declarative Pipelines SQL/Python, AUTO CDC/SCD, liquid clustering
+#   - Data Ingestion and Loading: Change Data Feed
+#   - Databricks Intelligence Platform: UC Volumes, notebook magics, SQL warehouses
+#   - Governance and Security: row filters, privilege inheritance / USE CATALOG
 
 exercises:
   # ========== ELT WITH SPARK SQL AND PYTHON (Spark SQL surface) ==========
   - id: dbx-de-0080
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "Views"
     difficulty: easy
     question: "In a Databricks notebook, you run CREATE OR REPLACE TEMP VIEW recent_orders AS SELECT * FROM orders WHERE order_date > current_date() - INTERVAL 7 DAYS. Which statement best describes the scope and lifetime of recent_orders?"
@@ -45,7 +46,7 @@ exercises:
   - id: dbx-de-0081
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "Views"
     difficulty: medium
     question: "You create a view with CREATE GLOBAL TEMPORARY VIEW active_users AS SELECT * FROM users WHERE active = true. A second notebook attached to the same cluster needs to read it. How must that view be referenced, and what determines its lifetime?"
@@ -76,10 +77,10 @@ exercises:
   - id: dbx-de-0082
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "CTEs"
     difficulty: easy
-    question: "Which statement correctly describes a Common Table Expression (CTE) introduced with the WITH clause in Databricks SQL?"
+    question: "While building a Databricks SQL aggregation, a teammate factors a filtering step into a WITH clause (a CTE named recent) and asks you to confirm what that CTE actually is before they rely on it elsewhere. Which statement correctly describes the CTE's nature and scope?"
     code_context: |
       WITH recent AS (
         SELECT customer_id, amount
@@ -115,7 +116,7 @@ exercises:
   - id: dbx-de-0083
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "PIVOT"
     difficulty: medium
     question: "Given a sales table with columns year, quarter, and amount, you want one output row per year with separate columns q1, q2, q3, q4 holding the summed amount for each quarter. Which query is correct?"
@@ -145,7 +146,7 @@ exercises:
   - id: dbx-de-0084
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "Higher-order functions"
     difficulty: medium
     question: "A column nums has type ARRAY<INT>. You want a new array containing each element multiplied by 10, WITHOUT turning the array into multiple rows. Which expression does this?"
@@ -176,7 +177,7 @@ exercises:
   - id: dbx-de-0085
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "Semi-structured data"
     difficulty: medium
     question: "A table events has a column payload of type STRING that contains JSON text such as {\"user\": {\"id\": 42}}. You want to extract the nested id value directly in SQL. Which approach is correct?"
@@ -209,7 +210,7 @@ exercises:
   - id: dbx-de-0086
     type: single_choice
     exam: associate
-    domain: "ELT with Spark SQL and Python"
+    domain: "Data Transformation and Modeling"
     subdomain: "SQL UDFs"
     difficulty: hard
     question: "You need a reusable scalar SQL UDF that returns a DOUBLE discount given price and rate. Which CREATE FUNCTION statement uses the correct Databricks SQL UDF syntax?"
@@ -240,7 +241,7 @@ exercises:
   - id: dbx-de-0087
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Transformation and Modeling"
     subdomain: "Lakeflow Declarative Pipelines"
     difficulty: easy
     question: "In a Lakeflow Declarative Pipeline defined in SQL, you need a dataset that ingests an append-only source incrementally, processing only newly arrived records on each update. Which statement creates the appropriate dataset?"
@@ -270,7 +271,7 @@ exercises:
   - id: dbx-de-0088
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Transformation and Modeling"
     subdomain: "Lakeflow Declarative Pipelines"
     difficulty: medium
     question: "A silver dataset in a Lakeflow Declarative Pipeline (SQL) must read from another dataset, `bronze`, defined earlier in the same pipeline. What is the current, recommended way to reference that in-pipeline dataset?"
@@ -297,7 +298,7 @@ exercises:
   - id: dbx-de-0089
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Transformation and Modeling"
     subdomain: "Lakeflow Declarative Pipelines"
     difficulty: medium
     question: "You are writing a Lakeflow Declarative Pipeline in Python. Which import and decorator reflect the current pipelines API for defining a table?"
@@ -332,7 +333,7 @@ exercises:
   - id: dbx-de-0090
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Transformation and Modeling"
     subdomain: "Lakeflow Declarative Pipelines"
     difficulty: medium
     question: "In a Python Lakeflow Declarative Pipeline you must enforce a data-quality constraint such that any record violating the expectation is removed before being written to the target dataset, while the pipeline keeps running. Which decorator does this?"
@@ -366,7 +367,7 @@ exercises:
   - id: dbx-de-0091
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Transformation and Modeling"
     subdomain: "Change Data Capture"
     difficulty: hard
     question: "A Lakeflow Declarative Pipeline applies a CDC feed to a streaming table and must retain the full history of every change to each key (so superseded versions remain queryable). Which combination correctly expresses this?"
@@ -402,7 +403,7 @@ exercises:
   - id: dbx-de-0092
     type: single_choice
     exam: associate
-    domain: "Incremental Data Processing"
+    domain: "Data Ingestion and Loading"
     subdomain: "Change Data Feed"
     difficulty: hard
     question: "Change Data Feed is enabled on a Delta table. A downstream job needs to read the row-level changes (inserts, updates, deletes) between two table versions. Which approach reads the change feed correctly?"
@@ -435,7 +436,7 @@ exercises:
   - id: dbx-de-0093
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Data Transformation and Modeling"
     subdomain: "Liquid Clustering"
     difficulty: medium
     question: "You want to use liquid clustering to optimize a new Delta table's data layout. Which statement about enabling and using liquid clustering is correct?"
@@ -465,10 +466,10 @@ exercises:
   - id: dbx-de-0094
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     subdomain: "Unity Catalog Volumes"
     difficulty: easy
-    question: "What is a Unity Catalog volume primarily designed to govern and provide access to?"
+    question: "Your team has a mix of PDFs, image files, and raw CSV exports landing in cloud object storage, and you want to bring them under Unity Catalog governance. A colleague suggests creating a Unity Catalog volume. What is a volume primarily designed to govern and provide access to?"
     options:
       - id: a
         text: "Non-tabular data (files in any format — structured, semi-structured, or unstructured) in a cloud object storage location"
@@ -492,10 +493,10 @@ exercises:
   - id: dbx-de-0095
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     subdomain: "Unity Catalog Volumes"
     difficulty: easy
-    question: "Which path correctly addresses a file stored in a Unity Catalog volume?"
+    question: "You need to point a notebook at a data file that lives inside a Unity Catalog volume, and you must supply the file's path. Which path format correctly addresses a file stored in a Unity Catalog volume?"
     options:
       - id: a
         text: "/Volumes/<catalog>/<schema>/<volume>/<path>/<file>"
@@ -519,7 +520,7 @@ exercises:
   - id: dbx-de-0096
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     subdomain: "Unity Catalog Volumes"
     difficulty: medium
     question: "A team wants to apply Unity Catalog governance to a set of files that already exist in a cloud storage location, without copying or moving the data. Which volume type fits this requirement?"
@@ -546,10 +547,10 @@ exercises:
   - id: dbx-de-0097
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     subdomain: "Notebook magic commands"
     difficulty: easy
-    question: "In a Databricks notebook whose default language is Python, what does placing %sql at the top of a cell do?"
+    question: "You are working in a Databricks notebook whose default language is Python, but for one cell you need to run a quick SQL query against a table. You add %sql as the first line of that cell. What effect does that have?"
     options:
       - id: a
         text: "Switches that cell's language to SQL so its contents are executed as a SQL query"
@@ -573,10 +574,10 @@ exercises:
   - id: dbx-de-0098
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     subdomain: "Notebook magic commands"
     difficulty: medium
-    question: "What is the key behavioral difference between %run and dbutils.notebook.run() when one notebook executes another?"
+    question: "You want a setup notebook's helper functions and variables to be available directly inside a second notebook that calls it, and you are deciding between %run and dbutils.notebook.run(). What is the key behavioral difference between the two when one notebook executes another?"
     options:
       - id: a
         text: "%run executes the target notebook inline in the current session, so its functions and variables become available to the caller; dbutils.notebook.run() launches the target as a separate ephemeral job in its own scope, returning only a string"
@@ -601,7 +602,7 @@ exercises:
   - id: dbx-de-0099
     type: single_choice
     exam: associate
-    domain: "Databricks Lakehouse Platform"
+    domain: "Databricks Intelligence Platform"
     subdomain: "SQL warehouses"
     difficulty: medium
     question: "A BI team needs compute that is purpose-built to run interactive SQL queries and power dashboards, with instant elastic startup and minimal management. Which Databricks compute should they choose?"
@@ -629,7 +630,7 @@ exercises:
   - id: dbx-de-0100
     type: single_choice
     exam: associate
-    domain: "Data Governance"
+    domain: "Governance and Security"
     subdomain: "Row filters"
     difficulty: hard
     question: "A governance team applies a row filter to a Unity Catalog table with ALTER TABLE sales SET ROW FILTER region_filter ON (region). What must the function region_filter return, and what is the effect on query results?"
@@ -656,7 +657,7 @@ exercises:
   - id: dbx-de-0101
     type: single_choice
     exam: associate
-    domain: "Data Governance"
+    domain: "Governance and Security"
     subdomain: "Privilege inheritance"
     difficulty: hard
     question: "A table owner runs GRANT SELECT ON TABLE finance.reports.q1 TO `analyst@co.com`, but the analyst still cannot read the table. They have no other grants. What is the most likely missing privilege?"
@@ -683,7 +684,7 @@ exercises:
   - id: dbx-de-0102
     type: single_choice
     exam: associate
-    domain: "Data Governance"
+    domain: "Governance and Security"
     subdomain: "Privilege inheritance"
     difficulty: medium
     question: "An administrator runs GRANT SELECT ON SCHEMA finance.reports TO `team@co.com`. Considering Unity Catalog privilege inheritance, what is the effect?"

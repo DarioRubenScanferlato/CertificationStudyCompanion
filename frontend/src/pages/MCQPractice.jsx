@@ -5,6 +5,7 @@ import { EXERCISE_TYPES } from '../constants'
 import QuestionContent from '../components/QuestionContent'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ProgressBar from '../components/ProgressBar'
+import Timer from '../components/Timer'
 
 const DIFFICULTY_STYLES = {
   easy: 'bg-green-100 text-green-800',
@@ -63,11 +64,34 @@ export default function MCQPractice() {
     skip,
     endToSummary,
     reset,
+    timerDurationSeconds,
   } = useSession()
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const endButtonRef = useRef(null)
+
+  // Per-question timing (Story 8.2 / FR-28). The clock starts when a question
+  // is presented and re-arms on every question change, so timing is strictly
+  // per-question, never a cumulative session stopwatch. performance.now() is
+  // monotonic so clock adjustments can't yield a negative duration.
+  const questionStartRef = useRef(null)
+  const currentExerciseId = currentExercise?.exerciseId
+  useEffect(() => {
+    questionStartRef.current = performance.now()
+  }, [currentExerciseId])
+
+  // Submit the current answer with its measured elapsed time. Both the Submit
+  // button and the Enter shortcut route through here so timing is always sent.
+  const submitWithTiming = useCallback(
+    (exerciseId) => {
+      const start = questionStartRef.current
+      const elapsedMs =
+        start == null ? undefined : Math.max(0, Math.round(performance.now() - start))
+      submitAnswer(exerciseId, elapsedMs)
+    },
+    [submitAnswer]
+  )
 
   // Number of answered questions (those with retained feedback) — drives the
   // Exit-confirm copy and the zero-answered shortcut.
@@ -163,7 +187,7 @@ export default function MCQPractice() {
       if (isSubmitted) {
         next()
       } else if (isMcq && sel && !inFlight) {
-        submitAnswer(ex.exerciseId)
+        submitWithTiming(ex.exerciseId)
       }
       return
     }
@@ -263,6 +287,12 @@ export default function MCQPractice() {
           >
             {exercise.difficulty}
           </span>
+          {/* Optional session countdown (Story 8.1). Renders only when the
+              session was started timed; at zero it auto-ends to the partial
+              Summary via endToSummary. Untimed sessions render nothing here. */}
+          {timerDurationSeconds ? (
+            <Timer durationSeconds={timerDurationSeconds} onExpire={endToSummary} />
+          ) : null}
           {/* Persistent, neutral End-session control — visually subordinate to
               the databricks-500 Submit button so it never competes with it. */}
           <button
@@ -373,7 +403,7 @@ export default function MCQPractice() {
           )}
           <button
             type="button"
-            onClick={() => submitAnswer(exercise.exerciseId)}
+            onClick={() => submitWithTiming(exercise.exerciseId)}
             disabled={!selected || isSubmitting}
             className={`mt-4 w-full bg-databricks-500 hover:bg-databricks-600 disabled:opacity-50 text-white font-medium py-2.5 rounded transition-colors ${FOCUS_RING}`}
           >

@@ -33,6 +33,16 @@ const initialState = {
   sessionState: 'active',
   questionState: {},
   furthestIndex: 0,
+  // Optional session countdown (Story 8.1). null = untimed. This is transient
+  // session config (the duration the timer was started with), NOT the live
+  // clock — the live remaining-time lives inside the <Timer> component.
+  timerDurationSeconds: null,
+  // Session mode (Story 8.4). 'practice' (default) or 'mock'. A mock run reuses
+  // the practice runner + Summary but renders an exam-style result and runs
+  // under the exam's real countdown.
+  mode: 'practice',
+  // The exam's real duration in minutes (mock only), surfaced for display.
+  durationMinutes: null,
 }
 
 function sessionReducer(state, action) {
@@ -42,6 +52,12 @@ function sessionReducer(state, action) {
         ...initialState,
         exercises: action.exercises,
         view: 'practice',
+        // Carry the optional countdown duration with the session start. Absent
+        // / falsy => untimed (parity with the pre-8.1 runner).
+        timerDurationSeconds: action.timerDurationSeconds ?? null,
+        // Mock-exam context (Story 8.4). Defaults keep practice runs unchanged.
+        mode: action.mode === 'mock' ? 'mock' : 'practice',
+        durationMinutes: action.durationMinutes ?? null,
       }
 
     case 'SET_SELECTION':
@@ -175,7 +191,10 @@ export function SessionProvider({ children }) {
   const value = useMemo(() => {
     const currentExercise = state.exercises[state.currentIndex] || null
 
-    async function submitAnswer(exerciseId) {
+    // submitAnswer(exerciseId, timeTakenMs?) — timeTakenMs is the per-question
+    // elapsed time (ms, FR-28) measured by the Practice surface; optional so
+    // untracked submits still grade.
+    async function submitAnswer(exerciseId, timeTakenMs) {
       const s = stateRef.current
       // Once submitted, an answer is final — ignore re-submits. Also ignore a
       // submit that's already in flight.
@@ -194,6 +213,7 @@ export function SessionProvider({ children }) {
           exerciseId,
           displayedOptionIds,
           selectedId,
+          timeTakenMs,
         })
         dispatch({ type: 'SUBMIT_SUCCESS', exerciseId, result })
       } catch (err) {
@@ -210,7 +230,18 @@ export function SessionProvider({ children }) {
       currentExercise,
       total: state.exercises.length,
       // actions
-      startSession: (exercises) => dispatch({ type: 'START_SESSION', exercises }),
+      // startSession(exercises, options?) — options.timerDurationSeconds enables
+      // the optional countdown (Story 8.1); options.mode='mock' +
+      // options.durationMinutes start an exam-style mock run (Story 8.4).
+      // Called with no options => untimed practice (parity with pre-8.1).
+      startSession: (exercises, options) =>
+        dispatch({
+          type: 'START_SESSION',
+          exercises,
+          timerDurationSeconds: options?.timerDurationSeconds ?? null,
+          mode: options?.mode,
+          durationMinutes: options?.durationMinutes ?? null,
+        }),
       setSelection: (exerciseId, optionId) =>
         dispatch({ type: 'SET_SELECTION', exerciseId, optionId }),
       submitAnswer,

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useEffect } from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { SessionProvider, useSession } from '../context/SessionContext'
 import MCQPractice from './MCQPractice'
 import Summary from './Summary'
@@ -39,10 +39,13 @@ const EXERCISES = [
 ]
 
 // Drives a session and renders the current view, mirroring App's switch.
-function Harness({ exercises }) {
+function Harness({ exercises, timerDurationSeconds }) {
   const { view, startSession } = useSession()
   useEffect(() => {
-    startSession(exercises)
+    startSession(
+      exercises,
+      timerDurationSeconds ? { timerDurationSeconds } : undefined
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   if (view === 'practice') return <MCQPractice />
@@ -50,10 +53,10 @@ function Harness({ exercises }) {
   return null
 }
 
-function renderFlow(exercises = EXERCISES) {
+function renderFlow(exercises = EXERCISES, options = {}) {
   return render(
     <SessionProvider>
-      <Harness exercises={exercises} />
+      <Harness exercises={exercises} timerDurationSeconds={options.timerDurationSeconds} />
     </SessionProvider>
   )
 }
@@ -100,11 +103,15 @@ describe('MCQPractice', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     expect(await screen.findByText(/Correct!/)).toBeInTheDocument()
-    expect(api.submitFeedback).toHaveBeenCalledWith({
-      exerciseId: 'q1',
-      displayedOptionIds: ['a', 'b', 'c', 'd'],
-      selectedId: 'a',
-    })
+    expect(api.submitFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exerciseId: 'q1',
+        displayedOptionIds: ['a', 'b', 'c', 'd'],
+        selectedId: 'a',
+        // Per-question elapsed time now rides with the submit (Story 8.2 / FR-28).
+        timeTakenMs: expect.any(Number),
+      })
+    )
     expect(screen.getByText(/It is a governance layer/)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /docs.databricks.com/ })
     expect(link).toHaveAttribute('target', '_blank')
@@ -423,5 +430,88 @@ describe('MCQPractice', () => {
     expect(toggle).toBeInTheDocument()
     fireEvent.click(toggle)
     expect(screen.getByText(/select an option/i)).toBeInTheDocument()
+  })
+})
+
+describe('MCQPractice optional countdown (Story 8.1)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('renders no Timer for an untimed session (parity)', () => {
+    renderFlow()
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument()
+  })
+
+  it('renders a counting Timer for a timed session', () => {
+    renderFlow(EXERCISES, { timerDurationSeconds: 90 })
+    const timer = screen.getByRole('timer')
+    expect(timer).toBeInTheDocument()
+    expect(screen.getByText('01:30')).toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(screen.getByText('01:28')).toBeInTheDocument()
+  })
+
+  it('auto-ends to the (partial) Summary when the countdown reaches zero', () => {
+    renderFlow(EXERCISES, { timerDurationSeconds: 3 })
+    // On Practice initially.
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+    // endToSummary fired -> Summary view; Practice radiogroup is gone.
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.getByText(/session complete/i)).toBeInTheDocument()
+  })
+})
+
+describe('MCQPractice per-question timing (Story 8.2)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    api.submitFeedback.mockResolvedValue({
+      correct: true,
+      correctOptionId: 'a',
+      explanation: 'x',
+      references: [],
+    })
+  })
+
+  it('sends a numeric timeTakenMs (>= 0) with the submit', async () => {
+    renderFlow()
+    fireEvent.click(screen.getByLabelText(/A governance solution/))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await screen.findByText(/Correct!/)
+
+    const arg = api.submitFeedback.mock.calls[0][0]
+    expect(typeof arg.timeTakenMs).toBe('number')
+    expect(arg.timeTakenMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('measures timing per question — the clock re-arms on advance', async () => {
+    renderFlow()
+    // q1
+    fireEvent.click(screen.getByLabelText(/A governance solution/))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await screen.findByText(/Correct!/)
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    // q2 — its own submit reports its own (independent) elapsed time.
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText(/A governance solution/))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await screen.findByText(/Correct!/)
+
+    expect(api.submitFeedback).toHaveBeenCalledTimes(2)
+    const second = api.submitFeedback.mock.calls[1][0]
+    expect(second.exerciseId).toBe('q2')
+    expect(typeof second.timeTakenMs).toBe('number')
+    expect(second.timeTakenMs).toBeGreaterThanOrEqual(0)
   })
 })

@@ -89,12 +89,16 @@ Shared fields (`id`, `domain`, `difficulty`, `explanation`, `exam`, `source`, `t
 
 **Two role-based certs.** Identified by name + version date (no AWS-style codes). Online proctored (Kryterion/Webassessor). Both ~$200/attempt, valid 2 years; retake the current exam to renew. **No hands-on/coding-execution items** — code appears *inside* questions (read snippet, pick answer), which is exactly the surface the app mimics.
 
-- **Associate** — ~45 scored MCQ, 90 min. SQL-leaning. Predominantly single-best-answer with a minority "select all that apply." *(The app deliberately simplifies to single-select only — PRD rev 2; real-exam "select all" items are reworked into single-correct questions or pooled alternatives.)* Domain weights (most recent published guide):
-  1. Databricks Lakehouse Platform ~24%
-  2. ELT with Spark SQL and Python ~29%
-  3. Incremental Data Processing ~22%
-  4. Production Pipelines ~16%
-  5. Data Governance ~9%
+- **Associate** — **45 scored MCQ, 90 min, $200, 2yr validity.** *(The app deliberately simplifies to single-select only — PRD rev 2.)* **Section weights — VERIFIED 2026-06-07 against the official "Databricks Certified Data Engineer Associate Exam Guide" (May 4 2026 version, exam-guide PDF). This SUPERSEDES the prior model-knowledge 5-domain list (Lakehouse Platform/ELT/Incremental/Production Pipelines/Data Governance), which is RETIRED. These 7 sections match the `Domain` enum in `models.py` verbatim:**
+  1. Databricks Intelligence Platform — **6%**
+  2. Data Ingestion and Loading — **21%**
+  3. Data Transformation and Modeling — **22%**
+  4. Working with Lakeflow Jobs — **16%**
+  5. Implementing CI/CD — **10%**
+  6. Troubleshooting, Monitoring, and Optimization — **10%**
+  7. Governance and Security — **15%**
+
+  (sums to 100%.) Passing score not stated in the guide (commonly-reported ~70% planning heuristic). The blueprint reflects the platform's current naming: **Databricks Data Intelligence Platform**, **Lakeflow Connect** (ingestion), **Lakeflow Jobs**, **Lakeflow Spark Declarative Pipelines**, **Unity Catalog**-governed tables, **Declarative Automation Bundles** (formerly Databricks Asset Bundles), **Databricks Git Folders** (formerly Repos), Databricks CLI. **OQ-1 RESOLVED for Associate** (domain list + weights confirmed against the official guide).
 - **Professional** — **59 scored MCQ, 120 min, $200, 2yr validity.** Heavier PySpark/streaming/ops, scenario-based; assumes Python proficiency + ~2yr Databricks experience. **Domain weights (2026 blueprint — VERIFIED 2026-06-06 against databricks.com/learn/certification/data-engineer-professional and corroborating study guides; supersedes the prior model-knowledge 6-domain list):**
   1. Developing Code for Data Processing (Python & SQL) — **22%**
   2. Cost & Performance Optimization — **13%**
