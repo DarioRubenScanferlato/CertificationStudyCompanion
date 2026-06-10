@@ -1,0 +1,326 @@
+# Databricks DE Certification Study Companion - Code-Completion Batch 03
+# Generated: 2026-06-10 (Epic 4 — expands the code-completion bank against the
+# May 2026 Associate exam guide blueprint). Type: code_completion (Wordle-style,
+# single fill-in-the-blank `___`); feedback computed CLIENT-SIDE (token-level
+# green/yellow/grey). Current Databricks terminology: AUTO CDC (replaces APPLY
+# CHANGES), liquid clustering (CLUSTER BY), Lakeflow Declarative Pipelines + `dp`,
+# Lakeflow Jobs, Unity Catalog, read_files. All answers verified against current
+# official docs.databricks.com (June 2026). source: original.
+#
+# Coverage note: CI/CD (Asset/Declarative Automation Bundles, the Databricks CLI,
+# databricks.yml) is intentionally NOT covered here — its surface is bash/YAML,
+# which the sql/pyspark/python tokenizer + Prism highlighting do not model, so it
+# is better served by MCQs.
+
+exercises:
+  - id: dbx-de-0164
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "CDC / SCD (AUTO CDC)"
+    difficulty: hard
+    question: "Apply a change data feed into a target table as SCD Type 1 inside a Lakeflow Declarative Pipeline (SQL). Fill in the keyword that begins the current CDC clause."
+    language: sql
+    template: |
+      CREATE FLOW users_cdc AS ___ CDC INTO users_current
+      FROM STREAM(main.cdc.users_cdf)
+      KEYS (user_id)
+      SEQUENCE BY sequence_num
+      STORED AS SCD TYPE 1
+    answer: "AUTO"
+    accepted:
+      - "AUTO"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`AUTO CDC INTO` is the current syntax for applying change data into a target table (ordered by `SEQUENCE BY`, keyed by `KEYS`) as SCD Type 1 or 2. The AUTO CDC APIs replace the older `APPLY CHANGES INTO` and have the same shape; prefer `AUTO CDC` in new pipelines. In Python the equivalent is `dp.create_auto_cdc_flow(...)`. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/cdc"
+    tags: [lakeflow, declarative-pipelines, cdc, scd, sql]
+    source: original
+
+  - id: dbx-de-0165
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Liquid clustering"
+    difficulty: medium
+    question: "Create a Delta table that uses liquid clustering on the event_date column (instead of static partitioning). Fill in the keyword that begins the clustering clause."
+    language: sql
+    template: |
+      CREATE TABLE events (id BIGINT, event_date DATE)
+      ___ BY (event_date)
+    answer: "CLUSTER"
+    accepted:
+      - "CLUSTER"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`CLUSTER BY (col)` enables liquid clustering, the current recommended alternative to `PARTITIONED BY` and `ZORDER` — it avoids small-file/partition-skew problems and lets clustering keys evolve. `CLUSTER BY AUTO` lets Databricks pick keys from query patterns. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/clustering"
+    tags: [delta, liquid-clustering, performance, sql]
+    source: original
+
+  - id: dbx-de-0166
+    type: code_completion
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "VACUUM"
+    difficulty: easy
+    question: "Remove data files no longer referenced by a Delta table that are older than the retention window. Fill in the command."
+    language: sql
+    template: |
+      ___ orders RETAIN 168 HOURS
+    answer: "VACUUM"
+    accepted:
+      - "VACUUM"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`VACUUM <table> RETAIN <n> HOURS` permanently deletes data files no longer referenced by the table and older than the retention threshold (default 7 days / 168 hours), reclaiming storage. It does NOT compact files — that is `OPTIMIZE`. Vacuuming below the retention window can break time travel and concurrent readers. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/delta-vacuum"
+    tags: [delta, vacuum, optimization, sql]
+    source: original
+
+  - id: dbx-de-0167
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Materialized view (Lakeflow)"
+    difficulty: medium
+    question: "Declare a fully-recomputed aggregate dataset in a Lakeflow Declarative Pipeline (SQL). Fill in the table kind that recomputes its result from the full source."
+    language: sql
+    template: |
+      CREATE OR REFRESH ___ VIEW daily_sales AS
+      SELECT order_date, sum(amount) AS total
+      FROM sales GROUP BY order_date
+    answer: "MATERIALIZED"
+    accepted:
+      - "MATERIALIZED"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`CREATE OR REFRESH MATERIALIZED VIEW` defines a dataset whose result is recomputed from the full source on refresh — the right choice for aggregations/joins. A `STREAMING TABLE` instead processes its source incrementally (append-only). SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/dlt/sql-ref"
+    tags: [lakeflow, declarative-pipelines, materialized-view, sql]
+    source: original
+
+  - id: dbx-de-0168
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "DataFrame write"
+    difficulty: easy
+    question: "Write a DataFrame to a managed Delta table, replacing any existing data. Fill in the method that sets the save behavior to overwrite."
+    language: pyspark
+    template: |
+      (df.write
+        .format("delta")
+        .___("overwrite")
+        .saveAsTable("silver_orders"))
+    answer: "mode"
+    accepted:
+      - "mode"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`.mode(\"overwrite\")` replaces the table's data; other save modes are `append`, `ignore`, and `error`/`errorifexists` (the default). The blank is the method name, not the mode value. PySpark method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/pyspark/basics"
+    tags: [pyspark, dataframe, write, delta]
+    source: original
+
+  - id: dbx-de-0169
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "read_files"
+    difficulty: medium
+    question: "Read JSON files from a volume path directly in SQL using the file-reading table-valued function. Fill in the function name."
+    language: sql
+    template: |
+      SELECT * FROM ___('/Volumes/main/default/landing', format => 'json')
+    answer: "read_files"
+    accepted:
+      - "read_files"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`read_files(path, format => '...')` is the table-valued function for reading files (json, csv, parquet, ...) directly in SQL; it also powers `STREAMING TABLE` ingestion via `STREAM read_files(...)`. The `format` argument uses arrow (`=>`) syntax. SQL identifiers/functions are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/read_files"
+    tags: [ingestion, read-files, sql]
+    source: original
+
+  - id: dbx-de-0170
+    type: code_completion
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    subdomain: "Task values"
+    difficulty: medium
+    question: "Publish a value from one Lakeflow Jobs task so a downstream task can read it. Fill in the taskValues method that sets a value."
+    language: python
+    template: |
+      dbutils.jobs.taskValues.___(key="row_count", value=df.count())
+    answer: "set"
+    accepted:
+      - "set"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`dbutils.jobs.taskValues.set(key, value)` publishes a value from the current task; a downstream task retrieves it with `dbutils.jobs.taskValues.get(taskKey=..., key=...)`. This is how Lakeflow Jobs tasks pass small values (counts, paths, flags) along a DAG. Method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/jobs/task-values"
+    tags: [lakeflow-jobs, task-values, dbutils, python]
+    source: original
+
+  - id: dbx-de-0171
+    type: code_completion
+    exam: associate
+    domain: "Working with Lakeflow Jobs"
+    subdomain: "Widgets / parameters"
+    difficulty: easy
+    question: "Create a text input widget so a notebook can be parameterized by a Job. Fill in the dbutils.widgets method that creates a text widget."
+    language: python
+    template: |
+      dbutils.widgets.___("run_date", "2026-01-01")
+      run_date = dbutils.widgets.get("run_date")
+    answer: "text"
+    accepted:
+      - "text"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`dbutils.widgets.text(name, defaultValue)` creates a free-text input widget; the value is read back with `dbutils.widgets.get(name)`. Other widget types are `dropdown`, `combobox`, and `multiselect`. Lakeflow Jobs pass parameters into a notebook through these widgets. Method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/notebooks/widgets"
+    tags: [lakeflow-jobs, widgets, dbutils, parameters, python]
+    source: original
+
+  - id: dbx-de-0172
+    type: code_completion
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Unity Catalog privileges"
+    difficulty: easy
+    question: "Remove a previously-granted SELECT privilege on a table from a group in Unity Catalog. Fill in the keyword that names the principal losing the privilege."
+    language: sql
+    template: |
+      REVOKE SELECT ON TABLE sales.orders ___ `analysts`
+    answer: "FROM"
+    accepted:
+      - "FROM"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`REVOKE <privilege> ON <securable> FROM <principal>` removes a privilege in Unity Catalog; the granting form is `GRANT ... TO <principal>`. The keyword pairs with the verb: GRANT...TO, REVOKE...FROM. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/security-revoke"
+    tags: [unity-catalog, governance, revoke, sql]
+    source: original
+
+  - id: dbx-de-0173
+    type: code_completion
+    exam: associate
+    domain: "Databricks Intelligence Platform"
+    subdomain: "Three-level namespace"
+    difficulty: easy
+    question: "Set the active catalog so later statements can reference schemas and tables without the catalog prefix. Fill in the keyword that selects the catalog."
+    language: sql
+    template: |
+      ___ CATALOG main
+    answer: "USE"
+    accepted:
+      - "USE"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`USE CATALOG <name>` sets the current catalog in Unity Catalog's three-level namespace (`catalog.schema.table`); `USE SCHEMA <name>` (or `USE <schema>`) sets the current schema. After `USE CATALOG main` an unqualified `sales.orders` resolves under `main`. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-ddl-use-catalog"
+    tags: [unity-catalog, namespace, platform, sql]
+    source: original
+
+  - id: dbx-de-0174
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Semi-structured / functions"
+    difficulty: medium
+    question: "Parse a JSON string column into structured columns using a known schema. Fill in the pyspark.sql function that parses JSON against a schema."
+    language: pyspark
+    template: |
+      from pyspark.sql.functions import from_json, col
+
+      parsed = df.withColumn("data", ___(col("raw_json"), schema))
+    answer: "from_json"
+    accepted:
+      - "from_json"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`from_json(col, schema)` parses a JSON string column into a struct/array according to the supplied schema; `to_json(...)` does the reverse, and `get_json_object`/`json_tuple` extract individual fields without a full schema. Function names imported from `pyspark.sql.functions` are case-sensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/from_json"
+    tags: [pyspark, json, semi-structured, functions]
+    source: original
+
+  - id: dbx-de-0175
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Aggregation"
+    difficulty: easy
+    question: "Aggregate total amount per category in the DataFrame API. Fill in the method that groups rows before aggregation (mind the exact casing)."
+    language: pyspark
+    template: |
+      from pyspark.sql.functions import sum
+
+      totals = df.___("category").agg(sum("amount").alias("total"))
+    answer: "groupBy"
+    accepted:
+      - "groupBy"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`df.groupBy(\"category\").agg(...)` groups rows by the key before aggregating. The casing matters: the PySpark method is `groupBy` (camelCase) — `groupby` is not a DataFrame method (that's the pandas spelling). PySpark method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/pyspark/basics"
+    tags: [pyspark, dataframe, groupby, aggregation]
+    source: original
+
+  - id: dbx-de-0176
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Change Data Feed"
+    difficulty: hard
+    question: "Enable Change Data Feed on an existing Delta table via a table property. Fill in the property key (after the delta. prefix) that turns CDF on."
+    language: sql
+    template: |
+      ALTER TABLE orders SET TBLPROPERTIES (delta.___ = true)
+    answer: "enableChangeDataFeed"
+    accepted:
+      - "enableChangeDataFeed"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "Setting `delta.enableChangeDataFeed = true` makes the table record row-level changes (insert/update/delete) so they can be read with `table_changes(...)` in SQL or `.option(\"readChangeFeed\", \"true\")` in PySpark. Delta table-property keys are case-sensitive — the camelCase `enableChangeDataFeed` must match exactly."
+    references:
+      - "https://docs.databricks.com/aws/en/delta/delta-change-data-feed"
+    tags: [delta, change-data-feed, cdc, sql]
+    source: original
+
+  - id: dbx-de-0177
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Structured Streaming watermark"
+    difficulty: medium
+    question: "Bound state in a streaming aggregation by telling Spark how late event-time data may arrive. Fill in the DataFrame method that sets the watermark."
+    language: pyspark
+    template: |
+      (events
+        .___("event_time", "10 minutes")
+        .groupBy(window("event_time", "5 minutes"))
+        .count())
+    answer: "withWatermark"
+    accepted:
+      - "withWatermark"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`.withWatermark(\"event_time\", \"10 minutes\")` tells Structured Streaming that event-time data may be up to 10 minutes late, letting it drop older state and emit results for closed windows — required for bounded stateful aggregations. Method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/aws/en/structured-streaming/watermarks"
+    tags: [structured-streaming, watermark, stateful, pyspark]
+    source: original

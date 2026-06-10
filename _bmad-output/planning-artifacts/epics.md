@@ -10,6 +10,8 @@ revisions:
     summary: 'Added Epic 5 (MCQ Variety & Randomization — FR-7/19/20/21, AR-13/14/15) and Epic 6 (Session Control & Study QoL — UX-DR1–12, gaps G1/G2/G3) with 6 stories each. FR-9 removed. Sourced from PRD rev 2, architecture rev 3, EXPERIENCE.md.'
   - date: '2026-06-07'
     summary: 'Added Epic 7 (Answer & Stats Tracking — FR-22–25, AR-16/17; 5 stories) and Epic 8 (Timed Practice / Mock Exam — FR-26–28, AR-18; 4 stories). NFR-2/NFR-3 revised (local SQLite persistence; reverses no-persistence). FR-24 supersedes FR-21 ordering. Sourced from PRD rev 3 §4.5/§4.6, architecture rev 4, addendum §E.'
+  - date: '2026-06-09'
+    summary: 'Added Epic 9 (Multi-Provider / Multi-Certification — FR-29/FR-30, AR-19; 5 stories) and Epic 10 (Containerization & Sharing — FR-31, NFR-5, AR-20; 4 stories). Product renamed to "Cert Study Companion"; Databricks DE preserved as the first bundled Certification. Per-Certification config (canonical Domains, weights, exam params) moves from hardcoded into file-based YAML loaded at startup; the `exam` field is retained as the Certification identifier. Adds one-command containerized run (docker compose) for shareability. Both epics layer on shipped Epics 1–8 + Epic 4. Sourced from PRD rev 5 §4.7/§4.8, addendum §G/§H.'
 ---
 
 # DataBricks-DE-cert-study-companion - Epic Breakdown
@@ -78,6 +80,16 @@ This document provides the complete epic and story breakdown for DataBricks-DE-c
 
 **FR-28:** Per-question timing — Time taken per answered question is captured client-side and stored with the attempt (feeds FR-22/FR-23). *(New, PRD rev 3.)*
 
+**FR-29:** Per-Certification configuration — Each Certification's canonical Domain list, Domain weights, and exam parameters (total_questions, duration_minutes, pass_bar) live in file-based YAML config loaded at startup, not hardcoded; the seed config re-expresses today's Databricks Associate (45Q/90min) and Professional (59Q/120min) literals and weights with no behavior change. *(New, PRD rev 5 §4.7.)*
+
+**FR-30:** Multi-Certification content org + Provider/Certification selection — Content is organized under a Provider→Certification model; the user selects a Provider/Certification and sessions are scoped to it. The `exam` field is retained as the Certification identifier (associate/professional are two Certifications under the Databricks Provider, so Story 6.7's exam filter keeps working). Adding a Certification = content + config, no code change. *(New, PRD rev 5 §4.7.)*
+
+**FR-31:** One-command containerized run — One `docker compose up` runs the whole app for a colleague with only Docker installed (no host Node/Python/uv); each colleague runs their own single-user instance; the SQLite history store persists across `docker compose down && up` via a mounted volume. *(New, PRD rev 5 §4.8; reverses the prior no-containerization stance.)*
+
+**FR-32:** Capture question feedback in-app, persisted to a sidecar file — From the practice surface the learner attaches a free-text note to the current Exercise; it is saved to a sidecar YAML keyed by Exercise `id` (timestamp + `resolved` flag), surviving restarts, **without modifying the authored Exercise file**. *(New, PRD rev 6 §4.9; the app's first content-write path.)*
+
+**FR-33:** Skill-driven revision of flagged questions — The `write-mcq` skill reads an Exercise's open feedback, revises the question in place in its source YAML, re-validates, and marks the feedback entries resolved (author reviews the diff). MCQ-first. *(New, PRD rev 6 §4.9.)*
+
 ### Non-Functional Requirements
 
 **NFR-1:** Code-Completion feedback latency — Positional Feedback must feel instant (target < 100ms from keystroke to rendered feedback); comparison is small and should be computable client-side.
@@ -87,6 +99,8 @@ This document provides the complete epic and story breakdown for DataBricks-DE-c
 **NFR-3:** Storage — Content stays file-based (YAML loaded at startup); answer history lives in a local SQLite DB (`sqlite3` stdlib, gitignored `backend/data/progress.db`). *(Revised PRD rev 3.)*
 
 **NFR-4:** Portable format — Exercise format is portable to Anki and other tools so studying is never blocked on app completion.
+
+**NFR-5:** Shareability — A colleague can run the whole app from a clone with only Docker installed, no host toolchain (Node/Python/uv); distribution is local self-serve (each runs their own instance), not a hosted multi-user service. *(New, PRD rev 5 §4.8.)*
 
 ### Additional Requirements (Architecture & Technical)
 
@@ -106,7 +120,7 @@ This document provides the complete epic and story breakdown for DataBricks-DE-c
 
 **AR-8:** Code rendering — Prism.js for syntax highlighting in exercise display.
 
-**AR-9:** Code tokenization — Regex-based tokenizer (language-specific) for Code-Completion token-level feedback (Phase 2).
+**AR-9:** ~~Code tokenization — Regex-based tokenizer (language-specific) for Code-Completion token-level feedback.~~ **SUPERSEDED 2026-06-10 (decision-log #54, Story 4.8):** feedback is now CHARACTER-level (per-letter), so no tokenizer is needed; `tokenizer.js` is removed and `codeFeedback.js` compares per-character.
 
 **AR-10:** Development workflow — Concurrent dev servers (frontend on 3000 proxying `/api/*` to backend on 8000).
 
@@ -125,6 +139,12 @@ This document provides the complete epic and story breakdown for DataBricks-DE-c
 **AR-17:** Stats/readiness + unseen-first endpoints — `GET /api/stats` and `GET /api/readiness` aggregate the store; `GET /api/sessions` ordering reads the store for unseen-first; `POST /api/feedback` records the attempt (+`timeTakenMs`). Standard `{success,data,error}` wrapper. (Architecture rev 4.)
 
 **AR-18:** Mock-Exam builder + frontend timer — backend `mode=mock` builder (domain-weighted, full-length, exam-scoped, ignores unseen-first, stamps `durationMinutes`); timer/countdown + per-question timing are client-side (send `timeTakenMs` with feedback); new FE components StatsDashboard, ReadinessIndicator, Timer/Countdown, MockExam. (Architecture rev 4.)
+
+**AR-19:** Per-Certification config loader + `GET /api/certifications` — a file-based YAML registry (Providers→Certifications→{name, total_questions, duration_minutes, pass_bar, domains[{name,weight}]}) loaded at startup; a Pydantic `Certification` model. The `ExamType`/`Domain` enums and `MOCK_EXAM_CONFIGS` in `models.py`/`session.py` are derived from this registry instead of being literal; `exam` is retained as the Certification id (exam→certification semantics) so session/mock/unseen-first/stats keep keying on `(certification, domain)`. New `GET /api/certifications` serves the registry; `frontend/src/constants.js` `EXAMS`/`DOMAINS_BY_EXAM` become data fetched from it. (Architecture rev 6, addendum §G.)
+
+**AR-20:** Container stack — `backend/Dockerfile` (Python base, install deps, run `uvicorn app.main:app --host 0.0.0.0 --port 8000`), `frontend/Dockerfile` (multi-stage `npm ci && npm run build` → static serve of `dist/` with `/api/*` proxied to the backend service, replacing the Vite dev proxy), and a `docker-compose.yml` wiring the two services on a shared network with a mounted volume at `backend/data/` so `progress.db` survives restarts; bind-mounts of `exercises/` + config let colleagues add content without rebuilding. (Architecture rev 6, addendum §H.)
+
+**AR-21:** Feedback sidecar + write path — new `backend/app/feedback_store.py` (read/write `exercises/feedback.yaml`, keyed by Exercise `id`: `add_note`, `notes_for`, `open_notes`, `mark_resolved`; create-if-absent, small lock) and a new `POST /api/exercise-feedback {exerciseId, note}` endpoint (server-stamps `created_at`, `resolved: false`; validates the id exists; standard `{success,data,error}` wrapper) — distinct from the MCQ-grading `POST /api/feedback`. The app's first content-write path; never modifies authored Exercise files. Writeback needs a writable content mount (ties OQ-8/OQ-9). (Architecture rev 8, addendum §I.)
 
 ### UX Design Requirements (EXPERIENCE.md)
 
@@ -186,6 +206,11 @@ Functional/quality-of-life behaviors layered on the existing MVP. Source: `ux-de
 | FR-26 | Epic 8 | Optional session countdown + auto-end |
 | FR-27 | Epic 8 | Mock-Exam mode (domain-weighted, exam-timed) |
 | FR-28 | Epic 8 | Per-question timing (feeds stats) |
+| FR-29 | Epic 9 | Per-Certification config (domains, weights, exam params) |
+| FR-30 | Epic 9 | Multi-Certification content org + Provider/Certification selection |
+| FR-31 | Epic 10 | One-command containerized run + persistence |
+| FR-32 | Epic 11 | In-app question feedback → sidecar YAML |
+| FR-33 | Epic 11 | write-mcq feedback-driven revision |
 
 ### UX-DR Coverage Map (Epic 6)
 
@@ -225,14 +250,14 @@ Implement the core exam-realistic MCQ practice experience.
 
 **FRs/ARs covered:** FR-5, FR-6, FR-7, FR-8, FR-9, FR-10, FR-11, FR-12, NFR-1, NFR-2, NFR-3, AR-7, AR-8
 
-### Epic 4: Code-Completion Practice (Phase 2)
+### Epic 4: Code-Completion Practice (implemented 2026-06-09; runner in review)
 Implement the Wordle-style code-completion exercises for syntax drilling.
 
 **What users accomplish:** Practice code syntax with interactive feedback, see token-level green/yellow/grey feedback as they type, learn syntax through the playful guess-and-narrow loop, see explanations and canonical answers.
 
-**FRs/ARs covered:** FR-13, FR-14, FR-15, FR-16, FR-17, NFR-1, AR-9
+**FRs/ARs covered:** FR-13, FR-14, FR-15, FR-16, FR-17, NFR-1, AR-9; plus **Story 4.7** (exercise-type multiselect filter — discoverability) and **Story 4.6** (content bank + authoring skill, still `ready-for-dev`).
 
-**Priority:** Phase 2 — after the exam-critical work (Epic 5, Epic 6).
+**Status (2026-06-10):** stories 4.1–4.5 + 4.7 implemented and code-reviewed (10 findings fixed; decision-log #41–46), in `review`. Story 4.6 (starter content + `write-code-completion` skill) is the only remaining `ready-for-dev` story.
 
 ### Epic 5: MCQ Variety & Randomization  🔝 TOP PRIORITY (next to implement)
 Make every MCQ a fair single-select drawn from an Option Pool, with server-side sampling, option shuffle, and randomized session order so re-study feels fresh.
@@ -269,6 +294,33 @@ Add exam-realistic time pressure: an optional countdown for any session, and a f
 **FRs/ARs covered:** FR-26, FR-27, FR-28; AR-18.
 
 **Priority:** After Epic 7 (its mock-exam builder + per-question timing depend on Epic 7's store + feedback record hook), before Epic 4. Source: PRD rev 3 §4.6, architecture rev 4.
+
+### Epic 9: Multi-Provider / Multi-Certification
+Generalize the Databricks-only app into a provider-agnostic one by moving the canonical Domain list, Domain weights, and exam parameters out of code and into file-based config — so a new Certification is content + config with no code change.
+
+**What users/developers accomplish:** A new glossary (Provider + Certification) replaces the Databricks-only framing; per-Certification config (canonical Domains, weights, total_questions/duration_minutes/pass_bar) loads from YAML at startup; the Start screen's exam taxonomy is fetched from the backend instead of hand-maintained; Databricks DE is fully preserved as the first bundled Certification (Associate + Professional become two Certifications under the Databricks Provider). The polished Provider→Certification switcher UI and a second bundled provider's content are deferred (this iteration: model + config + one provider).
+
+**FRs/ARs covered:** FR-29, FR-30 (+FR-4 validation extended); AR-19 (config loader + `GET /api/certifications` + exam→certification semantics).
+
+**Priority:** Before Epic 10 (Epic 10's compose bundles the generalized app). Both layer on shipped Epics 1–8 + Epic 4 — the `exam` field is retained (PRD §3) so Story 6.7's exam filter and the mock builder keep working; the change is "where the lists/weights come from," not a field rename. Guardrail: no Databricks DE regression. Source: PRD rev 5 §4.7, addendum §G.
+
+### Epic 10: Containerization & Sharing
+Package the whole app so one `docker compose up` runs it for a colleague who has only Docker installed, with their answer history persisting across restarts.
+
+**What users/developers accomplish:** A colleague clones the repo, runs `docker compose up`, and opens a documented local URL — no host Node/Python/uv. Backend and frontend each ship a Dockerfile; compose wires them on a shared network; the SQLite store persists via a mounted volume; `exercises/` + config are bind-mounted so content can be added without rebuilding. Each colleague runs their own single-user instance (not hosted multi-user).
+
+**FRs/ARs covered:** FR-31, NFR-5; AR-20 (Dockerfiles + docker-compose.yml + SQLite volume).
+
+**Priority:** After Epic 9 (compose bundles the generalized app), and layers on shipped Epics 1–8 + Epic 4. Reverses the prior "no containerization for MVP" stance. Source: PRD rev 5 §4.8, addendum §H.
+
+### Epic 11: Question Feedback & Content-Improvement Loop
+Let learners flag a question in-app with a free-text note (saved to a sidecar file), and let the `write-mcq` skill revise flagged questions from that feedback.
+
+**What users accomplish:** While practicing, the learner attaches a note to a bad/unclear question; it persists to a sidecar `exercises/feedback.yaml` (authored files untouched). Later, the author runs `write-mcq` against the open feedback to fix the questions in place and mark the notes resolved — study friction becomes a better content bank.
+
+**FRs/ARs covered:** FR-32 (capture → sidecar), FR-33 (skill revision); AR-21 (`feedback_store.py` + `POST /api/exercise-feedback` write path — the app's first content-write path).
+
+**Priority:** Active (PRD rev 6 §4.9, decision-log #47–53). Story 11.1 (capture + persistence) is the develop-now story; 11.2 (write-mcq revision) follows. Source: addendum §I.
 
 ---
 
@@ -631,6 +683,56 @@ So that **I'm motivated to think before typing**.
 **And** when attempts reach zero, the canonical answer is revealed
 **And** the explanation is shown
 **And** I can move to the next exercise
+
+---
+
+### Story 4.7: Exercise-Type Filter (multiselect, MCQ default)
+
+As a **a student**,
+I want **to choose which exercise type(s) a session includes — multiple choice, code completion, or both — with multiple choice selected by default**,
+So that **I can drill the Wordle-style code-completion exercises directly instead of hunting for them interleaved among dozens of MCQs**.
+
+(Added 2026-06-09; full story file: `_bmad-output/implementation-artifacts/4-7-exercise-type-filter.md`. Closes the code-completion discoverability gap — the runner is useless if users can't reach a drill.)
+
+**Acceptance Criteria:**
+
+**Given** the Start screen
+**When** I view the filters
+**Then** an **Exercise type** multiselect lists **Multiple choice** + **Code completion**, with **Multiple choice checked by default**
+**And** I can scope a session to Code completion (and/or uncheck Multiple choice)
+**When** I start a Code-completion-scoped session
+**Then** it contains only code-completion exercises (routed to the `CodeCompletion` runner) and the live match count reflects the selected type(s)
+**And** `GET /api/sessions` + `GET /api/exercises/count` accept a **repeatable** `exercise_type` param (any-of), validated against `ExerciseType`
+**And** empty selection means "all types" (never blocks); pytest + vitest cover the default, type-scoped sessions/counts, multi-value any-of, and invalid-type rejection
+
+**Status:** implemented + code-reviewed 2026-06-10, in `review`.
+
+---
+
+### Story 4.8: Character-Level Feedback + Skip
+
+As a **a student**,
+I want **per-letter (Wordle-style) feedback and a Skip button**,
+So that **the code-completion drill actually narrows toward the answer and I'm never trapped exhausting attempts**.
+
+(Added 2026-06-10 via correct-course; Sprint Change Proposal `sprint-change-proposal-2026-06-10.md`; decision-log #54/#55. **Reverses** the token-level feedback of stories 4.3/4.4 and extends 4.5's loop. Full story file: `_bmad-output/implementation-artifacts/4-8-character-level-feedback-and-skip.md`.)
+
+**Acceptance Criteria:**
+
+**Given** a code-completion exercise
+**When** I submit a guess
+**Then** feedback is rendered **per character** — green (right letter, right place) / yellow (letter in the answer, wrong place) / grey (not in the answer), with two-pass duplicate-letter handling, computed client-side < 100ms
+**And** it honors `case_sensitive` (per-character compare) and `ignore_whitespace`, and scores against the best of `[canonical, ...accepted]` (FR-16)
+**And** `FeedbackTokens` renders per-character tiles, color-independent (glyph/aria-label + a `role="status"` summary)
+**When** I press **Skip**
+**Then** the runner advances to the next exercise **without revealing** the answer or explanation (distinct from solve/exhaustion, which reveal)
+**And** the **6-guess cap** (`CODE_COMPLETION_MAX_ATTEMPTS`) is retained, with auto-reveal on exhaustion and reveal on solve
+**And** the regex `tokenizer.js` (+ its test) is **removed** (no longer used for feedback); `utils/language.js` stays
+**And** `codeFeedback`/`FeedbackTokens`/`CodeCompletion` tests are updated for character-level + Skip; `tokenizer.test.js` is deleted; suites green
+
+**FRs/ARs covered:** FR-14 (now character-level), FR-15 (+ Skip), FR-16, NFR-1; supersedes AR-9.
+
+**Priority:** Lands before Epic 4 merges (improves the in-review runner). No backend change; no content change (answers are already single words).
 
 ---
 
@@ -1032,5 +1134,210 @@ So that **I get a realistic readiness check**.
 **And** at the end an exam-style result shows overall score vs the ~70% bar plus the per-Domain breakdown (reusing Story 6.6 / Story 7 stats)
 **And** the mock run records attempts like any session (Story 7.2)
 **And** vitest tests cover starting a mock, the countdown/auto-submit, and the result screen
+
+---
+
+<!-- ===================== EPIC 9: Multi-Provider / Multi-Certification ===================== -->
+
+### Story 9.1: Per-Certification Config Model & Loader
+
+As a **content author / the app**,
+I want **a file-based YAML registry of Providers and Certifications loaded and validated at startup**,
+So that **each Certification's domains, weights, and exam parameters are configuration, not hardcoded enums**.
+
+**Acceptance Criteria:**
+
+**Given** a YAML config (e.g. `config/certifications.yaml` or one file per certification) authored as `providers[] → certifications[] → {id, name, total_questions, duration_minutes, pass_bar, domains:[{name, weight}]}`
+**When** the FastAPI app starts
+**Then** a Pydantic `Certification`/`Provider` model parses and validates the registry (weights sum to ~100 per certification; ids unique; required fields present), failing loudly with the offending file + certification id on malformed config
+**And** the seed config re-expresses today's literals: Databricks Associate (`id: associate`, 45Q / 90min / pass_bar 0.70) and Professional (`id: professional`, 59Q / 120min / pass_bar 0.70) with their current per-domain weights (addendum §C / §G)
+**And** the loaded registry is exposed to the rest of the backend (e.g. a `certifications` accessor keyed by certification id)
+**And** `pytest` tests (via `uv`) cover successful load, validation failure cases, and that the seed config's domains/weights/exam params **match the current `MOCK_EXAM_CONFIGS` and `Domain` values verbatim**
+
+---
+
+### Story 9.2: Make Domains & Mock Params Config-Driven (Backend)
+
+As a **the app**,
+I want **the `ExamType`/`Domain` enums and `MOCK_EXAM_CONFIGS` to be derived from the loaded config registry instead of literal code**,
+So that **a new Certification needs only content + config, with no Databricks DE regression**.
+
+**Acceptance Criteria:**
+
+**Given** the config registry from Story 9.1
+**When** the backend resolves valid exams, valid domains, and mock parameters
+**Then** the allowed `exam` values and the per-exam canonical Domain list are read from the registry (the `Domain` enum is replaced/backed by config-derived values), and `exam` is retained as the Certification id (no field rename)
+**And** `backend/app/session.py`'s `MOCK_EXAM_CONFIGS` (`total_questions`, `duration_minutes`, `domain_weights`) is built from the registry rather than literals; the largest-remainder mock builder reads the derived config
+**And** the session/mock builder, unseen-first ordering, and stats continue to key on `(certification, domain)` exactly as they keyed on `(exam, domain)` before
+**And** **all existing backend tests stay green** (guardrail: no Databricks DE regression in sizing/weighting/timing/filtering)
+**And** `pytest` tests cover config-driven mock sizing and domain-weighting per Certification (Associate 45 / Professional 59), driven from a test config
+
+---
+
+### Story 9.3: GET /api/certifications + Config-Driven Frontend
+
+As a **the frontend**,
+I want **a `GET /api/certifications` endpoint and a Start screen that reads its exam/domain taxonomy from it**,
+So that **adding a Certification requires no frontend edit**.
+
+**Acceptance Criteria:**
+
+**Given** the backend is running with the loaded registry
+**When** I call `GET /api/certifications`
+**Then** it returns the Provider/Certification registry (providers → certifications → {id, name, exam params, domains}) in the standard `{success, data, error}` wrapper
+**And** `frontend/src/constants.js` `EXAMS`/`DOMAINS_BY_EXAM` are no longer hand-maintained — the values are **fetched** from `GET /api/certifications` (e.g. via `api.js`)
+**And** `SessionSelect`'s exam selector renders from the fetched config (keep the existing flat exam dropdown wired to the config this iteration; the polished Provider→Certification switcher UI is **deferred**), and the Domain dropdown scopes to the selected exam's configured domains
+**And** vitest tests mock the api and cover fetched-config rendering plus the empty/error state (no certifications / fetch failure degrades gracefully, no white-screen)
+
+---
+
+### Story 9.4: Certification-Scoped Validation & Content Mapping
+
+As a **content author / the app**,
+I want **each Exercise's `domain` validated against its Certification's configured domain list, and the Databricks DE content mapped to its Certifications**,
+So that **content stays blueprint-aligned per Certification (FR-4) as more Certifications are added**.
+
+**Acceptance Criteria:**
+
+**Given** the config-driven domain lists (Story 9.2) and loaded exercises
+**When** content is validated at load
+**Then** an Exercise whose `domain` is not in its Certification's configured domain list is flagged with a clear message naming the file, Exercise `id`, certification, and the offending domain (extends the current Domain-enum check; ties FR-4)
+**And** the existing Databricks DE content maps correctly to the Associate and Professional Certifications (their `exam` values resolve to the configured Certifications)
+**And** the content-path layout decision is documented (OQ-7): **keep the current `exercises/associate|professional/` paths this iteration** and map `exam` values to Certifications via config (no physical reorganization)
+**And** `pytest` tests cover unknown-domain-for-certification flagging and that all bundled Databricks DE exercises pass certification-scoped validation
+
+---
+
+### Story 9.5: Rebranding to "Cert Study Companion"
+
+As a **a user**,
+I want **the user-facing product name to be the generic "Cert Study Companion" with Databricks DE shown as the bundled certification**,
+So that **the app reads as provider-agnostic without disrupting the codebase**.
+
+**Acceptance Criteria:**
+
+**Given** the user-facing surfaces
+**When** I view the app shell, the README, and the browser tab
+**Then** the frontend app-shell title/headings, `README.md`, and `frontend/index.html` `<title>` use the generic product name "Cert Study Companion"
+**And** Databricks DE is presented as the (currently the only) bundled Certification, not the product identity
+**And** **no folder, path, or `project_name` renames** are made (the repo/dir names and artifact ids are unchanged this iteration)
+**And** tests and snapshots that assert the old title/heading are updated to the new name
+
+---
+
+<!-- ===================== EPIC 10: Containerization & Sharing ===================== -->
+
+### Story 10.1: Backend Dockerfile
+
+As a **a colleague with only Docker installed**,
+I want **a backend image that installs its own dependencies and serves the API**,
+So that **the backend runs with no host Python**.
+
+**Acceptance Criteria:**
+
+**Given** `backend/Dockerfile`
+**When** I build it
+**Then** it uses a Python 3.10+ base, installs dependencies (via `uv` or `pip install -r requirements.txt`), copies `backend/`, and runs `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+**And** a `.dockerignore` excludes `__pycache__`, `.venv`, `backend/data/`, and other non-build files
+**And** the built image starts and serves `/api/*` (e.g. `GET /api/certifications` / `GET /api/exercises`) with no host Python toolchain present
+**And** SQLite needs no service dependency (stdlib `store.py`)
+
+---
+
+### Story 10.2: Frontend Dockerfile & Static Serve
+
+As a **a colleague with only Docker installed**,
+I want **a frontend image that builds the React app and serves it, proxying API calls to the backend**,
+So that **the UI runs with no host Node beyond the image's build stage**.
+
+**Acceptance Criteria:**
+
+**Given** `frontend/Dockerfile`
+**When** I build it
+**Then** it is multi-stage: a Node build stage runs `npm ci && npm run build`, and a final stage statically serves `dist/` (e.g. nginx or `vite preview`)
+**And** `/api/*` requests are proxied to the backend service (replacing the Vite **dev** proxy from `vite.config.js`)
+**And** the image builds and serves the app with no host Node beyond the build stage
+**And** a `.dockerignore` excludes `node_modules` and build artifacts
+
+---
+
+### Story 10.3: docker-compose.yml & Persistence Volume
+
+As a **a colleague**,
+I want **`docker compose up` to bring up both services with my answer history persisting across restarts**,
+So that **I can run and re-run the app without losing progress**.
+
+**Acceptance Criteria:**
+
+**Given** `docker-compose.yml` at the repo root
+**When** I run `docker compose up`
+**Then** it defines two services (`backend`, `frontend`) on a shared network, with `frontend` `depends_on` `backend`, and publishes a **documented local URL** (e.g. `http://localhost:3000`)
+**And** a named or bind volume mounts the backend's `backend/data/` so `progress.db` lives outside the container layer
+**And** answers recorded in one run **survive `docker compose down && docker compose up`** (a fresh volume simply starts empty via create-if-absent)
+**And** the whole flow runs with **only Docker installed** (no host Node/Python/uv) — FR-31
+**And** the acceptance explicitly verifies the persistence-across-restart and the only-Docker run path
+
+---
+
+### Story 10.4: Content Mount & README
+
+As a **a colleague**,
+I want **to add or edit content without rebuilding, and clear docs for the one-command flow**,
+So that **the tool is self-serve for sharing**.
+
+**Acceptance Criteria:**
+
+**Given** the compose stack (Story 10.3)
+**When** the backend service runs
+**Then** `exercises/` and the §G certification config are **bind-mounted** into the backend so a colleague can add/edit content (drop YAML + config) and pick it up with a backend restart — no image rebuild (OQ-8)
+**And** `README.md` documents the one-command flow: clone → `docker compose up` → open the URL, plus how to add content and where history is stored (the mounted volume)
+**And** the README notes the out-of-scope items: TLS/reverse-proxy/hosting, accounts/auth, a shared backend DB, multi-user concurrency, and image-registry publishing
+**And** the documented flow is verified end-to-end (clone-equivalent → compose up → reachable URL → add a content file → restart → it appears)
+
+---
+
+<!-- ===================== EPIC 11: Question Feedback & Content-Improvement Loop ===================== -->
+
+### Story 11.1: In-App Question Feedback → Sidecar YAML
+
+As a **a student**,
+I want **to attach a free-text note to a question while I practice and have it saved**,
+So that **bad/unclear questions get flagged for fixing without interrupting my study**.
+
+(FR-32, AR-21 — PRD rev 6 §4.9, addendum §I. The develop-now story.)
+
+**Acceptance Criteria:**
+
+**Given** the practice surface (MCQ feedback panel and the Code-Completion conclusion)
+**When** I open the "Flag / leave a note" affordance and submit a free-text note
+**Then** the note is persisted to a sidecar `exercises/feedback.yaml`, keyed by the Exercise `id`, with a server-stamped `created_at` and `resolved: false`
+**And** the authored Exercise YAML file is **byte-unchanged** (only the sidecar is written)
+**And** submitting an empty/whitespace-only note is rejected (no entry written)
+**And** a new `backend/app/feedback_store.py` exposes `add_note` / `notes_for` / `open_notes` / `mark_resolved` over the sidecar (create-if-absent), and a new `POST /api/exercise-feedback {exerciseId, note}` endpoint appends via it using the standard `{success, data, error}` wrapper and validates the `exerciseId` exists
+**And** a feedback note survives an app restart (re-opening the Exercise's notes shows it)
+**And** the new endpoint does NOT touch the MCQ `POST /api/feedback` grading path or the SQLite attempt store
+**And** `pytest` covers add/list/open/resolve + the endpoint (incl. unknown-id and empty-note rejection); `vitest` covers the affordance calling the API and the empty-note guard
+
+---
+
+### Story 11.2: write-mcq Feedback-Driven Revision
+
+As a **content author**,
+I want **the write-mcq skill to revise flagged questions using their feedback and mark the feedback resolved**,
+So that **real study friction turns into a steadily better content bank**.
+
+(FR-33 — PRD rev 6 §4.9. Follows Story 11.1.)
+
+**Acceptance Criteria:**
+
+**Given** open (unresolved) feedback entries in `exercises/feedback.yaml`
+**When** the `write-mcq` skill is run against an Exercise id (or sweeps `open_notes()`)
+**Then** it reads the notes, edits the Exercise in its source YAML to fix the flagged issue, and re-validates against the Option Pool / domain rules (FR-1/FR-19)
+**And** it marks the corresponding feedback entries `resolved` (or removes them) in the sidecar
+**And** it only acts on Exercises with **open** feedback (resolved entries are skipped)
+**And** the author reviews the change as a normal version-controlled diff (no approval UI)
+**And** the skill is MCQ-first; a `write-code-completion` revision path is noted as a later extension
+
+**Priority:** After Story 11.1 (needs the sidecar store it writes).
 
 ---

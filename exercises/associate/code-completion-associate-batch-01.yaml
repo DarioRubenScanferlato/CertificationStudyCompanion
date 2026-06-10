@@ -1,0 +1,78 @@
+# Databricks DE Certification Study Companion - Code-Completion Batch 01
+# Generated: 2026-06-08 (Epic 4, Story 4.1 — first code-completion content)
+# Type: code_completion (Wordle-style, single fill-in-the-blank). Feedback is
+# computed CLIENT-SIDE; current Databricks terminology (Auto Loader / cloudFiles,
+# MERGE, Lakeflow Declarative Pipelines + `dp`).
+
+exercises:
+  - id: dbx-de-0148
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Auto Loader"
+    difficulty: medium
+    question: "Configure Auto Loader to read newly arriving JSON files as a stream. Fill in the option key that tells Auto Loader which source file format to expect."
+    language: python
+    template: |
+      (spark.readStream
+        .format("cloudFiles")
+        .option("cloudFiles.___", "json")
+        .load(source_path))
+    answer: "format"
+    accepted:
+      - "format"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "Auto Loader is invoked via `.format(\"cloudFiles\")`, and the source file format is set with the `cloudFiles.format` option (here `json`). `cloudFiles.schemaLocation` stores the inferred/evolving schema, and `cloudFiles.format` is required so Auto Loader knows how to parse incoming files. Option keys are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/ingestion/auto-loader/options.html"
+    tags: [auto-loader, ingestion, structured-streaming]
+    source: original
+
+  - id: dbx-de-0149
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "MERGE / upsert"
+    difficulty: medium
+    question: "Upsert a change set into a Delta table. Complete the MERGE clause that handles rows present in the source but absent from the target."
+    language: sql
+    template: |
+      MERGE INTO target t
+      USING updates s ON t.id = s.id
+      WHEN NOT ___ THEN INSERT *
+    answer: "MATCHED"
+    accepted:
+      - "MATCHED"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`WHEN NOT MATCHED THEN INSERT *` inserts source rows that have no matching target row — the insert half of an upsert. `WHEN MATCHED THEN UPDATE` handles existing rows. SQL keywords are case-insensitive, so `matched` is also accepted."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/delta-merge-into.html"
+    tags: [delta, merge, upsert, sql]
+    source: original
+
+  - id: dbx-de-0150
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Lakeflow Declarative Pipelines"
+    difficulty: medium
+    question: "Define a streaming bronze table in a Lakeflow Declarative Pipeline. Complete the decorator that registers this function as a pipeline dataset."
+    language: python
+    template: |
+      from pyspark import pipelines as dp
+
+      @dp.___
+      def bronze():
+          return spark.readStream.table("source_events")
+    answer: "table"
+    accepted:
+      - "table"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "In Lakeflow Declarative Pipelines (formerly Delta Live Tables), `@dp.table` registers the function's return DataFrame as a pipeline dataset, using the current `from pyspark import pipelines as dp` alias — not the legacy `import dlt` / `@dlt.table`. `@dp.view` would define a non-materialized view instead. Python identifiers are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/dlt/index.html"
+    tags: [lakeflow, declarative-pipelines, dp, streaming]
+    source: original

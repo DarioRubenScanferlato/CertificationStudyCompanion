@@ -41,38 +41,76 @@ class TestSessionResponseFormat:
         assert response.headers["content-type"].startswith("application/json")
 
     def test_each_entry_has_expected_shape(self, client):
+        # A session may mix MCQ and Code-Completion entries (Story 4.1); the two
+        # types have different shapes — assert per type.
         response = client.get("/api/sessions")
         data = response.json()["data"]
+        mcq_keys = {
+            "exerciseId",
+            "type",
+            "domain",
+            "difficulty",
+            "question",
+            "codeContext",
+            "displayedOptions",
+        }
+        cc_keys = {
+            "exerciseId",
+            "type",
+            "domain",
+            "difficulty",
+            "language",
+            "prompt",
+            "template",
+            "answer",
+            "accepted",
+            "caseSensitive",
+            "ignoreWhitespace",
+            "explanation",
+            "references",
+        }
         for entry in data:
-            assert set(entry.keys()) == {
-                "exerciseId",
-                "type",
-                "domain",
-                "difficulty",
-                "question",
-                "codeContext",
-                "displayedOptions",
-            }
+            if entry["type"] == "code_completion":
+                assert set(entry.keys()) == cc_keys
+            else:
+                assert set(entry.keys()) == mcq_keys
 
-    def test_each_entry_has_exactly_four_displayed_options(self, client):
+    def test_each_mcq_entry_has_exactly_four_displayed_options(self, client):
+        # Scoped to MCQ entries — Code-Completion entries carry no displayedOptions.
         response = client.get("/api/sessions")
         data = response.json()["data"]
-        for entry in data:
+        mcq_entries = [e for e in data if e["type"] != "code_completion"]
+        assert len(mcq_entries) > 0
+        for entry in mcq_entries:
             options = entry["displayedOptions"]
             assert isinstance(options, list)
             assert len(options) == 4
             for option in options:
                 assert set(option.keys()) == {"id", "text"}
 
+    def test_code_completion_entry_has_no_displayed_options(self, client):
+        # Code-Completion entries (Story 4.1) carry template/answer/accepted but
+        # never an MCQ-style displayedOptions list.
+        response = client.get("/api/sessions")
+        data = response.json()["data"]
+        for entry in data:
+            if entry["type"] == "code_completion":
+                assert "displayedOptions" not in entry
+                assert entry["template"].count("___") == 1
+                assert isinstance(entry["answer"], str) and entry["answer"]
+
 
 class TestNoAnswerLeakage:
     """The correct flag must never be present anywhere in the payload."""
 
     def test_no_correct_key_in_displayed_options(self, client):
+        # MCQ Displayed Options never carry the `correct` flag. Code-Completion
+        # entries have no displayedOptions (their answer is delivered separately
+        # for client-side feedback — a different, documented leakage model).
         response = client.get("/api/sessions")
         data = response.json()["data"]
         for entry in data:
-            for option in entry["displayedOptions"]:
+            for option in entry.get("displayedOptions", []):
                 assert "correct" not in option
 
     def test_no_correct_key_anywhere_in_payload(self, client):
@@ -109,6 +147,60 @@ class TestSessionFiltering:
         assert len(lower["data"]) > 0
         for entry in lower["data"]:
             assert entry["domain"] == "Governance and Security"
+
+    def test_filter_by_exercise_type_code_completion(self, client):
+        # Scoping a session to code_completion returns ONLY code-completion
+        # entries (so the Wordle drill is reachable without hunting through
+        # interleaved MCQs). Each entry routes by ``type`` on the client.
+        response = client.get("/api/sessions?exam=associate&exercise_type=code_completion")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert len(data["data"]) > 0
+        for entry in data["data"]:
+            assert entry["type"] == "code_completion"
+            # Code-completion entries carry the template/answer, never displayedOptions.
+            assert "displayedOptions" not in entry
+
+    def test_filter_by_exercise_type_single_choice_excludes_code_completion(self, client):
+        response = client.get("/api/sessions?exam=associate&exercise_type=single_choice")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert len(data["data"]) > 0
+        assert all(entry["type"] != "code_completion" for entry in data["data"])
+
+    def test_exercise_type_is_case_insensitive(self, client):
+        upper = client.get("/api/sessions?exam=associate&exercise_type=CODE_COMPLETION").json()
+        assert upper["success"] is True
+        assert len(upper["data"]) > 0
+        for entry in upper["data"]:
+            assert entry["type"] == "code_completion"
+
+    def test_invalid_exercise_type_returns_error(self, client):
+        response = client.get("/api/sessions?exercise_type=not_a_type")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["data"] == []
+        assert "Invalid exercise type" in data["error"]
+
+    def test_multiple_exercise_types_include_both(self, client):
+        # The Start-screen multiselect (Story 4.7) can request several types;
+        # repeating the param includes any of them.
+        both = client.get(
+            "/api/sessions?exam=associate&exercise_type=single_choice&exercise_type=code_completion"
+        ).json()
+        assert both["success"] is True
+        types = {e["type"] for e in both["data"]}
+        assert "single_choice" in types
+        assert "code_completion" in types
+
+    def test_one_invalid_type_among_several_is_rejected(self, client):
+        response = client.get("/api/sessions?exercise_type=single_choice&exercise_type=bogus")
+        data = response.json()
+        assert data["success"] is False
+        assert "Invalid exercise type 'bogus'" in data["error"]
 
 
 class TestEmptyAndInvalid:

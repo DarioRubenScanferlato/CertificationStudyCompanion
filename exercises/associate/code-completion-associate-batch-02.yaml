@@ -1,0 +1,305 @@
+# Databricks DE Certification Study Companion - Code-Completion Batch 02
+# Generated: 2026-06-10 (Epic 4, Story 4.6 — starter bank).
+# Type: code_completion (Wordle-style, single fill-in-the-blank `___`). Feedback
+# is computed CLIENT-SIDE (token-level green/yellow/grey). Current Databricks
+# terminology (Lakeflow Declarative Pipelines + `dp`, Unity Catalog, Auto Loader).
+# Authored from the stable Databricks SQL/PySpark surface; source: original.
+
+exercises:
+  - id: dbx-de-0151
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "MERGE / upsert"
+    difficulty: medium
+    question: "Complete the MERGE clause that modifies rows present in BOTH the source and the target (the update half of an upsert)."
+    language: sql
+    template: |
+      MERGE INTO target t USING updates s ON t.id = s.id
+      WHEN MATCHED THEN ___ SET *
+    answer: "UPDATE"
+    accepted:
+      - "UPDATE"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`WHEN MATCHED THEN UPDATE SET *` updates target rows that have a matching source row — the update half of an upsert (the insert half is `WHEN NOT MATCHED THEN INSERT *`). `DELETE` would remove matched rows instead. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/delta-merge-into.html"
+    tags: [delta, merge, upsert, sql]
+    source: original
+
+  - id: dbx-de-0152
+    type: code_completion
+    exam: associate
+    domain: "Troubleshooting, Monitoring, and Optimization"
+    subdomain: "OPTIMIZE / Z-ORDER"
+    difficulty: easy
+    question: "Co-locate the data files of a Delta table by a high-cardinality column to speed up selective queries. Fill in the clause that orders the compacted files."
+    language: sql
+    template: |
+      OPTIMIZE orders ___ BY (customer_id)
+    answer: "ZORDER"
+    accepted:
+      - "ZORDER"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`OPTIMIZE <table> ZORDER BY (col)` compacts small files and co-locates rows sharing similar `col` values, improving data-skipping for selective filters. `OPTIMIZE` alone only compacts; `PARTITION` is a different concept (directory layout). Keyword is case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/delta/data-skipping.html"
+    tags: [delta, optimize, zorder, performance, sql]
+    source: original
+
+  - id: dbx-de-0153
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Delta time travel"
+    difficulty: easy
+    question: "Query an earlier snapshot of a Delta table by its version number. Complete the time-travel clause."
+    language: sql
+    template: |
+      SELECT * FROM events VERSION AS ___ 5
+    answer: "OF"
+    accepted:
+      - "OF"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`VERSION AS OF <n>` reads the table as of commit version n; `TIMESTAMP AS OF '<ts>'` reads as of a point in time. Both rely on the Delta transaction log retaining that version. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/delta/history.html"
+    tags: [delta, time-travel, sql]
+    source: original
+
+  - id: dbx-de-0154
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Structured Streaming"
+    difficulty: medium
+    question: "Make a streaming write recoverable across restarts. Fill in the option key that stores the stream's progress."
+    language: pyspark
+    template: |
+      (df.writeStream
+        .option("___", "/Volumes/main/default/chk/silver")
+        .toTable("silver"))
+    answer: "checkpointLocation"
+    accepted:
+      - "checkpointLocation"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`checkpointLocation` is where Structured Streaming persists offsets and state so a restarted query resumes exactly-once instead of reprocessing. Without it a streaming write to a table fails or can't recover. Option keys are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/query-recovery.html"
+    tags: [structured-streaming, checkpoint, pyspark]
+    source: original
+
+  - id: dbx-de-0155
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Auto Loader trigger"
+    difficulty: medium
+    question: "Process all currently available files and then stop, as a scheduled incremental batch job (not a continuously-running stream). Fill in the trigger argument."
+    language: pyspark
+    template: |
+      (spark.readStream.format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .load(path)
+        .writeStream
+        .trigger(___=True)
+        .toTable("bronze"))
+    answer: "availableNow"
+    accepted:
+      - "availableNow"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`.trigger(availableNow=True)` processes everything available now across one or more micro-batches and then stops — ideal for scheduled incremental jobs. The older `once=True` is superseded by `availableNow`, which also respects rate limits. Keyword argument names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/triggers.html"
+    tags: [auto-loader, structured-streaming, trigger, pyspark]
+    source: original
+
+  - id: dbx-de-0156
+    type: code_completion
+    exam: associate
+    domain: "Governance and Security"
+    subdomain: "Unity Catalog privileges"
+    difficulty: medium
+    question: "Grant a group read access to a table in Unity Catalog. Complete the keyword that names the grantee."
+    language: sql
+    template: |
+      GRANT SELECT ON TABLE sales.orders ___ `analysts`
+    answer: "TO"
+    accepted:
+      - "TO"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`GRANT <privilege> ON <securable> TO <principal>` is the Unity Catalog privilege syntax; here `SELECT` on a table is granted to the `analysts` group. `REVOKE ... FROM` removes a privilege. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/data-governance/unity-catalog/manage-privileges/privileges.html"
+    tags: [unity-catalog, governance, grant, sql]
+    source: original
+
+  - id: dbx-de-0157
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Lakeflow expectations"
+    difficulty: medium
+    question: "Add a data-quality expectation to a Lakeflow Declarative Pipeline table that keeps the row but records violations. Complete the decorator."
+    language: pyspark
+    template: |
+      from pyspark import pipelines as dp
+
+      @dp.table
+      @dp.___("valid_id", "id IS NOT NULL")
+      def silver():
+          return spark.read.table("bronze")
+    answer: "expect"
+    accepted:
+      - "expect"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`@dp.expect(name, constraint)` records expectation violations as metrics while keeping the offending rows; `@dp.expect_or_drop` drops them and `@dp.expect_or_fail` aborts the update. This uses the current `from pyspark import pipelines as dp` alias, not the legacy `import dlt` / `@dlt.expect`. Identifiers are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/dlt/expectations.html"
+    tags: [lakeflow, declarative-pipelines, expectations, dp, pyspark]
+    source: original
+
+  - id: dbx-de-0158
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "COPY INTO"
+    difficulty: easy
+    question: "Idempotently load CSV files from a path into an existing Delta table. Fill in the command."
+    language: sql
+    template: |
+      ___ INTO my_table
+      FROM '/Volumes/main/default/landing'
+      FILEFORMAT = CSV
+    answer: "COPY"
+    accepted:
+      - "COPY"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`COPY INTO` performs an idempotent, retryable bulk load from files into a Delta table, tracking which files were already ingested so re-runs don't duplicate data. Auto Loader is the streaming alternative for continuously arriving files. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/delta-copy-into.html"
+    tags: [copy-into, ingestion, delta, sql]
+    source: original
+
+  - id: dbx-de-0159
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Lakeflow streaming table (SQL)"
+    difficulty: medium
+    question: "Declare an incrementally-maintained streaming table in a Lakeflow Declarative Pipeline defined in SQL. Fill in the table kind."
+    language: sql
+    template: |
+      CREATE OR REFRESH ___ TABLE bronze
+      AS SELECT * FROM STREAM read_files('/Volumes/main/default/landing')
+    answer: "STREAMING"
+    accepted:
+      - "STREAMING"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`CREATE OR REFRESH STREAMING TABLE` defines a table that ingests its source incrementally (append-only) within a Lakeflow Declarative Pipeline; a plain `MATERIALIZED VIEW` recomputes from the full source instead. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/dlt/sql-ref.html"
+    tags: [lakeflow, declarative-pipelines, streaming-table, sql]
+    source: original
+
+  - id: dbx-de-0160
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Structured Streaming output mode"
+    difficulty: easy
+    question: "Configure a streaming query to write only newly arrived rows each micro-batch. Fill in the method that sets the output mode."
+    language: pyspark
+    template: |
+      (df.writeStream
+        .___("append")
+        .option("checkpointLocation", "/chk/silver")
+        .toTable("silver"))
+    answer: "outputMode"
+    accepted:
+      - "outputMode"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`.outputMode(\"append\")` writes only rows added since the last trigger — the default and the right mode for inserts without aggregations. `\"complete\"` rewrites the full result (aggregations) and `\"update\"` writes changed rows. Method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/structured-streaming/output-mode.html"
+    tags: [structured-streaming, output-mode, pyspark]
+    source: original
+
+  - id: dbx-de-0161
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "Window functions"
+    difficulty: medium
+    question: "Rank rows within each region by descending sales. Complete the clause that scopes the window to each region."
+    language: sql
+    template: |
+      SELECT region, product,
+             rank() OVER (___ BY region ORDER BY sales DESC) AS r
+      FROM sales
+    answer: "PARTITION"
+    accepted:
+      - "PARTITION"
+    case_sensitive: false
+    ignore_whitespace: true
+    explanation: "`OVER (PARTITION BY region ORDER BY sales DESC)` restarts the ranking within each region. Omitting `PARTITION BY` would rank across the whole result set. SQL keywords are case-insensitive."
+    references:
+      - "https://docs.databricks.com/en/sql/language-manual/sql-ref-window-functions.html"
+    tags: [sql, window-functions, ranking]
+    source: original
+
+  - id: dbx-de-0162
+    type: code_completion
+    exam: associate
+    domain: "Data Ingestion and Loading"
+    subdomain: "Auto Loader schema"
+    difficulty: hard
+    question: "Let Auto Loader infer and persist the evolving schema of the incoming JSON. Fill in the option key that stores the inferred schema."
+    language: pyspark
+    template: |
+      (spark.readStream.format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .option("cloudFiles.___", "/Volumes/main/default/schemas/events")
+        .load(path))
+    answer: "schemaLocation"
+    accepted:
+      - "schemaLocation"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`cloudFiles.schemaLocation` is where Auto Loader stores the inferred schema and tracks schema evolution across runs; `cloudFiles.format` (set above) tells it how to parse the files. Option keys are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/ingestion/auto-loader/schema.html"
+    tags: [auto-loader, schema-evolution, ingestion, pyspark]
+    source: original
+
+  - id: dbx-de-0163
+    type: code_completion
+    exam: associate
+    domain: "Data Transformation and Modeling"
+    subdomain: "DataFrame filtering"
+    difficulty: easy
+    question: "Keep only the rows where age is greater than 21. Fill in the DataFrame method (more than one method name works)."
+    language: pyspark
+    template: |
+      adults = df.___("age > 21")
+    answer: "filter"
+    accepted:
+      - "filter"
+      - "where"
+    case_sensitive: true
+    ignore_whitespace: true
+    explanation: "`df.filter(\"age > 21\")` keeps matching rows; `df.where(...)` is an exact alias, so both are accepted. Either takes a SQL-expression string or a Column expression. Method names are case-sensitive."
+    references:
+      - "https://docs.databricks.com/en/pyspark/basics.html"
+    tags: [pyspark, dataframe, filter]
+    source: original

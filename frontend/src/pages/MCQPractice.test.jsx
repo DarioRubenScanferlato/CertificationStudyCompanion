@@ -259,7 +259,11 @@ describe('MCQPractice', () => {
     expect(screen.queryByText('Session complete')).not.toBeInTheDocument()
   })
 
-  it('degrades gracefully for a code_completion exercise instead of crashing', () => {
+  it('degrades gracefully if a code_completion exercise reaches MCQPractice directly', () => {
+    // In the real app, App's PracticeRouter routes code_completion to the
+    // CodeCompletion runner (see App.test.jsx), so MCQPractice never receives
+    // one. If one somehow arrives here (no displayedOptions), MCQPractice must
+    // not crash — it shows the malformed fallback + a way out.
     renderFlow([
       {
         exerciseId: 'cc1',
@@ -271,7 +275,7 @@ describe('MCQPractice', () => {
         displayedOptions: [],
       },
     ])
-    expect(screen.getByText(/code-completion exercises arrive/i)).toBeInTheDocument()
+    expect(screen.getByText(/malformed/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'See Results' })).toBeInTheDocument()
   })
 

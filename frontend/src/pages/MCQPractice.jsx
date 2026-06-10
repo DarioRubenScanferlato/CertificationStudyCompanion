@@ -1,26 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSession } from '../context/SessionContext'
-import { useRegisterExitConfirm } from '../App'
 import { EXERCISE_TYPES } from '../constants'
+import { DIFFICULTY_STYLES, FOCUS_RING, FOCUS_RING_NEUTRAL } from '../styles/ui'
+import { useSessionExit } from '../hooks/useSessionExit'
 import QuestionContent from '../components/QuestionContent'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ProgressBar from '../components/ProgressBar'
+import ExplanationPanel from '../components/ExplanationPanel'
+import FeedbackNote from '../components/FeedbackNote'
 import Timer from '../components/Timer'
-
-const DIFFICULTY_STYLES = {
-  easy: 'bg-green-100 text-green-800',
-  medium: 'bg-yellow-100 text-yellow-800',
-  hard: 'bg-red-100 text-red-800',
-}
-
-// Focus ring shared by every interactive control on the Practice surface.
-const FOCUS_RING =
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-databricks-500 focus-visible:ring-offset-1'
-
-// Neutral focus ring for the subordinate End-session control — it must stay
-// visually distinct from the primary databricks-500 actions (see Story 6.4).
-const FOCUS_RING_NEUTRAL =
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-1'
 
 /**
  * Compute the CSS classes for an option row once feedback is shown:
@@ -63,11 +51,9 @@ export default function MCQPractice() {
     prev,
     skip,
     endToSummary,
-    reset,
     timerDurationSeconds,
   } = useSession()
 
-  const [confirmOpen, setConfirmOpen] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   const endButtonRef = useRef(null)
 
@@ -99,32 +85,10 @@ export default function MCQPractice() {
   // Running correct count for the progress bar.
   const correctCount = exercises.filter((e) => feedback[e.exerciseId]?.correct).length
 
-  // Open the Exit-confirm, unless nothing is answered — then exit straight to
-  // Start with no prompt. Shared with the header Home affordance.
-  const requestExit = useCallback(() => {
-    if (answeredCount === 0) {
-      reset()
-      return
-    }
-    setConfirmOpen(true)
-  }, [answeredCount, reset])
-
-  // Let the header Home affordance route through this same exit flow.
-  useRegisterExitConfirm(requestExit)
-
-  function closeConfirm() {
-    setConfirmOpen(false)
-  }
-
-  function handleSeeResults() {
-    setConfirmOpen(false)
-    endToSummary()
-  }
-
-  function handleDiscard() {
-    setConfirmOpen(false)
-    reset()
-  }
+  // Exit-confirm wiring (shared with the Code-Completion runner via the hook).
+  // Skip the prompt and exit straight to Start when nothing is answered.
+  const { confirmOpen, requestExit, closeConfirm, handleSeeResults, handleDiscard } =
+    useSessionExit({ skipConfirm: answeredCount === 0 })
 
   // --- Keyboard shortcuts --------------------------------------------------
   // A single document-level keydown handler, scoped to this view (removed on
@@ -230,17 +194,9 @@ export default function MCQPractice() {
     ? `Answer ${result.correct ? 'correct' : 'incorrect'}. ${progressPhrase}`
     : progressPhrase
 
-  // Code-completion exercises get their own UI in a later epic. Until then,
-  // degrade gracefully rather than rendering them as a broken MCQ.
-  if (exercise.type === EXERCISE_TYPES.CODE_COMPLETION) {
-    return (
-      <UnsupportedExercise
-        message="Code-completion exercises arrive in a later update."
-        isLast={isLast}
-        onNext={next}
-      />
-    )
-  }
+  // Code-completion exercises are routed to CodeCompletion.jsx by the App
+  // PracticeRouter (Epic 4 / Story 4.1), so they never reach MCQPractice. The
+  // malformed-options guard below remains the defensive fallback.
 
   // Defensive guard: a malformed exercise without exactly 4 displayed options
   // would otherwise render as a broken question. Degrade instead of crashing.
@@ -411,7 +367,12 @@ export default function MCQPractice() {
           </button>
         </>
       ) : (
-        <Feedback result={result} isLast={isLast} onNext={next} />
+        <>
+          <Feedback result={result} isLast={isLast} onNext={next} />
+          {/* key on exerciseId remounts the note control per question, so a typed
+              draft or "saved" confirmation never carries onto another question. */}
+          <FeedbackNote key={exercise.exerciseId} exerciseId={exercise.exerciseId} />
+        </>
       )}
     </div>
   )
@@ -472,30 +433,7 @@ function Feedback({ result, isLast, onNext }) {
         <span aria-hidden="true">{result.correct ? '✓' : '✗'}</span>
       </div>
 
-      <div className="mt-4 bg-white border border-gray-200 rounded-lg p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-1">Explanation</h3>
-        <p className="text-gray-800 whitespace-pre-wrap">{result.explanation}</p>
-
-        {result.references && result.references.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">References</h3>
-            <ul className="list-disc list-inside space-y-1">
-              {result.references.map((ref, i) => (
-                <li key={`${ref}-${i}`}>
-                  <a
-                    href={ref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-databricks-500 hover:underline break-all"
-                  >
-                    {ref}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      <ExplanationPanel explanation={result.explanation} references={result.references} />
 
       <button
         type="button"

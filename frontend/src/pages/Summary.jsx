@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSession } from '../context/SessionContext'
 import { getSessionByIds } from '../api'
-import { PASS_THRESHOLD } from '../constants'
+import { PASS_THRESHOLD, EXERCISE_TYPES } from '../constants'
 
 /**
  * Build overall and per-domain score breakdowns from the session feedback.
@@ -19,15 +19,23 @@ import { PASS_THRESHOLD } from '../constants'
  * unanswered counts are surfaced separately for partial / ended-early summaries
  * (EXPERIENCE.md ended-early). `skipped`/`unanswered` are read from the Story
  * 6.3 questionState, never inferred from "incorrect".
+ *
+ * Code-Completion entries are EXCLUDED from these MCQ tallies: they are graded
+ * client-side and never produce `feedback`, so counting them would otherwise
+ * mark a solved drill as "unanswered" and inflate the total. They are summarized
+ * separately in the Summary component from `codeCompletionResults`.
  */
 export function computeResults(exercises, feedback, questionState = {}) {
   let correct = 0
   let answered = 0
   let skipped = 0
   let unanswered = 0
+  let total = 0
   const byDomain = {}
 
   for (const ex of exercises) {
+    if (ex.type === EXERCISE_TYPES.CODE_COMPLETION) continue // scored separately
+    total += 1
     const result = feedback[ex.exerciseId]
     if (result) {
       answered += 1
@@ -48,16 +56,25 @@ export function computeResults(exercises, feedback, questionState = {}) {
     }
   }
 
-  return { correct, answered, total: exercises.length, byDomain, skipped, unanswered }
+  return { correct, answered, total, byDomain, skipped, unanswered }
 }
 
 export default function Summary() {
-  const { exercises, feedback, questionState, startSession, reset, mode } = useSession()
+  const { exercises, feedback, questionState, codeCompletionResults, startSession, reset, mode } =
+    useSession()
   const { correct, answered, total, byDomain, skipped, unanswered } = computeResults(
     exercises,
     feedback,
     questionState
   )
+
+  // Code-Completion drills are summarized separately (client-side, never graded
+  // via feedback). Count how many of the session's drills were solved.
+  const ccEntries = exercises.filter((ex) => ex.type === EXERCISE_TYPES.CODE_COMPLETION)
+  const ccSolved = ccEntries.filter(
+    (ex) => codeCompletionResults[ex.exerciseId]?.outcome === 'solved'
+  ).length
+  const hasCodeCompletion = ccEntries.length > 0
   // Score is over the answered subset (ended-early summaries exclude skipped /
   // unanswered from the denominator shown).
   const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0
@@ -159,7 +176,10 @@ export default function Summary() {
         </div>
       )}
 
-      {nothingGraded ? (
+      {/* The "nothing graded" prompt is about MCQ grading; suppress it when the
+          session was code-completion only (the drill summary below carries the
+          result). */}
+      {nothingGraded && !hasCodeCompletion ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 text-center">
           <p className="text-lg font-medium text-gray-900">Nothing graded yet — jump back in?</p>
           {skipped > 0 && (
@@ -169,7 +189,7 @@ export default function Summary() {
             </p>
           )}
         </div>
-      ) : (
+      ) : !nothingGraded ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 text-center">
           <p className="text-5xl font-bold text-databricks-500">
             {correct}/{answered}
@@ -183,6 +203,18 @@ export default function Summary() {
               {` of ${total}`}
             </p>
           )}
+        </div>
+      ) : null}
+
+      {/* Code-Completion drill summary (separate from MCQ scoring). */}
+      {hasCodeCompletion && (
+        <div
+          className="bg-white border border-gray-200 rounded-lg p-6 mb-6 text-center"
+          data-testid="cc-summary"
+        >
+          <p className="text-lg font-medium text-gray-900">
+            Code drills: {ccSolved}/{ccEntries.length} solved
+          </p>
         </div>
       )}
 

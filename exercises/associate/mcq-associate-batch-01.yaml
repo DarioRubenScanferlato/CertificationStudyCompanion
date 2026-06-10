@@ -766,25 +766,28 @@ exercises:
     exam: associate
     domain: "Data Transformation and Modeling"
     difficulty: medium
-    question: "A silver-layer table has a column holding an array of tags per record, and a data engineer needs to flatten it so each tag becomes its own row. Which behavior does the Spark SQL EXPLODE function provide for this?"
+    question: "A silver-layer table has a column holding an array of tags per record. A data engineer needs to flatten it so each tag becomes its own row. Which Spark SQL function should they apply to the array column?"
     options:
       - id: a
-        text: "Transforms each element in an array or map into a separate row"
+        text: "explode(tags)"
         correct: true
       - id: b
-        text: "Joins multiple tables"
+        text: "flatten(tags)"
         correct: false
       - id: c
-        text: "Filters rows based on conditions"
+        text: "array_distinct(tags)"
         correct: false
       - id: d
-        text: "Concatenates strings"
+        text: "size(tags)"
+        correct: false
+      - id: e
+        text: "collect_list(tags)"
         correct: false
     answer: [a]
-    explanation: "EXPLODE is useful for flattening nested arrays or maps. If a row has an array [1, 2, 3], EXPLODE creates three output rows, one for each element."
+    explanation: "explode() generates one output row per element of an array (or per key/value pair of a map), which is exactly how you turn a one-row-per-record array column into one-row-per-tag; explode_outer() does the same but keeps a row for empty/NULL arrays, and posexplode() also returns each element's index. Why the others are wrong: flatten() merges an array-of-arrays into a single array (still one row); array_distinct() just removes duplicate elements within the array (still one row); size() returns the element count as an integer; collect_list() is an aggregate that does the opposite — it gathers many rows INTO one array."
     references:
-      - "https://docs.databricks.com/en/spark/latest/spark-sql/"
-    tags: [spark-sql, functions]
+      - "https://docs.databricks.com/aws/en/sql/language-manual/functions/explode"
+    tags: [spark-sql, functions, explode, arrays]
     source: original
 
   - id: dbx-de-0031
@@ -1520,25 +1523,28 @@ exercises:
     exam: associate
     domain: "Working with Lakeflow Jobs"
     difficulty: medium
-    question: "When scheduling a Job to run daily at 2 AM UTC, which cron expression is correct?"
+    question: "When scheduling a Lakeflow Job to run daily at 2 AM UTC, which cron expression is correct?"
     options:
       - id: a
-        text: '"0 2 * * ?" (or equivalent Quartz syntax)'
+        text: '"0 0 2 * * ?" (Quartz syntax)'
         correct: true
       - id: b
-        text: "2 * * * *"
+        text: '"0 2 * * *" (5-field Unix cron)'
         correct: false
       - id: c
-        text: "*/2 * * * *"
+        text: '"0 0 14 * * ?"'
         correct: false
       - id: d
-        text: "2 0 0 * *"
+        text: '"30 0 2 * * ?"'
+        correct: false
+      - id: e
+        text: '"2 0 0 * * ?"'
         correct: false
     answer: [a]
-    explanation: "Databricks uses Quartz cron syntax. '0 2 * * ?' means minute 0, hour 2, every day, every month, any day of week. '2 * * * *' would mean every second minute, which is 30 times per hour."
+    explanation: "Databricks Lakeflow Jobs use Quartz cron, which has SIX mandatory fields in this order: seconds minutes hours day-of-month month day-of-week (a seventh, year, is optional). So daily at 2 AM is '0 0 2 * * ?' — seconds 0, minutes 0, hour 2, any day-of-month, any month, and '?' for day-of-week (Quartz requires '?' in one of the day fields). Why the others are wrong: '0 2 * * *' is 5-field Unix cron (no seconds field), which is not Quartz; '0 0 14 * * ?' is valid Quartz but fires at 14:00 (2 PM), not 2 AM; '30 0 2 * * ?' fires at 02:00:30, not on the hour; '2 0 0 * * ?' is parsed as seconds=2, minutes=0, hour=0, i.e. 00:00:02 (midnight), not 2 AM."
     references:
-      - "https://docs.databricks.com/en/workflows/jobs/index.html"
-    tags: [jobs, scheduling, cron]
+      - "https://docs.databricks.com/aws/en/jobs/scheduled"
+    tags: [lakeflow-jobs, scheduling, cron, quartz]
     source: original
 
   - id: dbx-de-0060

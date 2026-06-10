@@ -43,6 +43,12 @@ const initialState = {
   mode: 'practice',
   // The exam's real duration in minutes (mock only), surfaced for display.
   durationMinutes: null,
+  // Retained per-exercise Code-Completion results (Epic 4). Keyed by exerciseId:
+  // { history: tokenRows[], attemptsLeft, outcome: 'solved'|'exhausted' }. Lets a
+  // concluded drill survive unmount (Back/Next revisit shows it final, read-only),
+  // mirroring how `feedback` retains MCQ results. Client-side only — NOT POSTed
+  // or recorded in the SQLite store (that store is MCQ-scoped, Epic 7).
+  codeCompletionResults: {},
 }
 
 function sessionReducer(state, action) {
@@ -160,6 +166,18 @@ function sessionReducer(state, action) {
       }
     }
 
+    case 'RECORD_CODE_COMPLETION':
+      // Retain a concluded Code-Completion drill so revisiting it (Back/Next)
+      // shows the final result instead of re-arming the guess loop. Idempotent
+      // per exerciseId; the runner only records on conclusion.
+      return {
+        ...state,
+        codeCompletionResults: {
+          ...state.codeCompletionResults,
+          [action.exerciseId]: action.result,
+        },
+      }
+
     case 'GO_STATS':
       // Navigate to the read-only Stats dashboard. Clears any active session so
       // returning to Start lands on a fresh select screen.
@@ -249,6 +267,8 @@ export function SessionProvider({ children }) {
       prev: () => dispatch({ type: 'PREV' }),
       skip: () => dispatch({ type: 'SKIP', exerciseId: currentExercise?.exerciseId }),
       endToSummary: () => dispatch({ type: 'END_TO_SUMMARY' }),
+      recordCodeCompletion: (exerciseId, result) =>
+        dispatch({ type: 'RECORD_CODE_COMPLETION', exerciseId, result }),
       goStats: () => dispatch({ type: 'GO_STATS' }),
       reset: () => dispatch({ type: 'RESET' }),
     }

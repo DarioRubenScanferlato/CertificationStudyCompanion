@@ -25,9 +25,14 @@ def _iter_keys(obj):
 
 
 def _all_mcq_ids(client):
-    """Return the ids of all MCQs the session builder would emit (full corpus)."""
+    """Return the ids of all MCQs the session builder would emit (full corpus).
+
+    A session may now also contain Code-Completion entries (Story 4.1), which
+    have a different shape (no displayedOptions). These tests cover MCQ replay
+    shape/freshness, so filter to MCQ entries only.
+    """
     data = client.get("/api/sessions").json()["data"]
-    return [entry["exerciseId"] for entry in data]
+    return [entry["exerciseId"] for entry in data if entry["type"] != "code_completion"]
 
 
 class TestKnownIdSet:

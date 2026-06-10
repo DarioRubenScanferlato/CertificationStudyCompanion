@@ -2,13 +2,14 @@ import logging
 import os
 import tempfile
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from app import store
+from app import feedback_store, store
 from app.anki import export_to_anki
 from app.content import filter_exercises, load_exercises_from_directory
 from app.feedback import (
@@ -71,6 +72,27 @@ def health_check():
 def api_health():
     """API health check endpoint."""
     return {"success": True, "data": {"status": "API healthy"}, "error": None}
+
+
+def _validate_exercise_types(exercise_types: "list[str] | None") -> list[str]:
+    """Validate a (repeatable) exercise_type filter, returning any error strings.
+
+    Accepts a list of type values (the Start-screen multiselect, Story 4.7) and
+    checks each against the ExerciseType enum, case-insensitively. An empty/None
+    filter is valid (means "all types").
+    """
+    if not exercise_types:
+        return []
+    valid_values = [member.value for member in ExerciseType]
+    valid_lower = [v.lower() for v in valid_values]
+    errors = []
+    for value in exercise_types:
+        if value is None or value.strip().lower() not in valid_lower:
+            errors.append(
+                f"Invalid exercise type '{value}'. Valid values are: {', '.join(valid_values)}"
+            )
+            logger.warning(f"Invalid exercise type filter attempted: {value}")
+    return errors
 
 
 @app.get("/api/exercises")
@@ -144,6 +166,15 @@ def get_session(
     domain: str = Query(None, description="Filter by domain (case-insensitive)"),
     difficulty: str = Query(None, description="Filter by difficulty (easy, medium, hard)"),
     exam: str = Query(None, description="Filter by exam (associate, professional)"),
+    exercise_type: Annotated[
+        list[str] | None,
+        Query(
+            description=(
+                "Filter by type(s) (single_choice, multi_choice, code_completion). "
+                "Repeatable — pass several to include multiple types (Start-screen multiselect)."
+            ),
+        ),
+    ] = None,
     mode: str = Query(None, description="'mock' for a full-length domain-weighted mock exam"),
 ):
     """
@@ -153,12 +184,17 @@ def get_session(
     ``GET /api/exercises``) and runs the result through the session randomizer.
     MCQs are returned in randomized order, each with exactly 4 flag-less
     ``displayedOptions`` (no ``correct`` flags are ever leaked to the client).
-    Code-completion exercises are skipped by the session builder.
+    Code-completion exercises are delivered too (carrying their template/answer
+    for client-side feedback); the client routes by entry ``type``. Pass
+    ``exercise_type=code_completion`` to scope a session to the code-completion
+    drill (or ``single_choice`` for MCQ-only).
 
     Query Parameters:
     - domain: Filter by domain (case-insensitive)
     - difficulty: Filter by difficulty level (easy, medium, hard)
     - exam: Filter by exam type (associate, professional; case-insensitive)
+    - exercise_type: Filter by exercise type (single_choice, multi_choice,
+      code_completion; case-insensitive)
 
     Default-exam policy: a session must never mix the Associate and
     Professional corpora. When ``exam`` is omitted it defaults to
@@ -204,6 +240,9 @@ def get_session(
             )
             logger.warning(f"Invalid {label} filter attempted: {value}")
 
+    # exercise_type is a (repeatable) list — validate each value.
+    errors.extend(_validate_exercise_types(exercise_type))
+
     if errors:
         return {"success": False, "data": [], "error": "; ".join(errors)}
 
@@ -234,7 +273,9 @@ def get_session(
     exam = exam or ExamType.ASSOCIATE.value
 
     # Reuse the shared filter helper (same approach as GET /api/exercises).
-    filtered = filter_exercises(exercises, domain=domain, difficulty=difficulty, exam=exam)
+    filtered = filter_exercises(
+        exercises, domain=domain, difficulty=difficulty, exam=exam, exercise_type=exercise_type
+    )
 
     # An empty filter result is a successful empty session, not an error.
     session = build_session(filtered)
@@ -247,6 +288,15 @@ def get_exercise_count(
     domain: str = Query(None, description="Filter by domain (case-insensitive)"),
     difficulty: str = Query(None, description="Filter by difficulty (easy, medium, hard)"),
     exam: str = Query(None, description="Filter by exam (associate, professional)"),
+    exercise_type: Annotated[
+        list[str] | None,
+        Query(
+            description=(
+                "Filter by type(s) (single_choice, multi_choice, code_completion). "
+                "Repeatable — pass several to include multiple types (Start-screen multiselect)."
+            ),
+        ),
+    ] = None,
 ):
     """
     Count the exercises matching the given filters (Start-screen preview).
@@ -294,6 +344,9 @@ def get_exercise_count(
             )
             logger.warning(f"Invalid {label} filter attempted: {value}")
 
+    # exercise_type is a (repeatable) list — validate each value.
+    errors.extend(_validate_exercise_types(exercise_type))
+
     if errors:
         return {"success": False, "data": None, "error": "; ".join(errors)}
 
@@ -301,7 +354,9 @@ def get_exercise_count(
     exam = exam or ExamType.ASSOCIATE.value
 
     # Reuse the shared filter helper; serialize only the count (no exercises).
-    filtered = filter_exercises(exercises, domain=domain, difficulty=difficulty, exam=exam)
+    filtered = filter_exercises(
+        exercises, domain=domain, difficulty=difficulty, exam=exam, exercise_type=exercise_type
+    )
 
     return {"success": True, "data": {"count": len(filtered)}, "error": None}
 
@@ -648,6 +703,54 @@ def get_readiness(
         "window": result["window"],
     }
     return {"success": True, "data": data, "error": None}
+
+
+class ExerciseFeedbackRequest(BaseModel):
+    """Request body for POST /api/exercise-feedback (Story 11.1, FR-32).
+
+    A free-text learner note flagging a problem with an Exercise. Persisted to
+    the sidecar ``exercises/feedback.yaml`` (never the authored Exercise file).
+    """
+
+    exerciseId: str = Field(..., description="Id of the exercise the note is about")
+    note: str = Field(..., description="Free-text feedback note")
+
+
+@app.post("/api/exercise-feedback")
+def post_exercise_feedback(request: ExerciseFeedbackRequest):
+    """Record a free-text feedback note for an exercise (FR-32).
+
+    Appends to the sidecar feedback store (``feedback_store``); the authored
+    Exercise YAML is never modified. Validates the exercise id exists and the
+    note is non-empty. Distinct from the MCQ-grading ``POST /api/feedback``.
+    """
+    exercises = getattr(app.state, "exercises", [])
+    if not any(e.id == request.exerciseId for e in exercises):
+        return {
+            "success": False,
+            "data": None,
+            "error": f"Exercise '{request.exerciseId}' not found",
+        }
+    try:
+        entry = feedback_store.add_note(request.exerciseId, request.note)
+    except ValueError as e:
+        return {"success": False, "data": None, "error": str(e)}
+    except feedback_store.FeedbackStoreError as e:
+        # Corrupt sidecar — surface a clear failure instead of a 500.
+        return {"success": False, "data": None, "error": str(e)}
+    return {"success": True, "data": entry, "error": None}
+
+
+@app.get("/api/exercise-feedback")
+def get_exercise_feedback(
+    exerciseId: str = Query(..., description="Exercise id to list feedback notes for"),
+):
+    """List the feedback notes recorded for an exercise (FR-32, read path)."""
+    try:
+        notes = feedback_store.notes_for(exerciseId)
+    except feedback_store.FeedbackStoreError as e:
+        return {"success": False, "data": None, "error": str(e)}
+    return {"success": True, "data": {"notes": notes}, "error": None}
 
 
 if __name__ == "__main__":

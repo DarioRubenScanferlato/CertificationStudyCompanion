@@ -61,3 +61,18 @@ export const EXERCISE_TYPES = {
   MULTI_CHOICE: 'multi_choice',
   CODE_COMPLETION: 'code_completion',
 }
+
+/**
+ * User-facing exercise-type choices for the Start-screen multiselect (Story 4.7).
+ * MCQ is selected by default. `value` matches the backend ExerciseType enum.
+ */
+export const EXERCISE_TYPE_OPTIONS = [
+  { value: EXERCISE_TYPES.SINGLE_CHOICE, label: 'Multiple choice' },
+  { value: EXERCISE_TYPES.CODE_COMPLETION, label: 'Code completion' },
+]
+
+/**
+ * Bounded guesses for the Code-Completion ("Wordle") drill (Story 4.5, FR-15).
+ * Wordle's 6 is the natural default; tunable here so it's a single source of truth.
+ */
+export const CODE_COMPLETION_MAX_ATTEMPTS = 6

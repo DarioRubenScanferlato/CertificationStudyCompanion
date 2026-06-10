@@ -1,25 +1,50 @@
-# Sprint Status — DataBricks DE Cert Study Companion
-# Tracks story development progress across all epics
-# Date: 2026-06-05
-# Current Focus: Epic 5 — MCQ Variety & Randomization (TOP PRIORITY)
-# Priority order for remaining work: Epic 5 → Epic 6 → Epic 4 (Phase 2)
+# Sprint Status — Cert Study Companion (Databricks DE seed)
+# generated: 2026-06-05
+# last_updated: 2026-06-11
+# project: DataBricks-DE-cert-study-companion
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+#
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:    backlog -> in-progress -> done
+# Story Status:   backlog -> ready-for-dev -> in-progress -> review -> done   (then: approved -> merged)
+# Retrospective:  optional <-> done
+#
+# WORKFLOW NOTES:
+# - Story keys match the on-disk story files in story_location (dev-story resolves files by key).
+# - 'approved'/'merged' are post-review states retained from this project's history.
+# - Re-run sprint-planning to refresh; existing (more-advanced) statuses are preserved, never downgraded.
+
+generated: 2026-06-05
+last_updated: 2026-06-11
+project: DataBricks-DE-cert-study-companion
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
 
 development_status:
-  # EPIC 1: Project Setup & Infrastructure (COMPLETE)
+  # EPIC 1: Project Setup & Infrastructure
+  epic-1: done
   1-1-initialize-project-structure: merged
   1-2-set-up-react-vite-frontend: merged
   1-3-set-up-python-fastapi-backend: merged
   1-4-configure-tailwind-css: merged
   1-5-configure-testing-infrastructure: merged
+  epic-1-retrospective: optional
 
-  # EPIC 2: Exercise Content Management System (COMPLETE)
+  # EPIC 2: Exercise Content Management System
+  epic-2: done
   2-1-define-exercise-model-yaml-schema: merged
   2-2-implement-content-loader: merged
   2-3-implement-content-validation: merged
   2-4-implement-anki-export: merged
   2-5-implement-domain-tagging-filtering: merged
+  epic-2-retrospective: optional
 
-  # EPIC 3: MCQ Study Practice Interface (reviewed, all patches applied)
+  # EPIC 3: MCQ Study Practice Interface
+  epic-3: done
   3-1-create-session-select-page: done
   3-2-create-session-context: done
   3-3-create-mcqpractice-page-display: done
@@ -27,16 +52,34 @@ development_status:
   3-5-implement-feedback-display: done
   3-6-implement-session-navigation-summary: done
   3-7-add-syntax-highlighting-prism: done
+  epic-3-retrospective: optional
 
-  # EPIC 5: MCQ Variety & Randomization (TOP PRIORITY — next to implement)
+  # EPIC 4: Code-Completion Practice (runner reviewed; 4.6 in-progress pending 1 review action item)
+  epic-4: in-progress
+  4-1-create-code-completion-page-template-display: review
+  4-2-implement-code-tokenizer: review
+  4-3-implement-positional-feedback-algorithm: review
+  4-4-implement-feedback-tokens-rendering: review
+  4-5-implement-guess-limit-answer-reveal: review
+  4-6-code-completion-content-and-authoring-skill: done
+  4-7-exercise-type-filter: review
+  # Added 2026-06-10 (correct-course, decision-log #54/#55): reverse code-completion
+  # feedback token->character (per-letter Wordle) + add a Skip button.
+  4-8-character-level-feedback-and-skip: done
+  epic-4-retrospective: optional
+
+  # EPIC 5: MCQ Variety & Randomization
+  epic-5: done
   5-1-option-pool-model-validation: done
   5-2-migrate-legacy-multi-choice-content: done
   5-3-server-side-session-randomizer: done
   5-4-get-api-sessions-endpoint: done
   5-5-post-api-feedback-single-select-scoring: done
   5-6-single-select-mcq-runner-frontend: done
+  epic-5-retrospective: optional
 
-  # EPIC 6: Session Control & Study QoL (after Epic 5, before Epic 4)
+  # EPIC 6: Session Control & Study QoL
+  epic-6: done
   6-1-match-count-endpoint-start-screen: done
   6-2-session-by-ids-endpoint-replay: done
   6-3-session-state-feedback-retention-back-skip: done
@@ -44,44 +87,77 @@ development_status:
   6-5-progress-bar-navigation-keyboard: done
   6-6-summary-review-and-replay: done
   6-7-exam-filter-session-scoping: done
+  epic-6-retrospective: optional
 
-  # EPIC 7: Answer & Stats Tracking (next priority — before Epic 8 & Epic 4)
+  # EPIC 7: Answer & Stats Tracking
+  # Re-opened 2026-06-11: added 7-6 (seen-before indicator) — surfaces the existing
+  # attempted/unseen signal as a small grey eye + tooltip in the practice runners.
+  epic-7: in-progress
   7-1-sqlite-attempt-store: done
   7-2-record-attempts-on-feedback: done
   7-3-unseen-first-session-ordering: done
   7-4-stats-and-readiness-endpoints: done
   7-5-stats-dashboard-readiness-indicator: done
+  7-6-seen-before-indicator: ready-for-dev
+  epic-7-retrospective: optional
 
-  # EPIC 8: Timed Practice / Mock Exam (after Epic 7)
+  # EPIC 8: Timed Practice / Mock Exam
+  epic-8: done
   8-1-session-countdown-timer: done
   8-2-per-question-timing: done
   8-3-mock-exam-builder-backend: done
   8-4-mock-exam-flow-and-result: done
+  epic-8-retrospective: optional
 
-  # EPIC 4: Code-Completion Practice (Phase 2 — after Epics 7 & 8)
-  4-1-create-code-completion-page-template-display: ready-for-dev
-  4-2-implement-code-tokenizer: ready-for-dev
-  4-3-implement-positional-feedback-algorithm: ready-for-dev
-  4-4-implement-feedback-tokens-rendering: ready-for-dev
-  4-5-implement-guess-limit-answer-reveal: ready-for-dev
+  # EPIC 9: Multi-Provider / Multi-Certification (PRD rev 5 §4.7 — NEW, not yet started)
+  # Story files not yet created; run create-story to author them. Keys below are the
+  # planned file names. 9.2/9.3 must NOT regress Databricks DE (seed config re-expresses today's literals).
+  epic-9: in-progress
+  9-1-per-certification-config-model-loader: ready-for-dev
+  9-2-make-domains-mock-params-config-driven: backlog
+  9-3-get-api-certifications-config-driven-frontend: backlog
+  9-4-certification-scoped-validation-content-mapping: backlog
+  9-5-rebranding-to-cert-study-companion: backlog
+  epic-9-retrospective: optional
 
-# STATUS DEFINITIONS
-# ready-for-dev   — Story file created, ready for implementation
-# in-progress     — Developer is actively working on the story
-# review          — Implementation complete, awaiting code review
-# approved        — Code review approved, ready to merge
-# merged          — Story merged to main
-# blocked         — Story blocked, reason documented in story file
+  # EPIC 10: Containerization & Sharing (PRD rev 5 §4.8 — NEW, not yet started; sequence after Epic 9)
+  epic-10: backlog
+  10-1-backend-dockerfile: backlog
+  10-2-frontend-dockerfile-static-serve: backlog
+  10-3-docker-compose-persistence-volume: backlog
+  10-4-content-mount-readme: backlog
+  epic-10-retrospective: optional
+
+  # EPIC 11: Question Feedback & Content-Improvement Loop (PRD rev 6 §4.9)
+  epic-11: done
+  11-1-in-app-question-feedback-sidecar: done
+  11-2-write-mcq-feedback-revision: done
+  epic-11-retrospective: optional
 
 summary:
-  total_stories: 44
-  ready_for_dev: 5
+  total_epics: 11
+  total_stories: 59
+  backlog: 8
+  ready_for_dev: 2
   in_progress: 0
-  review: 0
+  review: 6
   approved: 0
   merged: 10
-  done: 29
+  done: 33
   blocked: 0
-  last_updated: 2026-06-08
-  completed: "39 (Epics 1-3,5,6,7,8 done). Epic 8 (Timed Practice / Mock Exam) implemented & verified 2026-06-08: backend 254 tests, frontend 137 tests, ruff+eslint clean. 8.1 timer + 8.2 per-question timing + 8.3 mock builder (backend) + 8.4 mock flow/result. Uncommitted."
-  ready_for_dev_detail: "5 ready — all Epic 4 (4.1-4.5 Code-Completion / Phase 2), the only remaining epic."
+  last_updated: 2026-06-11
+  status_note: >-
+    Epics 1-3,5,6,7,8,11 complete (1-2 merged; 3,5,6,7,8,11 done). Epic 4 in-progress:
+    runner 4.1-4.5 + filter 4.7 in review (code-reviewed, fixes applied); 4.6 (content
+    bank + write-code-completion skill) in-progress pending one open review action item
+    (SKILL.md accepted-redundancy clarification). Backend 294 tests, frontend 187 tests,
+    lint clean. NEW this planning pass: Epic 9 (Multi-Provider/Multi-Certification, 5
+    stories) + Epic 10 (Containerization & Sharing, 4 stories) added as backlog from PRD
+    rev 5 — story files not yet created.
+  open_questions: >-
+    OQ-9 RESOLVED 2026-06-11: exercises/feedback.yaml is gitignored (local-per-instance),
+    mirroring backend/data/ — see decision-log #57.
+  next: >-
+    Suggested: close Epic 4's open review item to move 4.6 → review/done; then
+    create-story for 9.1 (per-Certification config model/loader — the unblocker for Epic 9),
+    or 10.1 if prioritizing sharing. Epic 9 before Epic 10 (compose bundles the generalized app).

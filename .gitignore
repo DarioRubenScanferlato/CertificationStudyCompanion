@@ -71,6 +71,11 @@ Thumbs.db
 # Local SQLite attempt store (AR-16 / Story 7.1)
 backend/data/
 
+# In-app question feedback sidecar — local-per-instance, NOT committed (OQ-9
+# resolved 2026-06-11; FR-32 / Story 11.1). Each instance's feedback stays local,
+# like the attempt store; the write-mcq skill reads whatever is local when revising.
+exercises/feedback.yaml
+
 # Test coverage reports (generated)
 .coverage
 .coverage.*

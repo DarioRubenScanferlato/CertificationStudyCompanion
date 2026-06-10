@@ -10,6 +10,14 @@ revisions:
     summary: 'UX QoL pass (EXPERIENCE.md) — closed 3 gaps: G1 GET /api/exercises/count (leak-free Start-screen match count); G2 POST /api/sessions {exerciseIds} for replay (Restart-same / Practice-incorrect, keeps FR-20/21 freshness); G3 frontend feedback-retention + new reducer actions/states (prev, skip, endToSummary, replay) for Back/Review-incorrect/partial-Summary. See ux-designs/ux-DataBricks-DE-cert-study-companion-2026-06-05/EXPERIENCE.md.'
   - date: '2026-06-07'
     summary: 'Rev 4 — PRD rev 3 scope expansion (Epics 7 & 8). REVERSED the no-persistence/stateless NFR: added a LOCAL SQLite attempt store (store.py, sqlite3 stdlib, backend/data/progress.db gitignored). POST /api/feedback now records attempts (+timeTakenMs). GET /api/sessions ordering is history-aware unseen-first (FR-24, supersedes FR-21 ordering). New GET /api/stats + GET /api/readiness (FR-23/25). Mock-Exam builder (mode=mock, domain-weighted full-length, exam-scoped, ignores unseen-first; Associate 45Q/90min, Pro 59Q/120min — FR-27). Timer + per-question timing are frontend (FR-26/28). New FE: StatsDashboard, ReadinessIndicator, Timer/Countdown, MockExam.'
+  - date: '2026-06-09'
+    summary: 'Rev 6 — PRD rev 5 "Generalization + Shareability". RENAMED product to "Cert Study Companion" (provider-agnostic); Databricks DE Associate/Professional are the FIRST BUNDLED Certification(s), fully intact (folder names/paths UNCHANGED). PER-CERTIFICATION CONFIG (FR-29/FR-30, Epic 9, AR-19): the hardcoded `ExamType`/`Domain` enums (models.py), `MOCK_EXAM_CONFIGS` (session.py), and `DOMAINS_BY_EXAM`/`EXAMS` (constants.js) move into a file-based YAML registry (config/certifications.yaml — Provider→Certification with canonical domains+weights and exam params total_questions/duration_minutes/pass_bar) loaded at startup; `MOCK_EXAM_CONFIGS` is DERIVED from config; the existing `exam` field is RETAINED as the Certification identifier (Story 6.7 filter keeps working); frontend domains/exams fetched from a new GET /api/certifications endpoint instead of the hardcoded constant; adding a certification = content + config, no code change. Seed config re-expresses today''s literals (Databricks DE not regressed; existing tests stay green). CONTAINERIZATION (FR-31, NFR-5, Epic 10, AR-20): one `docker compose up` runs the whole app for a colleague with only Docker installed (no host Node/Python/uv) via backend/Dockerfile + frontend/Dockerfile + docker-compose.yml; SQLite progress.db persists via a mounted volume at backend/data/. REVERSES the doc''s "No containerization for MVP" stance and the "Future packaging: Tauri/Electron" note. Single-user PER INSTANCE retained (each colleague runs their own instance; not hosted multi-user).'
+  - date: '2026-06-08'
+    summary: 'Rev 5 — PRD rev 4: Code-Completion (FR-13–17, Epic 4) promoted from Phase 2 to active scope. RESOLVED a stale inconsistency: REMOVED the POST /api/feedback/code-completion endpoint — code-completion feedback is CLIENT-SIDE (tokenizer.js + codeFeedback.js, in-browser, <100ms per NFR-1), never a server round-trip; feedback.py is MCQ-only. build_session / GET /api/sessions now DELIVERS code-completion entries (previously skipped) carrying language/template/answer/accepted/caseSensitive/ignoreWhitespace — answer is shipped to the client (deliberate trade-off for the Wordle drill; MCQ FR-20 non-leakage unchanged). practice view routes by exercise type (MCQPractice | CodeCompletion). computeFeedback handles accepted alternatives + per-language case + two-pass Wordle duplicate rule. Guess budget = CODE_COMPLETION_MAX_ATTEMPTS. Code-completion attempts are NOT recorded in the (MCQ-scoped) attempt store — no stats/readiness/per-question timing for code-completion (known gap). New content workstream: starter code-completion bank + write-code-completion skill (story 4.6). build_mock_session stays MCQ-only.'
+  - date: '2026-06-10'
+    summary: 'Rev 7 — Epic 4 IMPLEMENTED + Story 4.7 + code-review (decision-log #41-46). Built: tokenizer.js + codeFeedback.js (computeFeedback now returns {tokens, solved}, not a monkey-patched array), FeedbackTokens.jsx, the guess loop in CodeCompletion.jsx. EXERCISE-TYPE FILTER (Story 4.7): exercise_type generalized to MULTI-VALUE (any-of) on GET /api/sessions + /api/exercises/count (filter_exercises accepts str | list[str]; _validate_exercise_types helper); Start screen multiselect, MCQ checked by default; empty selection = all types. Review fixes: (1) SessionContext gains a `codeCompletionResults` map (RECORD_CODE_COMPLETION action) so a concluded drill survives unmount — IN-SESSION client state only, the SQLite store stays MCQ-scoped (does not reverse the no-record decision); (4) _order_unseen_first now applies unseen-first to MCQs ONLY and sprinkles code-completion at random positions (it can never be "seen", so it must not lead every session); (3) Summary.computeResults EXCLUDES code-completion from MCQ tallies and shows a separate "Code drills: X/Y solved" line; shared-shell extraction to kill MCQ/CC duplication — NEW frontend/src/styles/ui.js (FOCUS_RING/FOCUS_RING_NEUTRAL/DIFFICULTY_STYLES), components/ExplanationPanel.jsx, hooks/useSessionExit.js, utils/language.js (single LANGUAGE_ALIASES, imported by CodeBlock + tokenizer + codeFeedback). Suites: frontend 182, backend 269, lint clean. Stories 4.1-4.5 + 4.7 in review; 4.6 (content + skill) still ready-for-dev.'
+  - date: '2026-06-10'
+    summary: 'Rev 9 — Code-Completion feedback REVERSED token-level → CHARACTER-level + Skip added (correct-course; decision-log #54/#55; Sprint Change Proposal 2026-06-10; Story 4.8). The "Code-Completion Tokenizer & Feedback Engine" decision is superseded: every answer is a single fill-in-the-blank word, so token-level feedback was binary (all-green/all-grey) — `codeFeedback.js` becomes a per-character two-pass Wordle engine and `FeedbackTokens.jsx` renders per-character tiles; `frontend/src/utils/tokenizer.js` (+ test) is REMOVED (was only used for token feedback). AR-9 (regex tokenizer) superseded. `utils/language.js`/LANGUAGE_ALIASES STAYS (still used by CodeBlock for Prism + codeFeedback for the per-language case rule). Per-character compare honors case_sensitive + ignore_whitespace; accepted alternatives scored best-candidate. SKIP: CodeCompletion gains a Skip control → useSession().next() WITHOUT revealing the answer (distinct from solve/exhaustion reveal); the 6-guess cap (CODE_COMPLETION_MAX_ATTEMPTS) is retained as the auto-reveal backstop. No backend change; <100ms NFR still trivially met. PRD §4.3/FR-14/FR-15/OQ-3 revised.'
 inputDocuments:
   - /Users/dariorubenscanferlato/Documents/Projects/DataBricks-DE-cert-study-companion/_bmad-output/planning-artifacts/prds/prd-DataBricks-DE-cert-study-companion-2026-06-05/prd.md
   - /Users/dariorubenscanferlato/Documents/Projects/DataBricks-DE-cert-study-companion/_bmad-output/planning-artifacts/prds/prd-DataBricks-DE-cert-study-companion-2026-06-05/addendum.md
@@ -30,24 +38,32 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Requirements Overview
 
-**Functional Requirements (28 total; FR-9 removed/tombstoned; FR-22–FR-28 added in PRD rev 3):**
+**Functional Requirements (31 total; FR-9 removed/tombstoned; FR-22–FR-28 added in PRD rev 3; FR-29–FR-31 added in PRD rev 5):**
+
+> **(rev 6) Product rename — "Cert Study Companion" (provider-agnostic).** The product is no longer Databricks-specific by name; Databricks DE **Associate** and **Professional** are the **first bundled Certification(s)**, fully intact. Folder names and paths are **unchanged** this iteration. Throughout this document "Databricks' official exam blueprint" generalizes to "**the Certification's official blueprint (Databricks DE seeds it)**".
 
 1. **Exercise Content Format & Loading (FR-1 through FR-4, FR-18):** Portable, standardized, human-authorable exercise format (YAML-authored, optionally JSON-served). Runtime file loading from a designated directory. Blueprint-aligned Domain tagging. Anki export support.
 
 2. **Multiple-Choice Practice (FR-5 through FR-12, FR-19 through FR-21):** Exam-realistic MCQ runner — domain/difficulty filtering, single-question-at-a-time view, immediate feedback, per-distractor explanations with doc links, end-of-session summary. **Single-select only** (multi-select removed, PRD rev 2). Each MCQ is an **Option Pool** (≥1 correct, ≥3 incorrect, no upper bound — FR-19); the runner samples **4 Displayed Options** (1 correct + 3 distractors) in **shuffled positions** per presentation (FR-20) and presents Exercises in **randomized order** per session (FR-21). Sampling/shuffle/order randomization are computed **server-side** (correct flags never leave the backend).
 
-3. **Code-Completion "Wordle" Practice (FR-13 through FR-17, Phase 2):** Novel syntax-drilling exercise type with token-level positional feedback (green/yellow/grey). Single-line/fill-in-blank scope. Whitespace-insensitive. Accepts alternative correct answers. Critical design: playfulness and delight are load-bearing, not incidental.
+3. **Code-Completion "Wordle" Practice (FR-13 through FR-17, Epic 4 — active scope as of rev 5):** Novel syntax-drilling exercise type with token-level positional feedback (green/yellow/grey), computed **client-side**. Single-line/fill-in-blank scope. Whitespace-insensitive. Accepts alternative correct answers. Critical design: playfulness and delight are load-bearing, not incidental.
 
 4. **Exercise Generation (FR deferred, Phase future):** Optional in-app generation from Databricks docs; committed path is agent-skill authoring into the standardized format.
 
 5. **Answer & Stats Tracking (FR-22 through FR-25, PRD rev 3 / Epic 7):** Persist attempt history locally (FR-22), a stats dashboard with overall + per-Domain accuracy/trends/weak-areas (FR-23), **unseen-first** session prioritization (FR-24), and a readiness indicator vs the ~70% bar (FR-25). Introduces local persistence (see NFR change below).
 
-6. **Timed Practice / Mock Exam (FR-26 through FR-28, PRD rev 3 / Epic 8):** Optional per-session countdown with auto-end (FR-26), a domain-weighted full-length **Mock-Exam mode** at real exam timing — Associate 45Q/90min, Pro 59Q/120min (FR-27), and per-question timing that feeds the stats (FR-28). Timer/timing are client-side.
+6. **Timed Practice / Mock Exam (FR-26 through FR-28, PRD rev 3 / Epic 8):** Optional per-session countdown with auto-end (FR-26), a domain-weighted full-length **Mock-Exam mode** at real exam timing — Associate 45Q/90min, Pro 59Q/120min (FR-27), and per-question timing that feeds the stats (FR-28). Timer/timing are client-side. **(rev 6)** The mock sizing/timing/weights are no longer literals — they are read from the per-Certification config (FR-29).
+
+7. **Generalization — Per-Certification Configuration (FR-29, FR-30, PRD rev 5 / Epic 9):** New glossary terms **Provider** and **Certification**. Each Certification's canonical Domain list, Domain weights, and exam parameters (`total_questions`, `duration_minutes`, `pass_bar`) move from **hardcoded** (the `ExamType`/`Domain` enums, `MOCK_EXAM_CONFIGS`, `DOMAINS_BY_EXAM`) into a **file-based YAML config** loaded at startup (FR-29). Content is organized per Certification and a frontend Provider→Certification selection drives scoping (FR-30). The existing `exam` field is **retained as the Certification identifier** (Associate/Professional become two Certifications under the Databricks Provider — Story 6.7's exam filter keeps working). **Adding a Certification = content + config, no code change.** See the per-Certification configuration decision in Core Architectural Decisions (AR-19).
+
+8. **Containerized one-command run (FR-31, PRD rev 5 / Epic 10):** One `docker compose up` runs the whole app for a colleague with **only Docker installed** — no host Node/Python/uv. Each colleague runs their **own instance** (single-user per instance; not hosted multi-user). The SQLite store persists via a **mounted volume**. See the containerization decision in Core Architectural Decisions (AR-20).
 
 **Non-Functional Requirements (Shaping Architecture):**
 
 - **Code-Completion feedback latency: < 100ms from keystroke to rendered feedback.** Target is client-side computation; no perceptible server round-trip. This is the primary driver of the frontend technology choice (React/vanilla JS vs. HTMX).
 - **~~Single-user, local, no persistence (MVP).~~ → Single-user, local, with LOCAL persistence (PRD rev 3, 2026-06-07).** No accounts, no auth, no multi-user/server-side user data, no sync. Content stays file-based; the user's own **answer history** is persisted in a **local SQLite store** (`sqlite3` stdlib, no pip). This **reverses the prior no-persistence stance and the stateless-session property** — `GET /api/sessions` and `POST /api/feedback` now read/write that store. See the Persistence decision in Core Architectural Decisions.
+- **(rev 6) Single-user PER INSTANCE — now distributable via docker compose.** The no-accounts/no-auth/no-shared-DB/no-sync stance is **retained**, but the app is now **shareable**: a colleague runs their **own** instance via `docker compose up`, with the SQLite store on a **mounted volume** (`backend/data/`) so it survives `down`/`up`. This is local distribution, not hosted multi-user. See the Containerization decision (AR-20).
+- **(rev 6) NFR-5 — Shareability with no host toolchain.** The whole app must run with **only Docker installed** — no host Node, Python, or uv. The committed share path is `docker compose up` over two service images (backend + frontend); the README documents the one-command flow. This is what makes the tool self-serve for a colleague.
 - **Content portability (FR-18).** Exercise format must export cleanly to Anki so studying is never gated on app completion. This is the linchpin of the Build-vs-Borrow strategy.
 - **Playfulness in Code-Completion.** Wordle-like guess-and-narrow loop is the differentiator; implementation must preserve delight, not reduce it to a correctness check.
 
@@ -74,9 +90,10 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Alternatives: Authored "accepted alternatives" set; AST/execution equivalence validation out of scope for MVP
 
 **Platform & Deployment:**
-- Single-user local app (no auth, no hosting in v1)
+- Single-user local app (no auth, no hosting in v1) — **(rev 6)** single-user *per instance*; each colleague runs their own.
 - Content version-controlled (git)
 - Future sharing via portable format; not a current constraint
+- **(rev 6) Containerization is now in scope (reverses prior stance).** `docker compose up` is the **committed local-share path** (FR-31, NFR-5): two service images (backend + frontend) plus a mounted SQLite volume. Each colleague runs their **own** instance with only Docker installed. See the Containerization decision (AR-20).
 
 ### Cross-Cutting Concerns Identified
 
@@ -122,7 +139,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Code-Completion renderer, tokenizer, feedback engine
 - Anki export converter (separate utility script)
 - (Optional) Lean session runner UI
-- (Phase 2) Code-Completion tokenizer & feedback rendering
+- (Epic 4) Code-Completion tokenizer & feedback rendering (client-side)
 
 **Primary Technical Domain:** Single-user study tool with client-side interactivity (not API, not distributed system)
 
@@ -198,7 +215,7 @@ project-root/
 │   │   ├── pages/
 │   │   │   ├── SessionSelect.jsx
 │   │   │   ├── MCQPractice.jsx
-│   │   │   └── CodeCompletion.jsx (Phase 2)
+│   │   │   └── CodeCompletion.jsx (Epic 4)
 │   │   ├── components/
 │   │   ├── hooks/
 │   │   └── utils/
@@ -244,16 +261,20 @@ project-root/
 **Development Experience:**
 - Frontend: Hot module reload via Vite (near-instant feedback during dev)
 - Backend: Auto-reload via `uvicorn --reload`
-- No containerization for MVP (local development only)
+- ~~No containerization for MVP (local development only)~~ **(rev 6, superseded)** — containerization is now in scope as the share path; see "Decision: Containerization & Sharing (rev 6, FR-31)" (AR-20). Local dev still works toolchain-on-host; `docker compose up` is the additional one-command path.
 
-### Deployment & Packaging (MVP Out of Scope)
+### Deployment & Packaging
 
-For v1 (exam deadline), deployment is "run locally":
+**(rev 6) Two supported paths:**
+- **Local development (toolchain on host):** `uv run`/`uvicorn --reload` for the backend, `npm run dev` (Vite) for the frontend, both on `localhost` with the Vite proxy for `/api/*`. Unchanged.
+- **Share / run-anywhere (committed, rev 6):** `docker compose up` over `backend/Dockerfile` + `frontend/Dockerfile` + `docker-compose.yml`, requiring only Docker on the host (FR-31, NFR-5). SQLite store on a mounted volume. See "Decision: Containerization & Sharing (rev 6, FR-31)" (AR-20).
+
+For v1 (exam deadline), the local "run locally" path is:
 - Backend: `python -m uvicorn app.main:app --reload` (or via `uv run`)
 - Frontend: `npm run dev` (Vite dev server)
 - Both run on `localhost`; frontend proxies API calls to backend
 
-Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing to peers.
+~~Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing to peers.~~ **(rev 6, superseded)** — distribution to peers is now **docker compose**, not a Tauri/Electron desktop wrapper. See AR-20.
 
 ---
 
@@ -270,10 +291,14 @@ Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing 
 - Content validation approach
 
 **Deferred Decisions (Post-MVP):**
-- Persistence / session history (Phase 2+)
-- Multi-user / hosting (Phase 2+)
+- ~~Persistence / session history (Phase 2+)~~ — done (rev 4, SQLite store)
+- Multi-user / hosting (Phase 2+) — still out of scope (single-user per instance, even containerized)
 - In-app content generation (deferred)
-- Deployment packaging (Tauri/Electron)
+- ~~Deployment packaging (Tauri/Electron)~~ — **(rev 6)** superseded; packaging is now docker compose (AR-20)
+
+**(rev 6) New decisions made:**
+- Per-Certification configuration (AR-19, FR-29/FR-30) — see decision below
+- Containerization & sharing via docker compose (AR-20, FR-31) — see decision below
 
 ### Frontend Architecture
 
@@ -291,7 +316,7 @@ Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing 
 **Affected Components:**
 - SessionSelect page → filters, creates session → sends to MCQ/CodeCompletion page
 - MCQPractice page → holds current exercise, selections, feedback state
-- CodeCompletion page (Phase 2) → holds attempt, feedback, attempt count
+- CodeCompletion page (Epic 4) → holds attempt(s), client-side feedback, attempt count; client-side grading (no server call)
 - Session wrapper → provides session context (exercises list, user progress)
 
 **QoL additions (UX rev — EXPERIENCE.md):** the session reducer expands to support the quality-of-life behaviors:
@@ -322,20 +347,19 @@ Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing 
 
 ---
 
-**Decision: Code-Completion Tokenizer**
+**Decision: Code-Completion Tokenizer & Feedback Engine** *(active scope — Epic 4; rev 5)* — **⚠️ SUPERSEDED rev 9 (2026-06-10, decision-log #54): feedback is now CHARACTER-level, NOT token-level. The regex `tokenizer.js` is REMOVED; `codeFeedback.js` compares per-character (two-pass Wordle) and `FeedbackTokens.jsx` renders per-character tiles. The "tokenizer" parts below are historical. See Story 4.8. A Skip control (decision-log #55) advances without revealing.**
 
-**Choice:** Regex-based tokenizer (language-specific patterns) for MVP feedback.
+**Choice:** A **client-side**, regex-based tokenizer + a pure feedback engine. Both run in the browser; there is **no server-side code-completion grading**.
 
 **Rationale:**
-- Target < 100ms feedback latency requires fast computation.
+- Target < 100ms feedback latency requires fast, **client-side** computation (NFR-1) — this is the original reason React was chosen over HTMX. A server round-trip per guess would violate it.
 - No need for a full parser; tokens are sufficient (keywords, identifiers, operators, literals).
-- Language-specific patterns (SQL vs. PySpark) can be simple regexes.
+- Language-specific patterns (SQL vs. PySpark/Python) can be simple regexes.
 - If tokenization becomes a bottleneck, replace with a proper lexer later.
 
-**Implementation Sketch:**
-- `tokenize(code, language)` → array of `{token, type, position}`
-- `computeFeedback(attempt, canonical, language)` → array of token colors (green/yellow/grey)
-- Uses case-sensitivity rules per language (SQL keywords case-insensitive, PySpark identifiers case-sensitive)
+**Implementation (two pure, unit-tested modules — Epic 4 stories 4.2 / 4.3):**
+- `frontend/src/utils/tokenizer.js` — `tokenize(code, language)` → array of `{token, type, position}`. Language-specific (SQL keywords case-insensitive, PySpark/Python identifiers case-sensitive); non-semantic whitespace not emitted; unknown language → generic fallback (no throw). (Story 4.2)
+- `frontend/src/utils/codeFeedback.js` — `computeFeedback(attempt, canonical, language, { accepted, caseSensitive, ignoreWhitespace })` → `[{ token, color, position }]` (green/yellow/grey), aligned to the attempt's tokens. **Two-pass Wordle duplicate handling** (pass 1 greens by position decrementing a target multiset; pass 2 yellows from remaining counts, else grey). Scores against `[canonical, ...accepted]` (FR-16) and returns the best match; exposes a "solved" (all-green) signal. Pure, < 100ms. (Story 4.3)
 
 **Example (SQL):**
 ```javascript
@@ -343,6 +367,13 @@ Future packaging (Phase 2+): Consider Tauri or Electron wrapper if distributing 
 const sqlTokenPattern = /(\bSELECT\b|\bFROM\b|[a-zA-Z_]\w*|'[^']*'|\d+|[(),.;])/gi;
 const tokens = code.match(sqlTokenPattern);
 ```
+
+**Delivery, routing, and the guess loop (rev 5):**
+- **Backend delivery:** `build_session` previously **skipped** Code-Completion (`isinstance(MCQ) and type != CODE_COMPLETION`). It now emits a Code-Completion session entry (shape under *Endpoints* below); `GET /api/sessions` + replay deliver them. `build_mock_session` stays **MCQ-only** (the domain-weighted mock blueprint is MCQ). The `GET /api/sessions` route and `getSession` client must not assume the MCQ entry shape (Code-Completion entries have no `displayedOptions`).
+- **Routing:** the frontend `practice` view dispatches by `currentExercise.type` — MCQ → `MCQPractice.jsx`, `code_completion` → `CodeCompletion.jsx`. No new app view; `summary`/`stats`/`select` unchanged.
+- **Guess loop (FR-15/FR-17):** bounded attempts via `CODE_COMPLETION_MAX_ATTEMPTS` (Wordle-style default 6, in `constants.js`). On solve or exhaustion → reveal canonical `answer` + explanation/references; advance via the existing `useSession().next()` (no new end path; Exit-confirm reused).
+- **No recording:** Code-Completion outcomes are client-side and are **not** written to the (MCQ-scoped) `attempts` store — so no code-completion stats/readiness (rev 4) or per-question timing (FR-28). Known gap; a future story could add a code-completion record + stats surface.
+- **Content:** a starter Code-Completion bank + a `write-code-completion` authoring skill are a committed workstream (Epic 4 story 4.6), mirroring the MCQ authoring track.
 
 ---
 
@@ -353,16 +384,18 @@ const tokens = code.match(sqlTokenPattern);
 **Choice:** Simple REST endpoints, JSON request/response, standard HTTP status codes.
 
 **Endpoints (Backend):**
-- `GET /api/sessions` → **build a Practice Session** (filters: domain, difficulty, type). Returns Exercises in **randomized order** (FR-21), each MCQ carrying its **4 sampled, shuffled Displayed Options without `correct` flags** (FR-20). This is the primary MCQ-runner entry point; the randomness lives here.
-  - Response `data`: `[{ exerciseId, domain, difficulty, question, codeContext?, displayedOptions: [{ id, text } × 4] }, ...]`
+- `GET /api/sessions` → **build a Practice Session** (filters: domain, difficulty, type). Returns Exercises in **history-aware unseen-first order** (FR-24; supersedes FR-21 uniform-random ordering), each MCQ carrying its **4 sampled, shuffled Displayed Options without `correct` flags** (FR-20). This is the primary runner entry point; the randomness lives here. **(rev 5)** A session may now mix MCQ and Code-Completion entries — `build_session` no longer skips Code-Completion (it previously did). The two entry shapes differ (see below); the client routes by `type`.
+  - MCQ entry `data[i]`: `{ exerciseId, type: "single_choice", domain, difficulty, question, codeContext?, displayedOptions: [{ id, text } × 4] }`
+  - **(rev 5)** Code-Completion entry `data[i]`: `{ exerciseId, type: "code_completion", domain, difficulty, language, prompt, template, answer, accepted: [...], caseSensitive, ignoreWhitespace, explanation, references: [...] }`. Note: `answer` + `accepted` ARE delivered to the client because feedback is computed client-side (NFR-1) — a deliberate trade-off for the Wordle drill (the guess-and-narrow loop reveals the answer through feedback anyway; there is no multiple-choice gaming surface). This does **not** relax the MCQ FR-20 non-leakage rule — MCQ Displayed Options still carry no `correct` flags. The two Exercise types have different leakage models.
 - `POST /api/sessions` → **build a session from an explicit exercise-id set** (UX "Restart same session" / "Practice these N again" — EXPERIENCE.md). Request: `{ exerciseIds: [...] }`. Same response shape as `GET /api/sessions`, with **freshly sampled + shuffled Displayed Options and re-randomized order** so replays keep FR-20/21 freshness (the client cannot re-sample — it holds only flag-less options). Unknown ids are dropped (logged), not fatal.
 - `GET /api/exercises/count` → **lightweight match count** for the Start screen "{n} questions match" (filters: domain, difficulty, type). Response `data`: `{ count }`. Returns **no pools/options/flags** — so the practice client never receives `correct` flags (preserves the FR-20 non-leakage rule that `GET /api/exercises` would violate).
 - `GET /api/exercises` → list/inspect exercises (admin/debug, filters). Note: this returns authored exercises incl. pools/flags; the **runner uses `/api/sessions` + `/api/exercises/count`**, never this, so pools/correct flags aren't shipped to the practice UI.
-- `POST /api/feedback` → submit answer, get correctness + explanation
-  - Request (MCQ): `{ exerciseId, displayedOptionIds: [...], selectedId, type: "mcq" }` — `displayedOptionIds` echoes the 4 shown so the backend scores against exactly what the user saw
-  - Request (Code-Completion, Phase 2): `{ exerciseId, attempt, type: "code-completion" }`
+- `POST /api/feedback` → submit answer, get correctness + explanation. **MCQ only.**
+  - Request (MCQ): `{ exerciseId, displayedOptionIds: [...], selectedId, type: "mcq", timeTakenMs? }` — `displayedOptionIds` echoes the 4 shown so the backend scores against exactly what the user saw. Also records the attempt to the SQLite store (rev 4).
   - Response: `{ correct: bool, correctOptionId, explanation: string, references: [...] }`
+  - **(rev 5) Code-Completion does NOT use this endpoint.** There is no `POST /api/feedback/code-completion` — code-completion feedback is computed **client-side** (`tokenizer.js` + `codeFeedback.js`, < 100ms, NFR-1). The server delivers the answer/accepted in the session entry; the browser grades. A code-completion attempt is therefore **not** posted to the backend and **not** recorded in the attempt store (MCQ-scoped) — a known gap (no code-completion stats/readiness/timing).
 - `GET /api/export/anki` → trigger Anki export (returns download or JSON). Note: export flattens each pool to one correct + distractors; runner-only sampling/shuffle/order (FR-20/21) do not apply to the export.
+- **(rev 6) `GET /api/certifications`** → returns the **Provider / Certification registry** loaded from the §G config: `providers[]` each with `certifications[]`, each Certification carrying `id` (== the `exam` value), `name`, `total_questions`, `duration_minutes`, `pass_bar`, and `domains[]` (`{name, weight}`). This **feeds the frontend** so `constants.js`'s `DOMAINS_BY_EXAM` / `EXAMS` become **fetched data** rather than a hand-maintained constant (FR-29/FR-30, AR-19). The existing `exam`/certification scoping on `GET /api/sessions`, `GET /api/exercises/count`, `GET /api/stats`, and `GET /api/readiness` is **generalized** to validate against this registry (the field name and filter behavior are unchanged — Story 6.7 keeps working).
 
 **Response Format (Standard):**
 ```json
@@ -550,6 +583,76 @@ npm run dev
 
 ---
 
+### Decision: Per-Certification Configuration (rev 6, FR-29/FR-30)
+
+**AR-19.** Generalize the product from "Databricks-only literals" to a **config-driven, provider-agnostic** model so a new Certification is **content + config, no code change** — while keeping Databricks DE fully intact. This is a *reframe of existing hardcoded values into configuration*, not a rewrite. (Grounded in PRD addendum §G.)
+
+**What is hardcoded today (the migration targets):**
+- `backend/app/models.py` — the `ExamType` enum (`associate` | `professional`) and a `Domain` enum whose members are Databricks DE's domains.
+- `backend/app/session.py` — `MOCK_EXAM_CONFIGS: dict[ExamType, MockExamConfig]` with `total_questions` (45 / 59), `duration_minutes` (90 / 120), and `domain_weights` per exam (the largest-remainder mock builder reads these — FR-27).
+- `frontend/src/constants.js` — `EXAMS`, `DEFAULT_EXAM`, `DOMAINS_BY_EXAM` (the per-exam Domain taxonomy the Start screen + Story 6.7 use).
+
+**Decision: a file-based YAML config registry.** A version-controlled, human-authorable `config/certifications.yaml` (or one file per certification under `config/certifications/`), loaded at startup like content. It models **Provider → Certification**, each Certification carrying its canonical **Domain list + weights** (sum to 100) and **exam parameters** (`total_questions`, `duration_minutes`, `pass_bar`). Indicative shape:
+
+```yaml
+# config/certifications.yaml
+providers:
+  - id: databricks
+    name: "Databricks"
+    certifications:
+      - id: associate                 # == the existing `exam` value (RETAINED — PRD §3)
+        name: "Databricks Certified Data Engineer Associate"
+        total_questions: 45
+        duration_minutes: 90
+        pass_bar: 0.70                 # readiness heuristic (FR-25 / §C)
+        domains:                       # canonical list + weights (sum to 100)
+          - { name: "Databricks Lakehouse Platform", weight: 24 }
+          - { name: "ELT with Spark SQL and Python", weight: 29 }
+          # … remaining Associate domains …
+      - id: professional
+        name: "Databricks Certified Data Engineer Professional"
+        total_questions: 59
+        duration_minutes: 120
+        pass_bar: 0.70
+        domains: [ … Professional's 10 domains + weights … ]
+```
+
+**Backend refactor:**
+- Replace the `ExamType` / `Domain` **enums** with **config-driven values** (a loaded `Certification` registry; `exam`/`domain` validate against the selected Certification's config rather than against compiled-in enum members).
+- `MOCK_EXAM_CONFIGS` is **derived from config** (built from each Certification's `total_questions`/`duration_minutes`/`domains`) rather than a literal dict. The largest-remainder mock builder and the unseen-first / stats code key on `(certification, domain)` exactly as they key on `(exam, domain)` today.
+- The **`exam` field is retained** as the Certification identifier (PRD §3) — the change is "where do the lists/weights come from," not "rename the field." `filter_exercises` already supports `exam`, so Story 6.7's exam filter and FR-30 scoping reuse it unchanged.
+
+**Frontend refactor:**
+- `constants.js` `DOMAINS_BY_EXAM` / `EXAMS` become **data fetched from a config endpoint** (`GET /api/certifications`) instead of a hand-maintained constant, so adding a Certification needs no frontend edit. The Start-screen exam selector (Story 6.7) generalizes to Provider→Certification; this iteration may keep the existing flat exam dropdown wired to the fetched config (the polished switcher UI is deferred — decision-log #40).
+
+**Validation (FR-4 / FR-29):** an Exercise whose `domain` isn't in its Certification's configured domain list is flagged (extends the current Domain-enum check, now driven by config).
+
+**Content layout (OQ-7 — deferred):** keep the current `exercises/associate|professional/` paths **this iteration** to minimize churn; the config maps `exam` values to Certifications regardless of directory. Physically reorganizing into a Provider→Certification tree (`exercises/databricks/de-associate/…`) is deferred.
+
+**Guardrail (SM-C3):** the refactor must **not regress Databricks DE** — the Associate/Professional experience, mock sizing/timing, and all existing tests stay green. The seed config simply re-expresses today's literals (45/90, 59/120, the current domain taxonomy + weights).
+
+---
+
+### Decision: Containerization & Sharing (rev 6, FR-31)
+
+**AR-20.** Ship a **one-command containerized run** so a colleague with **only Docker installed** can `docker compose up` and use the whole app — no host Node/Python/uv (NFR-5). Each colleague runs their **own** instance (single-user per instance; **not** hosted multi-user). This **reverses** the prior "No containerization for MVP" stance and the "Future packaging: Tauri/Electron" note. (Grounded in PRD addendum §H.)
+
+**Stack shape:**
+- **`backend/Dockerfile`** — Python 3.10+ base; install deps via `uv` (or `pip install -r requirements.txt`); copy `backend/`; run `uvicorn app.main:app --host 0.0.0.0 --port 8000`. SQLite (`store.py`) is stdlib — **no service dependency** (no separate DB container).
+- **`frontend/Dockerfile`** — multi-stage: Node build (`npm ci && npm run build`) → serve `dist/` via a static server (nginx or `vite preview`), proxying `/api/*` to the `backend` service. (The Vite dev proxy is replaced by the static server's proxy / compose-network service name. A single image where the backend serves the built frontend is an alternative; two services is the cleaner default and mirrors the dev split.)
+- **`docker-compose.yml`** — two services (`backend`, `frontend`) on a shared network; `frontend` `depends_on` `backend`; publish the frontend port to a **documented local URL** (e.g. `http://localhost:3000`).
+- **`.dockerignore`** files to keep build contexts lean (exclude `__pycache__`, `node_modules`, `dist`, `backend/data/`).
+
+**Persistence (FR-31 — history survives restart):** mount a **named or bind volume at `backend/data/`** so the gitignored `progress.db` lives **outside** the container layer; `docker compose down` then `up` preserves attempts. (The store is created-if-absent on startup, so a fresh volume just starts empty.)
+
+**Content & config (OQ-8 — deferred default):** prefer a **bind mount of `exercises/`** and the §G `config/` into the backend so a colleague can add/edit content **without rebuilding** the image (restart the backend service to reload). Optionally also bake a snapshot into the image for a zero-config "just run it" path; pick one default and document it in the README.
+
+**README (FR-31 consequence):** document the one-command flow — clone, `docker compose up`, open the URL — plus how to add content (drop YAML + config, restart backend) and where history is stored (the volume).
+
+**Out of scope (decision-log #35, SM-C4):** TLS / reverse-proxy / hosting, accounts/auth, a shared backend DB, multi-user concurrency, image publishing to a registry. This is **local distribution, not operating a service**.
+
+---
+
 ### Decision Impact Analysis
 
 **Implementation Sequence:**
@@ -558,7 +661,7 @@ npm run dev
 3. Frontend: SessionSelect page (filter UI, session creation)
 4. Frontend: MCQPractice page (exercise display, answer selection, feedback)
 5. Backend: Anki export script
-6. Frontend: CodeCompletion page (Phase 2)
+6. Frontend: CodeCompletion page (Epic 4)
 7. Packaging & deployment (Phase 2+)
 
 **Cross-Component Dependencies:**
@@ -609,11 +712,11 @@ frontend/src/
 ├── pages/
 │   ├── SessionSelect.jsx       # Choose domain/difficulty
 │   ├── MCQPractice.jsx         # Single MCQ view + feedback
-│   └── CodeCompletion.jsx      # (Phase 2) Wordle-style exercise
+│   └── CodeCompletion.jsx      # (Epic 4) Wordle-style exercise
 ├── components/
 │   ├── ExerciseDisplay.jsx     # Shared; renders MCQ or code
 │   ├── Feedback.jsx            # Correctness + explanation
-│   └── FeedbackTokens.jsx      # (Phase 2) Green/yellow/grey coloring
+│   └── FeedbackTokens.jsx      # (Epic 4) Green/yellow/grey coloring
 ├── hooks/
 │   ├── useSession.js           # Session context consumer
 │   └── useExerciseFeedback.js  # Feedback computation
@@ -817,11 +920,19 @@ project-root/
 │   │   └── data-governance.yaml
 │   └── professional/                       # (Phase 2)
 │
+├── config/                                 # (rev 6) Per-Certification config — FR-29 / AR-19
+│   └── certifications.yaml                 # Provider→Certification registry (domains+weights, exam params);
+│                                           #   or split into config/certifications/<provider>-<cert>.yaml
+│
+├── docker-compose.yml                      # (rev 6) one-command run — FR-31 / AR-20 (backend + frontend services)
+│
 ├── frontend/                               # React + Vite frontend
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── .eslintrc.cjs
+│   ├── Dockerfile                          # (rev 6) multi-stage node build → static serve, proxy /api/* → backend
+│   ├── .dockerignore                       # (rev 6) excludes node_modules, dist
 │   ├── src/
 │   │   ├── main.jsx                       # Entry point
 │   │   ├── App.jsx                        # App wrapper, routing
@@ -830,14 +941,14 @@ project-root/
 │   │   │   ├── SessionSelect.test.jsx
 │   │   │   ├── MCQPractice.jsx            # Single MCQ view + feedback (FR-5–12)
 │   │   │   ├── MCQPractice.test.jsx
-│   │   │   ├── CodeCompletion.jsx         # Wordle-style exercise (Phase 2, FR-13–17)
+│   │   │   ├── CodeCompletion.jsx         # Wordle-style exercise (Epic 4, FR-13–17)
 │   │   │   └── CodeCompletion.test.jsx
 │   │   ├── components/
 │   │   │   ├── ExerciseDisplay.jsx        # Shared; renders MCQ question + code
 │   │   │   ├── ExerciseDisplay.test.jsx
 │   │   │   ├── Feedback.jsx               # Correctness + explanation + doc link
 │   │   │   ├── Feedback.test.jsx
-│   │   │   ├── FeedbackTokens.jsx         # (Phase 2) Green/yellow/grey token coloring
+│   │   │   ├── FeedbackTokens.jsx         # (Epic 4) Green/yellow/grey token coloring
 │   │   │   ├── Spinner.jsx                # Loading indicator
 │   │   │   └── SessionSummary.jsx         # End-of-session score + domain breakdown
 │   │   ├── hooks/
@@ -851,7 +962,8 @@ project-root/
 │   │   │   ├── api.js                     # API call wrappers (getExercises, submitFeedback, exportAnki)
 │   │   │   ├── api.test.js
 │   │   │   ├── formatters.js              # Format helpers (e.g., explanation rendering)
-│   │   │   └── tokenizer.js               # (Phase 2) Code tokenization for Wordle feedback
+│   │   │   ├── tokenizer.js               # (Epic 4) Code tokenization for Wordle feedback (client-side)
+│   │   │   └── codeFeedback.js            # (Epic 4) computeFeedback() green/yellow/grey (client-side, no server endpoint)
 │   │   ├── styles/
 │   │   │   └── global.css                 # Global styles
 │   │   └── assets/
@@ -862,13 +974,17 @@ project-root/
 │   ├── main.py                            # Entry point (for direct run)
 │   ├── requirements.txt                   # Python dependencies
 │   ├── pyproject.toml                     # (optional, for uv)
+│   ├── Dockerfile                         # (rev 6) uvicorn + deps (uv/pip); stdlib sqlite — no DB service
+│   ├── .dockerignore                      # (rev 6) excludes __pycache__, data/
+│   ├── data/                              # (rev 4) SQLite store; (rev 6) MOUNTED VOLUME so progress.db survives down/up
+│   │   └── progress.db                    # gitignored; created-if-absent on startup
 │   ├── app/
 │   │   ├── main.py                        # FastAPI app initialization (FR-5–12)
 │   │   ├── content.py                     # Load YAML, parse, filter Exercises (FR-1–4)
 │   │   ├── content.test.py
 │   │   ├── models.py                      # Pydantic models (Exercise, Session, Feedback)
 │   │   ├── models.test.py
-│   │   ├── feedback.py                    # Correctness evaluation logic (MCQ + Code-Completion)
+│   │   ├── feedback.py                    # Correctness evaluation logic (MCQ only; code-completion is client-side)
 │   │   ├── feedback.test.py
 │   │   ├── export.py                      # Anki export functions (FR-18)
 │   │   └── export.test.py
@@ -897,16 +1013,17 @@ project-root/
 - `POST /api/feedback` → MCQ answer submission `{exerciseId, displayedOptionIds, selectedId, timeTakenMs?}`; returns `{correct, correctOptionId, explanation, references}` (FR-8, FR-10). Single-select scoring. **(rev 4)** also **records the attempt** to the SQLite store (FR-22/FR-28) — best-effort, never blocks grading.
 - `GET /api/stats` → **(rev 4, FR-23)** overall + per-Domain accuracy/attempts + trend, over the attempt store. Optional `exam`.
 - `GET /api/readiness` → **(rev 4, FR-25)** rolling-window accuracy vs ~70%, overall + per-Domain readiness.
-- `POST /api/feedback/code-completion` → (Phase 2) Code submission + token-level feedback (FR-14)
+- ~~`POST /api/feedback/code-completion`~~ → **(rev 5) REMOVED / never implemented.** Code-Completion feedback (FR-14) is computed **client-side** (`tokenizer.js` + `codeFeedback.js`, < 100ms, NFR-1) — there is no server endpoint for it. The answer/accepted ride in the `GET /api/sessions` code-completion entry; the browser grades.
 - `GET /api/export/anki` → Anki export (FR-18)
+- **(rev 6) `GET /api/certifications`** → returns the Provider/Certification registry (providers, certifications, per-cert `domains`+`weights` and exam params `total_questions`/`duration_minutes`/`pass_bar`) loaded from `config/certifications.yaml`. Feeds the frontend so `DOMAINS_BY_EXAM`/`EXAMS` become fetched data (FR-29/FR-30, AR-19). The `exam`/certification scoping on `/api/sessions`, `/api/exercises/count`, `/api/stats`, `/api/readiness` is generalized to validate against this registry (field name + behavior unchanged).
 
 **Component Boundaries:**
 - **SessionSelect** (Frontend) → User selects domain/difficulty → calls `GET /api/sessions?domain=...&difficulty=...` → receives order-randomized exercises with pre-sampled, shuffled Displayed Options → routes to MCQPractice
 - **MCQPractice** (Frontend) → Holds current Exercise from SessionContext → renders the 4 Displayed Options as single-select (radio) → user selects one → calls `POST /api/feedback` with `displayedOptionIds` + `selectedId` → renders Feedback component. No client-side sampling/shuffle — the backend already did it.
-- **CodeCompletion** (Frontend, Phase 2) → Tokenizes user input → calls `POST /api/feedback/code-completion` on keystroke → renders green/yellow/grey feedback
+- **CodeCompletion** (Frontend, **Epic 4**) → Holds current Code-Completion entry from SessionContext (template + answer + accepted) → on each guess, **tokenizes + computes feedback in-browser** (`tokenizer.js` + `codeFeedback.js`, < 100ms) → renders green/yellow/grey via `FeedbackTokens.jsx`; bounded attempts, reveal + explanation on solve/exhaustion. **No server call** — grading is client-side.
 - **SessionContext** (Frontend) → Global session state; shared across pages
 - **content.py** (Backend) → Sole authority on Exercise loading, parsing, filtering; all API routes call it
-- **feedback.py** (Backend) → Sole authority on correctness evaluation; MCQ and Code-Completion variants
+- **feedback.py** (Backend) → Sole authority on **MCQ** correctness evaluation. **(rev 5)** Code-Completion is graded client-side, so it has no `feedback.py` variant.
 - **export.py** (Backend) → Standalone; no app dependencies; can be tested independently
 
 **Service Boundaries:**
@@ -930,7 +1047,9 @@ project-root/
 | **FR-20, FR-21** | Server-side sampling, option shuffle, randomized session order | `SessionSelect.jsx`/`MCQPractice.jsx` (consume `/api/sessions`) | `content.py` / `session.py` (session randomizer), `main.py` (`GET /api/sessions`) | — |
 | **FR-22–25** | Answer & Stats Tracking (Epic 7) | `StatsDashboard.jsx`, `ReadinessIndicator.jsx`, `api.js` | `store.py` (SQLite), `main.py` (`GET /api/stats`, `/api/readiness`; record in `POST /api/feedback`), `session.py` (unseen-first) | `backend/data/progress.db` (gitignored) |
 | **FR-26–28** | Timed Practice / Mock Exam (Epic 8) | `Timer.jsx`/`Countdown.jsx`, `MockExam.jsx`, `SessionSelect.jsx` (timed/mock affordance) | `session.py` (mock-exam builder), `main.py` (`mode=mock`) | — |
-| **FR-13–17** | Code-Completion (Phase 2) | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js` | `feedback.py` (code variant), `models.py` (CodeCompletion schema) | `associate/` code exercises |
+| **FR-13–17** | Code-Completion (Epic 4) | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js`, `codeFeedback.js` (client-side grading) | `session.py` (delivers code-completion entries), `models.py` (CodeCompletion schema) — **no `feedback.py` variant; no server endpoint** | `associate/` + `professional/` code-completion exercises (story 4.6) |
+| **FR-29, FR-30** (rev 6) | Per-Certification config (Epic 9, AR-19) | `constants.js` → **fetched** via `api.js`, `SessionSelect.jsx` (Provider→Certification selection) | config loader + `GET /api/certifications` in `main.py`; `models.py` (`ExamType`/`Domain` enums → config-driven), `session.py` (`MOCK_EXAM_CONFIGS` derived from config) | `config/certifications.yaml` (Provider→Certification registry); `exercises/` paths unchanged (OQ-7) |
+| **FR-31, NFR-5** (rev 6) | Containerized one-command run (Epic 10, AR-20) | `frontend/Dockerfile`, `frontend/.dockerignore` | `backend/Dockerfile`, `backend/.dockerignore` | `docker-compose.yml` (root), mounted volume at `backend/data/`, bind-mounted `exercises/` + `config/` (OQ-8), `README.md` one-command flow |
 
 ### Integration Points
 
@@ -1000,9 +1119,9 @@ cd frontend && npm run build
 
 **Backend Packaging:**
 ```bash
-# Single-binary: pyinstaller or similar
-# Docker: Dockerfile wraps FastAPI + exercises/
-# Run: python -m uvicorn app.main:app (or packaged binary)
+# (rev 6) Committed path is docker compose — see "Decision: Containerization & Sharing (rev 6, FR-31)" / AR-20.
+# Docker: backend/Dockerfile (uvicorn + deps) + frontend/Dockerfile + docker-compose.yml; `docker compose up`.
+# Single-binary (pyinstaller) is NOT the path.
 ```
 
 **Anki Export Script:**
@@ -1036,7 +1155,7 @@ Project structure (`exercises/` at root, `frontend/` and `backend/` as peer dire
 | Content format & loading | FR-1–4, FR-18, FR-19 | `exercises/` YAML + `content.py` parser + Pydantic models (Option Pool ≥1/≥3 validation) + `export.py` Anki export ✓ |
 | MCQ practice (MVP) | FR-5–12 | `SessionSelect.jsx`, `MCQPractice.jsx`, REST endpoints, Context state, `Feedback.jsx` (single-select) ✓ |
 | Re-study variety / randomness | FR-20, FR-21 | Server-side session randomizer in `content.py`/`session.py` + `GET /api/sessions`; sampling, option shuffle, order randomization; flag-less Displayed Options ✓ |
-| Code-Completion (Phase 2) | FR-13–17 | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js`, `feedback.py` code variant ✓ |
+| Code-Completion (Epic 4) | FR-13–17 | `CodeCompletion.jsx`, `FeedbackTokens.jsx`, `tokenizer.js` + `codeFeedback.js` (client-side feedback, no server endpoint); `session.py` delivers entries; content + `write-code-completion` skill (story 4.6) ✓ |
 | Exercise generation (deferred) | FR-4.4 | Format is generation-ready; authoring path is agent-skill (separate workstream) ✓ |
 
 **Non-Functional Requirements:**
@@ -1118,7 +1237,7 @@ The architecture is detailed, coherent, and provides clear guidance without over
 
 **Areas for Future Enhancement (Post-MVP):**
 - Startup convenience scripts (Makefile for `make dev`, `make test`)
-- Docker configuration for Phase 2 distribution / sharing with peers
+- ~~Docker configuration for Phase 2 distribution / sharing with peers~~ → **ACTIVE / done (rev 6)** — `docker compose up` is the committed share path (FR-31, NFR-5, AR-20); no longer a future item.
 - SRS / analytics layer (Phase 2+, requires persistence)
 - Hot-reload for exercises (file-watch in content.py for dev convenience)
 
@@ -1150,10 +1269,13 @@ This architecture document is **ready to guide implementation**. AI agents or te
    - `export.py` (MCQ → Anki format conversion)
    - `scripts/export_anki.py` (standalone CLI)
    - Test + validate export to Anki
-8. Phase 2 (after exam deadline):
-   - `CodeCompletion.jsx` + `FeedbackTokens.jsx`
-   - `tokenizer.js` (language-specific tokenization)
-   - `feedback.py` code-completion variant + `/api/feedback/code-completion`
+8. Epic 4 — Code-Completion (the final epic; rev 5):
+   - `tokenizer.js` (language-specific tokenization) + `codeFeedback.js` (client-side green/yellow/grey, accepted alternatives) — pure, unit-tested (stories 4.2/4.3)
+   - `session.py` delivers code-completion entries (stop skipping); `practice` view routes by exercise type (story 4.1)
+   - `CodeCompletion.jsx` + `FeedbackTokens.jsx` (template display, colored feedback, attempts counter, reveal) — stories 4.1/4.4
+   - Guess-limit + reveal + explanation loop; `CODE_COMPLETION_MAX_ATTEMPTS` (story 4.5)
+   - Starter code-completion bank + `write-code-completion` skill (story 4.6)
+   - **No** `feedback.py` code variant and **no** `/api/feedback/code-completion` — feedback is client-side (NFR-1)
    - Test Wordle feedback rendering
 
 **Constraints & Guardrails for Implementers:**

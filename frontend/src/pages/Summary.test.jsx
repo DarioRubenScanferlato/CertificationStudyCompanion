@@ -54,6 +54,21 @@ describe('computeResults', () => {
     // q3 has no feedback and no questionState entry -> unanswered, not incorrect.
     expect(r.unanswered).toBe(1)
   })
+
+  it('excludes code-completion entries from the MCQ tallies (#3)', () => {
+    // A solved code-completion drill has no feedback; it must NOT inflate the
+    // total or be miscounted as "unanswered".
+    const exercises = [
+      { exerciseId: 'q1', domain: 'Data Governance', type: 'single_choice' },
+      { exerciseId: 'cc1', domain: 'Data Governance', type: 'code_completion' },
+    ]
+    const feedback = { q1: { correct: true } }
+    const r = computeResults(exercises, feedback)
+    expect(r.total).toBe(1) // only the MCQ counts
+    expect(r.answered).toBe(1)
+    expect(r.unanswered).toBe(0) // cc1 is not "unanswered"
+    expect(r.correct).toBe(1)
+  })
 })
 
 // Session entries carry displayedOptions for the review-incorrect resolver.

@@ -86,6 +86,38 @@ describe('App Component', () => {
     expect(screen.queryByRole('button', { name: 'Stats' })).not.toBeInTheDocument()
   })
 
+  it('routes a code_completion exercise to the CodeCompletion runner (not MCQPractice)', async () => {
+    api.getExerciseCount.mockResolvedValue(1)
+    api.getSession.mockResolvedValue([
+      {
+        exerciseId: 'cc1',
+        type: 'code_completion',
+        domain: 'Data Ingestion and Loading',
+        difficulty: 'medium',
+        language: 'python',
+        prompt: 'Configure Auto Loader to infer schema',
+        template: 'spark.readStream.format("cloudFiles").option("cloudFiles.___", "json")',
+        answer: 'format',
+        accepted: ['format'],
+        caseSensitive: true,
+        ignoreWhitespace: true,
+        explanation: 'x',
+        references: [],
+      },
+    ])
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
+
+    // CodeCompletion runner is shown: the prompt + the typed-answer input.
+    expect(await screen.findByText(/Configure Auto Loader to infer schema/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Your answer/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Submit guess/i })).toBeInTheDocument()
+    // It is NOT the MCQ runner (no radiogroup, no Submit MCQ button).
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
+  })
+
   it('on Practice, clicking the header Home routes through the Exit confirm', async () => {
     // Drive a real session into Practice, answer one question, then click Home.
     api.getExerciseCount.mockResolvedValue(1)

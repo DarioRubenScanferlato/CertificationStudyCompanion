@@ -72,7 +72,35 @@ describe('SessionSelect', () => {
         exam: 'associate',
         domain: 'Governance and Security',
         difficulty: 'easy',
+        // MCQ is selected by default (Story 4.7).
+        exerciseTypes: ['single_choice'],
       })
+    )
+  })
+
+  it('defaults the exercise-type multiselect to Multiple choice (MCQ)', () => {
+    renderPage()
+    expect(screen.getByLabelText('Multiple choice')).toBeChecked()
+    expect(screen.getByLabelText('Code completion')).not.toBeChecked()
+  })
+
+  it('scopes the session to Code completion when chosen (so the Wordle drill is reachable)', async () => {
+    api.getSession.mockResolvedValue([{ exerciseId: 'cc1', type: 'code_completion' }])
+    renderPage()
+
+    // Switch to code-completion only: add it, drop MCQ.
+    fireEvent.click(screen.getByLabelText('Code completion'))
+    fireEvent.click(screen.getByLabelText('Multiple choice'))
+    fireEvent.click(screen.getByRole('button', { name: /Start Session/i }))
+
+    await waitFor(() =>
+      expect(api.getSession).toHaveBeenCalledWith(
+        expect.objectContaining({ exam: 'associate', exerciseTypes: ['code_completion'] })
+      )
+    )
+    // The live match count also reflects the chosen type(s).
+    expect(api.getExerciseCount).toHaveBeenCalledWith(
+      expect.objectContaining({ exerciseTypes: ['code_completion'] })
     )
   })
 
@@ -105,6 +133,7 @@ describe('SessionSelect live match count', () => {
       exam: 'associate',
       domain: undefined,
       difficulty: undefined,
+      exerciseTypes: ['single_choice'],
     })
   })
 
@@ -123,6 +152,7 @@ describe('SessionSelect live match count', () => {
         exam: 'associate',
         domain: 'Governance and Security',
         difficulty: undefined,
+        exerciseTypes: ['single_choice'],
       })
     )
   })
@@ -301,6 +331,7 @@ describe('SessionSelect exam scoping (Story 6.7)', () => {
         exam: 'professional',
         domain: undefined,
         difficulty: undefined,
+        exerciseTypes: ['single_choice'],
       })
     )
 
@@ -310,6 +341,7 @@ describe('SessionSelect exam scoping (Story 6.7)', () => {
         exam: 'professional',
         domain: undefined,
         difficulty: undefined,
+        exerciseTypes: ['single_choice'],
       })
     )
   })

@@ -2,8 +2,10 @@ import { createContext, useContext, useEffect, useRef } from 'react'
 import { SessionProvider, useSession } from './context/SessionContext'
 import SessionSelect from './pages/SessionSelect'
 import MCQPractice from './pages/MCQPractice'
+import CodeCompletion from './pages/CodeCompletion'
 import Summary from './pages/Summary'
 import StatsDashboard from './pages/StatsDashboard'
+import { EXERCISE_TYPES } from './constants'
 
 /**
  * Lets the Practice surface register its Exit-confirm trigger so the header
@@ -24,11 +26,21 @@ export function useRegisterExitConfirm(requestExit) {
   }, [ctx, requestExit])
 }
 
+// The `practice` view hosts both runners — dispatch by the current exercise's
+// type so a single session can mix MCQ and Code-Completion exercises (Epic 4).
+function PracticeRouter() {
+  const { currentExercise } = useSession()
+  if (currentExercise?.type === EXERCISE_TYPES.CODE_COMPLETION) {
+    return <CodeCompletion />
+  }
+  return <MCQPractice />
+}
+
 function CurrentView() {
   const { view } = useSession()
   switch (view) {
     case 'practice':
-      return <MCQPractice />
+      return <PracticeRouter />
     case 'summary':
       return <Summary />
     case 'stats':

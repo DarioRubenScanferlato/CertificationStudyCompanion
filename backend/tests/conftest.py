@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app import store
+from app import feedback_store, store
 from app.content import load_exercises_from_directory
 
 
@@ -15,6 +15,18 @@ def isolated_attempt_db(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("ATTEMPT_DB_PATH", str(tmp_path / "test_progress.db"))
     store.init_db()
+    yield
+
+
+@pytest.fixture(autouse=True)
+def isolated_feedback_store(tmp_path, monkeypatch):
+    """Point the sidecar feedback store at a throwaway per-test file (Story 11.1).
+
+    Autouse so the `POST /api/exercise-feedback` endpoint never writes to the
+    real `exercises/feedback.yaml` during tests.
+    """
+    fb = tmp_path / "feedback.yaml"
+    monkeypatch.setattr(feedback_store, "_default_feedback_path", lambda: fb)
     yield
 
 

@@ -16,3 +16,12 @@
 - **`request.type` not validated against the stored exercise type** (`backend/app/main.py`, `feedback.py`) — client-supplied `type` is decorative; an isinstance check catches mismatches, but the request `type` is never cross-checked against truth. Hardening only.
 - **`export_anki` reads `app.state.exercises` without the `getattr` guard** (`backend/app/main.py`) — pre-existing (not Epic 5); inconsistent with the new endpoints' defensive `getattr`. Could AttributeError → 500 if hit before lifespan startup.
 - **Malformed POST body returns FastAPI 422, not the `{success,data,error}` envelope** (`backend/app/main.py`) — programmer-error path; partially mitigated once the frontend surfaces submit errors (patch). Consider a 422→envelope exception handler later.
+
+## Deferred from: code review of story 11.1 (2026-06-10)
+
+- **Cross-process lost update on the feedback sidecar.** `feedback_store` serializes writes with an in-process `threading.Lock`, which does not coordinate the FastAPI process with the separate `write-mcq` `python -c "...mark_resolved(...)"` invocation. The atomic-write fix (temp + `os.replace`) prevents file *corruption*, but a concurrent write from the two processes could still lose an update. Low likelihood for a single-user local app; revisit (file lock / lockfile) if a real second writer or multi-instance use appears.
+- **`mark_resolved` blanket-resolves all open notes for an id.** A note filed between the author reading `open_notes()` and calling `mark_resolved(id)` is marked resolved without ever being reviewed. Narrow window in the single-author workflow; a proper fix needs resolve-by-reviewed-set or a timestamp cutoff (an API change). Revisit if feedback volume/cadence grows.
+
+## Deferred from: code review of story 4.8 (2026-06-11)
+
+- **No "right letter, wrong case" feedback cue (code-completion).** Character-level Wordle has only green/yellow/grey. Under `case_sensitive: true` (camelCase answers — `availableNow`, `checkpointLocation`, `schemaLocation`, `outputMode`, etc.), a case-only mistake (e.g. lowercase `n` for `N`) shows grey, indistinguishable from "letter not in the answer." This is inherent to the 3-state Wordle model the user asked for, and each such exercise's explanation already notes case-sensitivity. Revisit only if it proves confusing in practice — options: make those answers case-insensitive (`case_sensitive: false`), or add a distinct subtle cue for "right letter, wrong case" (deviates from strict Wordle). Low priority.

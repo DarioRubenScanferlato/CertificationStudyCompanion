@@ -1,6 +1,6 @@
 ---
 name: write-mcq
-description: Author Databricks DE certification multiple-choice questions as schema-valid YAML matching exercises/associate/mcq-associate-batch-01.yaml and the canonical schema in the BMad addendum. Questions are single-select Option Pools grounded in current official Databricks documentation. Use when the user asks to write, generate, add, or create MCQ questions / exercises / practice questions for the study companion.
+description: Author Databricks DE certification multiple-choice questions as schema-valid YAML matching exercises/associate/mcq-associate-batch-01.yaml and the canonical schema in the BMad addendum. Questions are single-select Option Pools grounded in current official Databricks documentation. Use when the user asks to write, generate, add, or create MCQ questions / exercises / practice questions for the study companion. Also REVISES existing questions from in-app learner feedback (the sidecar exercises/feedback.yaml) — use when asked to fix, improve, or address feedback on bad questions.
 ---
 
 # Write MCQ Exercises
@@ -143,6 +143,32 @@ Option Pool with interchangeable **correct alternatives** (single-select; runner
    ```
    Also check: no duplicate `id`s; every question has ≥1 correct and ≥3 incorrect; `type` is `single_choice`; no jointly-required correct sets. Fix any errors before reporting done.
 6. **Report** how many questions were added, to which file, the domain/difficulty breakdown, pool depths, and the docs consulted.
+
+## Revise from feedback (FR-33, Story 11.2)
+
+A second mode: **fix bad questions using the in-app learner feedback** captured at `exercises/feedback.yaml` (the sidecar written by FR-32). Use this when the user says "address the feedback", "fix the flagged questions", or names a question to revise. **MCQ-first** — a `write-code-completion` parallel is a later extension; if an exercise with feedback is a code-completion exercise, surface it and skip (don't edit it here).
+
+**The sidecar** (`exercises/feedback.yaml`) maps Exercise `id` → a list of `{ note, created_at, resolved }`. Only act on **open** (unresolved, `resolved: false`) notes.
+
+Workflow:
+
+1. **Find the open feedback.** Either a specific Exercise `id` the user named, or sweep all open notes:
+   ```bash
+   cd backend && python -c "from app import feedback_store; import json; print(json.dumps(feedback_store.open_notes()))"
+   ```
+   (Or read `exercises/feedback.yaml` directly.) Skip exercises with no open notes; skip non-MCQ (code-completion) exercises with a note that they need the code-completion path.
+2. **Locate the Exercise** in its source file under `exercises/<exam>/*.yaml` by `id`. **If no exercise with that `id` exists** (renamed/removed since the note was filed), **surface it and leave the feedback OPEN** — do NOT `mark_resolved` an id that no longer maps to content (that would silently retire a note without fixing anything).
+3. **Understand the note, then re-research** the relevant official docs (the documentation-first workflow above still applies — a fix grounded in recall is not acceptable).
+4. **Edit the Exercise in place** to address the note — e.g. fix a wrong/outdated answer or explanation, de-duplicate near-identical options, clarify an ambiguous stem, refresh terminology (Lakeflow / `dp` / Unity Catalog). **Preserve** the `id`, `source`/provenance, and the Option Pool structure (≥1 correct / ≥3 incorrect). Do a minimal, surgical edit — don't rewrite an unrelated question.
+5. **Re-validate** the edited Exercise (Workflow step 5 below — it must still load and pass the models, keep ≥1 correct / ≥3 incorrect, valid `domain`). **If a fix would invalidate the Exercise, do NOT write bad content** — surface the problem and leave the feedback open instead.
+6. **Mark the feedback resolved** only after a successful, validated edit:
+   ```bash
+   cd backend && python -c "from app import feedback_store; print(feedback_store.mark_resolved('dbx-de-0142'))"
+   ```
+   This sets `resolved: true` on that Exercise's open notes in the sidecar.
+7. **Report** the diff per Exercise (what the note said, what changed) so the author reviews it as a normal version-controlled change. No auto-commit; no approval UI.
+
+**Guardrails:** only touch Exercises with open feedback; resolved entries are skipped; **an id with no matching content is left open (not resolved) and surfaced**; never modify an Exercise's `id`; mark-resolved happens strictly after a validated edit; code-completion revision is out of scope (flag it).
 
 ## Quality bar
 - Grounded in current official documentation — no questions from memory, no deprecated patterns presented as correct.

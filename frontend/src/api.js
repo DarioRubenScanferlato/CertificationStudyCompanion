@@ -79,17 +79,23 @@ export async function isBackendAvailable() {
  * The session payload contains NO correct flag / explanation / references —
  * those are revealed only by submitFeedback after the user answers.
  *
- * @param {object} filters - { exam, domain, difficulty }
+ * @param {object} filters - { exam, domain, difficulty, exerciseTypes }
+ *   exerciseTypes (optional): array of types ('single_choice' | 'code_completion')
+ *   to scope the session; each is sent as a repeated `exercise_type` param. Omit
+ *   or pass [] for all types.
  * @returns {Promise<Array>} list of session entries, each:
  *   { exerciseId, type, domain, difficulty, question, codeContext,
  *     displayedOptions: [{ id, text } x4] }
  * @throws {APIError} on network/parse error or when the API reports failure
  */
-export async function getSession({ exam, domain, difficulty } = {}) {
+export async function getSession({ exam, domain, difficulty, exerciseTypes } = {}) {
   const params = new URLSearchParams()
   if (exam) params.append('exam', exam)
   if (domain) params.append('domain', domain)
   if (difficulty) params.append('difficulty', difficulty)
+  if (Array.isArray(exerciseTypes)) {
+    exerciseTypes.forEach((t) => t && params.append('exercise_type', t))
+  }
   const query = params.toString()
   const url = `/api/sessions${query ? `?${query}` : ''}`
 
@@ -157,15 +163,20 @@ export async function getSessionByIds(exerciseIds) {
  * Count the exercises matching the given filters (Start-screen preview).
  * The response is leak-free: it contains only a count, no options/flags.
  *
- * @param {object} filters - { exam, domain, difficulty }
+ * @param {object} filters - { exam, domain, difficulty, exerciseTypes }
+ *   exerciseTypes (optional): array of types, each sent as a repeated
+ *   `exercise_type` param. Omit or pass [] for all types.
  * @returns {Promise<number>} number of matching exercises (0 if missing/non-number)
  * @throws {APIError} on network/parse error or when the API reports failure
  */
-export async function getExerciseCount({ exam, domain, difficulty } = {}) {
+export async function getExerciseCount({ exam, domain, difficulty, exerciseTypes } = {}) {
   const params = new URLSearchParams()
   if (exam) params.append('exam', exam)
   if (domain) params.append('domain', domain)
   if (difficulty) params.append('difficulty', difficulty)
+  if (Array.isArray(exerciseTypes)) {
+    exerciseTypes.forEach((t) => t && params.append('exercise_type', t))
+  }
   const query = params.toString()
   const url = `/api/exercises/count${query ? `?${query}` : ''}`
 
@@ -208,6 +219,44 @@ export async function submitFeedback({ exerciseId, displayedOptionIds, selectedI
     throw new APIError(result.error || 'Failed to grade answer', null, result)
   }
   return result.data
+}
+
+/**
+ * Submit a free-text feedback note on a question (FR-32). Persisted server-side
+ * to a sidecar file (exercises/feedback.yaml); the authored exercise is never
+ * modified. Distinct from submitFeedback (which grades an MCQ answer).
+ *
+ * @param {object} args
+ * @param {string} args.exerciseId
+ * @param {string} args.note - free-text note (non-empty)
+ * @returns {Promise<{note, created_at, resolved}>} the recorded entry
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function submitExerciseFeedback({ exerciseId, note }) {
+  const result = await apiRequest('/api/exercise-feedback', {
+    method: 'POST',
+    body: JSON.stringify({ exerciseId, note }),
+  })
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to save feedback', null, result)
+  }
+  return result.data
+}
+
+/**
+ * List the feedback notes recorded for an exercise (FR-32, read path).
+ *
+ * @param {string} exerciseId
+ * @returns {Promise<Array<{note, created_at, resolved}>>}
+ * @throws {APIError} on network/parse error or when the API reports failure
+ */
+export async function getExerciseFeedback(exerciseId) {
+  const params = new URLSearchParams({ exerciseId })
+  const result = await apiRequest(`/api/exercise-feedback?${params.toString()}`)
+  if (!result.success) {
+    throw new APIError(result.error || 'Failed to load feedback', null, result)
+  }
+  return Array.isArray(result.data?.notes) ? result.data.notes : []
 }
 
 /**

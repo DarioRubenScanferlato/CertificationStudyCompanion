@@ -3,14 +3,7 @@ import Prism from 'prismjs'
 import 'prismjs/components/prism-sql'
 import 'prismjs/components/prism-python'
 import 'prismjs/themes/prism.css'
-
-// Map our content language tags to Prism grammar names.
-const LANGUAGE_ALIASES = {
-  sql: 'sql',
-  python: 'python',
-  py: 'python',
-  pyspark: 'python',
-}
+import { normalizeLanguage } from '../utils/language'
 
 /**
  * Render a code snippet with Prism.js syntax highlighting. Whitespace and
@@ -18,7 +11,7 @@ const LANGUAGE_ALIASES = {
  * when the language is unknown.
  */
 export default function CodeBlock({ code, language = 'sql' }) {
-  const grammarName = LANGUAGE_ALIASES[language?.toLowerCase()] || 'clike'
+  const grammarName = normalizeLanguage(language) || 'clike'
 
   const html = useMemo(() => {
     const grammar = Prism.languages[grammarName] || Prism.languages.clike

@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useSession } from '../context/SessionContext'
 import { getSession, getExerciseCount, getMockSession } from '../api'
-import { DOMAINS_BY_EXAM, DIFFICULTIES, EXAMS, DEFAULT_EXAM } from '../constants'
+import {
+  DOMAINS_BY_EXAM,
+  DIFFICULTIES,
+  EXAMS,
+  DEFAULT_EXAM,
+  EXERCISE_TYPES,
+  EXERCISE_TYPE_OPTIONS,
+} from '../constants'
 
 /**
  * Landing page: pick filters and start a practice session.
@@ -13,6 +20,17 @@ export default function SessionSelect() {
   const [exam, setExam] = useState(DEFAULT_EXAM)
   const [domain, setDomain] = useState('')
   const [difficulty, setDifficulty] = useState('')
+  // Exercise-type multiselect (Story 4.7): which types to include in the
+  // session. MCQ is selected by DEFAULT so the familiar experience is unchanged;
+  // the learner can add/switch to Code completion to drill the Wordle exercises
+  // directly instead of hunting for them interleaved among MCQs. Empty = all types.
+  const [exerciseTypes, setExerciseTypes] = useState([EXERCISE_TYPES.SINGLE_CHOICE])
+
+  function toggleExerciseType(value) {
+    setExerciseTypes((prev) =>
+      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]
+    )
+  }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [count, setCount] = useState(null)
@@ -42,6 +60,7 @@ export default function SessionSelect() {
       exam,
       domain: domain || undefined,
       difficulty: difficulty || undefined,
+      exerciseTypes,
     })
       .then((n) => {
         if (!ignore) setCount(n)
@@ -55,7 +74,7 @@ export default function SessionSelect() {
     return () => {
       ignore = true
     }
-  }, [exam, domain, difficulty])
+  }, [exam, domain, difficulty, exerciseTypes])
 
   async function handleStart() {
     setLoading(true)
@@ -65,6 +84,7 @@ export default function SessionSelect() {
         exam,
         domain: domain || undefined,
         difficulty: difficulty || undefined,
+        exerciseTypes,
       })
       if (!sessionEntries || sessionEntries.length === 0) {
         setError('No exercises match those filters. Try broadening your selection.')
@@ -166,6 +186,23 @@ export default function SessionSelect() {
             ))}
           </select>
         </div>
+
+        <fieldset>
+          <legend className="block text-sm font-medium text-gray-700 mb-1">Exercise type</legend>
+          <div className="flex flex-col gap-2">
+            {EXERCISE_TYPE_OPTIONS.map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={exerciseTypes.includes(opt.value)}
+                  onChange={() => toggleExerciseType(opt.value)}
+                  className="rounded border-gray-300 text-databricks-500 focus:outline-none focus:ring-2 focus:ring-databricks-500"
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         {/* Optional countdown (Story 8.1) — off by default. */}
         <div>

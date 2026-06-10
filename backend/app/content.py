@@ -111,8 +111,15 @@ def load_exercises_from_directory(
 
     logger.info(f"Loading exercises from {base_dir}")
 
-    # Find all YAML files recursively
-    yaml_files = list(base_dir.glob("**/*.yaml")) + list(base_dir.glob("**/*.yml"))
+    # Find all YAML files recursively. Skip the in-app feedback sidecar
+    # (exercises/feedback.yaml, written by feedback_store) — it lives in the
+    # content tree but is NOT an Exercise Set, so loading it would otherwise log
+    # a spurious "missing exercises key" error on every startup.
+    yaml_files = [
+        f
+        for f in (list(base_dir.glob("**/*.yaml")) + list(base_dir.glob("**/*.yml")))
+        if f.name != "feedback.yaml"
+    ]
     logger.info(f"Found {len(yaml_files)} YAML files to process")
 
     for yaml_file in sorted(yaml_files):
@@ -260,7 +267,7 @@ def filter_exercises(
     domain: str | None = None,
     difficulty: str | None = None,
     exam: str | None = None,
-    exercise_type: str | None = None,
+    exercise_type: "str | list[str] | None" = None,
 ) -> list:
     """
     Filter exercises by criteria.
@@ -270,7 +277,9 @@ def filter_exercises(
         domain: Filter by domain (case-insensitive)
         difficulty: Filter by difficulty (easy, medium, hard)
         exam: Filter by exam (associate, professional)
-        exercise_type: Filter by type (single_choice, multi_choice, code_completion)
+        exercise_type: Filter by type — a single value or a list of values
+            (single_choice, multi_choice, code_completion). A list matches any
+            of the given types (used by the Start-screen multiselect, Story 4.7).
 
     Returns:
         Filtered list of exercises
@@ -296,8 +305,14 @@ def filter_exercises(
         filters_applied.append(f"exam={exam}")
 
     if exercise_type:
-        type_norm = exercise_type.strip().lower()
-        result = [e for e in result if e.type.value.lower() == type_norm]
+        # Accept either a single type (str) or several (list/tuple/set) so the
+        # Start-screen multiselect (Story 4.7) can scope to MCQ, code-completion,
+        # or both. Membership match against the normalized set.
+        if isinstance(exercise_type, str):
+            type_values = {exercise_type.strip().lower()}
+        else:
+            type_values = {str(t).strip().lower() for t in exercise_type}
+        result = [e for e in result if e.type.value.lower() in type_values]
         filters_applied.append(f"type={exercise_type}")
 
     if filters_applied:

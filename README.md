@@ -1,22 +1,31 @@
 # Databricks Data Engineer Certification Study Companion
 
-A practice application to help you prepare for the Databricks Data Engineer Associate and Professional certification exams.
+A local practice application to help you prepare for the Databricks Data Engineer **Associate** and **Professional** certification exams.
 
 ## Overview
 
-This application provides two types of practice exercises to reinforce your understanding of Databricks and data engineering concepts:
+The app provides two types of practice exercises, both grounded in the official exam blueprints and Databricks documentation:
 
-1. **Multiple Choice Questions (MCQ)** — Practice with blueprint-aligned questions covering all Associate exam domains
-2. **Code-Completion Exercises (Phase 2)** — Wordle-style syntax practice for SQL and PySpark code
+1. **Multiple Choice Questions (MCQ)** — Blueprint-aligned, single-select questions across every exam domain. Each question is an *Option Pool* (one correct answer plus several distractors); options are sampled and shuffled each time so the same question never replays identically.
+2. **Code-Completion Exercises** — Wordle-style, fill-in-the-blank syntax drills for SQL and PySpark with per-character feedback and a bounded number of guesses.
 
-The app helps you study efficiently by offering domain-based filtering, detailed explanations, and instant feedback on your answers.
+Beyond plain practice, the app tracks your progress and helps you study efficiently:
+
+- **Domain + exam filtering** and exercise-type selection when starting a session
+- **Unseen-first ordering** — questions you haven't answered yet are served before ones you've already seen
+- **Stats dashboard & readiness indicator** — overall and per-domain accuracy versus the ~70% pass bar
+- **Timed sessions & full-length Mock Exams** — domain-weighted, exam-length sets under real exam timing (Associate 45Q/90min, Professional 59Q/120min)
+- **Detailed explanations & references** on every answer, plus syntax highlighting and keyboard shortcuts
+- **In-app question feedback** loop to flag and improve weak questions
+- **Anki export** for portable, spaced-repetition review
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ (for frontend)
-- Python 3.10+ (for backend)
+- Node.js 18+ (frontend)
+- Python 3.10+ (backend)
+- [uv](https://docs.astral.sh/uv/) for Python dependency management — this project uses uv, not pip
 - Git (recommended)
 
 ### Setup
@@ -27,83 +36,100 @@ The app helps you study efficiently by offering domain-based filtering, detailed
    cd DataBricks-DE-cert-study-companion
    ```
 
-2. **Initialize the frontend**
+2. **Start the backend** (FastAPI)
+   ```bash
+   cd backend
+   uv sync                                  # install dependencies from uv.lock
+   uv run uvicorn app.main:app --reload
+   ```
+   The backend API starts on `http://localhost:8000`.
+
+3. **Start the frontend** (in a new terminal)
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
-   The frontend will start on `http://localhost:3000`
-
-3. **Initialize the backend** (in a new terminal)
-   ```bash
-   cd backend
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   python -m uvicorn app.main:app --reload
-   ```
-   The backend API will start on `http://localhost:8000`
+   The frontend starts on `http://localhost:3000` and proxies `/api` requests to the backend on port 8000.
 
 ## Project Structure
 
 ```
 DataBricks-DE-cert-study-companion/
-├── exercises/              # Content: YAML exercise files (MCQs, code-completion)
-│   └── associate/         # Associate-level certification exercises
-├── frontend/              # React 18+ application (Vite, Tailwind CSS)
-│   ├── src/              # React components, pages, styles
-│   └── package.json      # Frontend dependencies
-├── backend/               # Python FastAPI application
-│   ├── app/              # FastAPI routes, models, logic
-│   └── requirements.txt   # Python dependencies
-├── docs/                  # Documentation and guides
-├── README.md             # This file
-└── .gitignore            # Git ignore rules
+├── exercises/                # Content: YAML exercise files
+│   ├── associate/           # Associate-level MCQ + code-completion batches
+│   ├── professional/        # Professional-level exercises
+│   └── feedback.yaml        # In-app question feedback sidecar (gitignored, local)
+├── frontend/                 # React 18 application (Vite, Tailwind CSS)
+│   ├── src/                 # Components, pages, context, styles
+│   └── package.json
+├── backend/                  # Python FastAPI application
+│   ├── app/                 # Routes, models, content loader, session/stats logic
+│   ├── data/                # Local SQLite attempt store (gitignored)
+│   ├── pyproject.toml       # Dependencies (managed with uv)
+│   └── uv.lock
+├── _bmad-output/             # Planning & implementation artifacts (PRD, architecture, epics, stories)
+└── README.md                # This file
 ```
 
 ## Content Bank
 
-MCQ exercises are stored as YAML files in `exercises/associate/`. Each file contains:
+Exercises are stored as YAML files under `exercises/<exam>/`. MCQ files contain:
 
-- **Question metadata** — domain, difficulty, type (single/multi-choice)
-- **Question text** — the question prompt and optional code snippets
-- **Answer options** — text and correctness flag
-- **Explanation** — why the correct answer is right, why distractors are wrong
+- **Metadata** — `id`, `type`, `exam`, `domain`, `difficulty`, optional `tags`
+- **Question text** — the prompt and optional code snippets
+- **Options** — an Option Pool of `{id, text, correct}` entries (one correct, several distractors)
+- **Explanation** — why the correct answer is right and why each distractor is wrong
 - **References** — links to official Databricks documentation
 
 ### Schema Example
 
 ```yaml
-- id: dbx-de-0001
-  type: single_choice
-  exam: associate
-  domain: "Databricks Lakehouse Platform"
-  difficulty: medium
-  question: "What is the primary benefit of Delta Lake?"
-  options:
-    - id: a
-      text: "ACID transactions and schema enforcement"
-      correct: true
-    - id: b
-      text: "Unlimited storage capacity"
-      correct: false
-  answer: [a]
-  explanation: "Delta Lake provides ACID transactions..."
-  references:
-    - "https://docs.databricks.com/delta/"
+exercises:
+  - id: dbx-de-0001
+    type: single_choice
+    exam: associate
+    domain: "Databricks Intelligence Platform"
+    difficulty: easy
+    question: "Which characteristic of the Lakehouse architecture lets it replace both a data lake and a data warehouse?"
+    options:
+      - id: a
+        text: "Combines data lake flexibility with data warehouse reliability and performance"
+        correct: true
+      - id: b
+        text: "Stores all data in a proprietary columnar format for maximum performance"
+        correct: false
+      - id: c
+        text: "Separates storage and compute so each can scale independently"
+        correct: false
+      - id: d
+        text: "Loads all data into memory to eliminate disk I/O"
+        correct: false
+    answer: [a]
+    explanation: "The Lakehouse combines data-lake flexibility (open formats) with data-warehouse reliability (ACID, schema enforcement)..."
+    references:
+      - "https://docs.databricks.com/en/lakehouse/index.html"
+    tags: [lakehouse, architecture]
 ```
 
 ## Architecture & Design
 
-For detailed information about the technical architecture, naming conventions, and implementation patterns, see:
+For technical architecture, conventions, and the implementation roadmap, see the planning artifacts:
 
-- **[Architecture Documentation](docs/architecture.md)** — Tech stack, design decisions, project structure
-- **[Epics and Stories](docs/epics.md)** — Feature breakdown and implementation roadmap
+- **[Architecture](_bmad-output/planning-artifacts/architecture.md)** — Tech stack, design decisions, project structure
+- **[Epics and Stories](_bmad-output/planning-artifacts/epics.md)** — Feature breakdown and roadmap
+- **[PRD](_bmad-output/planning-artifacts/prds/)** — Product requirements
 
 ## Development
 
 ### Running Tests
+
+**Backend:**
+```bash
+cd backend
+uv sync --extra dev    # once, to install dev dependencies
+uv run pytest
+```
 
 **Frontend:**
 ```bash
@@ -111,46 +137,37 @@ cd frontend
 npm test
 ```
 
-**Backend:**
-```bash
-cd backend
-pytest
-```
-
 ### Coding Standards
 
 - **Frontend:** PascalCase for components, camelCase for variables and functions
-- **Backend:** snake_case for functions, camelCase for JSON APIs
-- **API Responses:** All API responses wrap data in `{success, data, error}` structure
+- **Backend:** snake_case for Python, camelCase for JSON API fields; dependencies managed with **uv** (never pip)
+- **API Responses:** all responses wrap data in a `{success, data, error}` structure
 
-See [Architecture Documentation](docs/architecture.md) for complete conventions.
+See the [Architecture](_bmad-output/planning-artifacts/architecture.md) doc for complete conventions.
 
-## Phases
+## Feature Status
 
-### Phase 1 (MVP)
-- ✅ MCQ practice interface with domain filtering
-- ✅ Detailed answer explanations
-- ✅ Session management
-- ✅ Anki export for portable study
+**Shipped:**
+- ✅ MCQ practice with domain + exam filtering and Option-Pool randomization
+- ✅ Detailed explanations, references, and syntax highlighting
+- ✅ Session management — back/skip/replay, progress bar, keyboard shortcuts
+- ✅ Code-Completion (Wordle-style) drills with per-character feedback
+- ✅ Local attempt tracking, unseen-first ordering, stats dashboard & readiness indicator
+- ✅ Timed sessions and full-length, domain-weighted Mock Exams
+- ✅ In-app question feedback loop and Anki export
 
-### Phase 2
-- Code-Completion exercises (Wordle-style)
-- Token-level feedback (green/yellow/grey)
-- Syntax practice for SQL and PySpark
-
-### Future Phases
-- Timed mock exams
-- Per-domain analytics and readiness metrics
-- Spaced repetition system
-- Question bank generation from official docs
+**Roadmap:**
+- Multi-provider / multi-certification support (config-driven exams beyond Databricks DE)
+- Containerized distribution (Docker / Compose) for easy sharing
 
 ## Study Tips
 
-1. **Start with domain filtering** — Focus on weak areas first
-2. **Read explanations carefully** — They teach the reasoning, not just the answer
-3. **Mix difficulty levels** — Build fundamentals with easy questions, then challenge yourself
-4. **Use Anki export** — Review on your mobile device or during commutes (via Anki app)
-5. **Refer to official docs** — Follow the reference links to deepen your understanding
+1. **Filter by domain** — focus on weak areas first
+2. **Read explanations carefully** — they teach the reasoning, not just the answer
+3. **Use unseen-first + stats** — cover new material, then revisit weak domains the readiness indicator highlights
+4. **Take a timed Mock Exam** — rehearse under real exam timing before the real thing
+5. **Export to Anki** — review on mobile or during commutes
+6. **Follow the references** — deepen understanding via the official docs
 
 ## Official Resources
 
@@ -160,26 +177,17 @@ See [Architecture Documentation](docs/architecture.md) for complete conventions.
 
 ## Contributing
 
-If you've authored additional exercises or found errors, please contribute by:
+To add or fix exercises:
 
-1. Creating a new YAML file in `exercises/associate/` following the schema
-2. Ensuring all questions are original and properly explained
-3. Adding references to official Databricks documentation
-4. Submitting a pull request with your additions
+1. Create or edit a YAML file under `exercises/<exam>/` following the schema above
+2. Keep questions original and properly explained
+3. Add references to official Databricks documentation
+4. Submit a pull request with your additions
 
 ## License
 
 This project is for personal study and educational purposes. All content should align with Databricks' official exam blueprint and documentation.
 
-## Support
-
-For questions or issues:
-
-1. Check the [Architecture Documentation](docs/architecture.md)
-2. Review the [Epics and Stories](docs/epics.md) for implementation details
-3. Consult Databricks official documentation at https://docs.databricks.com
-
 ---
 
-**Last updated:** 2026-06-05
-**Current Phase:** 1 (MCQ Practice MVP)
+**Last updated:** 2026-06-11

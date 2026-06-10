@@ -108,6 +108,21 @@ class TestCountFiltering:
         session = client.get("/api/sessions?domain=Governance%20and%20Security").json()["data"]
         assert count == len(session)
 
+    def test_count_by_exercise_type_matches_sessions_population(self, client):
+        """Count scoped to a type equals the type-scoped session population.
+
+        Keeps the Start-screen preview honest for the new Exercise-type filter:
+        the "{n} questions match" count must agree with what the session yields.
+        """
+        count = client.get(
+            "/api/exercises/count?exam=associate&exercise_type=code_completion"
+        ).json()["data"]["count"]
+        session = client.get("/api/sessions?exam=associate&exercise_type=code_completion").json()[
+            "data"
+        ]
+        assert count == len(session)
+        assert count > 0
+
 
 class TestInvalidFilters:
     """Invalid enum values are errors with data == null, like GET /api/sessions."""
@@ -127,3 +142,11 @@ class TestInvalidFilters:
         assert data["success"] is False
         assert data["data"] is None
         assert "Invalid difficulty" in data["error"]
+
+    def test_invalid_exercise_type_returns_error(self, client):
+        response = client.get("/api/exercises/count?exercise_type=not_a_type")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["data"] is None
+        assert "Invalid exercise type" in data["error"]

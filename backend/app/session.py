@@ -35,7 +35,7 @@ import random
 from dataclasses import dataclass
 
 from app import store
-from app.models import MCQ, Domain, ExamType, ExerciseType
+from app.models import MCQ, CodeCompletion, Domain, ExamType, ExerciseType
 
 # A Displayed Option is intentionally just {id, text} — no `correct` flag.
 DisplayedOption = dict[str, str]
@@ -210,14 +210,76 @@ def build_session_entry(mcq: MCQ) -> SessionEntry:
     }
 
 
-def _order_unseen_first(mcqs: list[MCQ]) -> list[MCQ]:
-    """Order MCQs unseen-first using the attempt store (FR-24).
+def build_code_completion_entry(cc: CodeCompletion) -> SessionEntry:
+    """Build a single session entry for one Code-Completion exercise (Story 4.1).
 
-    Partitions the MCQs into *unseen* (no recorded attempt) and *seen* (>=1
-    recorded attempt), then returns unseen first — randomized within the unseen
-    group — followed by seen ordered least-recently-seen first (oldest
-    ``last_seen`` timestamp first). When every MCQ is seen this naturally falls
-    back to the full set in least-recently-seen order (no empty/blocked state).
+    The shape (consumed by the endpoint and the frontend ``CodeCompletion``
+    runner) is::
+
+        {
+            "exerciseId": str,
+            "type": "code_completion",
+            "domain": str,            # Domain enum value
+            "difficulty": str,        # Difficulty enum value
+            "language": str,
+            "prompt": str,            # BaseExercise.question is the prompt
+            "template": str,          # contains the ___ blank
+            "answer": str,            # canonical answer
+            "accepted": [str, ...],   # interchangeable accepted alternatives
+            "caseSensitive": bool,
+            "ignoreWhitespace": bool,
+            "explanation": str,       # rendered only after the exercise concludes
+            "references": [str, ...],
+        }
+
+    Unlike the MCQ entry, this carries no ``displayedOptions`` — Code-Completion
+    has no option pool. The canonical ``answer`` + ``accepted`` ARE delivered to
+    the client because feedback is computed **client-side** (NFR-1): a deliberate
+    trade-off for the Wordle drill (the guess-and-narrow loop reveals the answer
+    through feedback anyway; there is no multiple-choice gaming surface). This
+    does not relax the MCQ non-leakage rule (MCQ Displayed Options still carry no
+    ``correct`` flags) — the two Exercise types have different leakage models.
+    """
+    return {
+        "exerciseId": cc.id,
+        "type": cc.type.value,
+        "domain": cc.domain.value,
+        "difficulty": cc.difficulty.value,
+        "language": cc.language,
+        "prompt": cc.question,
+        "template": cc.template,
+        "answer": cc.answer,
+        "accepted": list(cc.accepted),
+        "caseSensitive": cc.case_sensitive,
+        "ignoreWhitespace": cc.ignore_whitespace,
+        "explanation": cc.explanation,
+        "references": list(cc.references),
+    }
+
+
+def _build_entry(exercise) -> SessionEntry:
+    """Dispatch one exercise to its type-specific session-entry builder."""
+    if isinstance(exercise, CodeCompletion):
+        return build_code_completion_entry(exercise)
+    return build_session_entry(exercise)
+
+
+def _order_unseen_first(exercises: list) -> list:
+    """Order exercises unseen-first using the attempt store (FR-24).
+
+    Partitions into *unseen* (no recorded attempt) and *seen* (>=1 recorded
+    attempt) by exercise ``id``, then returns unseen first — randomized within
+    the unseen group — followed by seen ordered least-recently-seen first (oldest
+    ``last_seen`` timestamp first). When every exercise is seen this naturally
+    falls back to the full set in least-recently-seen order (no empty/blocked
+    state).
+
+    Code-Completion attempts are never recorded in the (MCQ-scoped) store, so a
+    Code-Completion exercise has no seen/unseen signal. Rather than letting it
+    count as permanently *unseen* (which would systematically front the same
+    drills at the top of every session, forever), Code-Completion is held out of
+    the unseen/seen partition and then distributed at RANDOM positions across the
+    ordered MCQs — so it neither dominates the top nor is buried.
 
     The store is read exactly once each for ``attempted_ids`` and
     ``last_seen_map`` to keep the build efficient.
@@ -225,8 +287,13 @@ def _order_unseen_first(mcqs: list[MCQ]) -> list[MCQ]:
     attempted = store.attempted_ids()
     last_seen = store.last_seen_map()
 
-    unseen = [mcq for mcq in mcqs if mcq.id not in attempted]
-    seen = [mcq for mcq in mcqs if mcq.id in attempted]
+    # Recordable (MCQ) exercises get the unseen-first treatment; Code-Completion
+    # is excluded from that bias (it can never be "seen").
+    recordable = [ex for ex in exercises if not isinstance(ex, CodeCompletion)]
+    code_completion = [ex for ex in exercises if isinstance(ex, CodeCompletion)]
+
+    unseen = [ex for ex in recordable if ex.id not in attempted]
+    seen = [ex for ex in recordable if ex.id in attempted]
 
     # Randomize within the unseen group (variety among new material).
     random.shuffle(unseen)
@@ -234,9 +301,18 @@ def _order_unseen_first(mcqs: list[MCQ]) -> list[MCQ]:
     # Seen: least-recently-seen first. Missing timestamps (shouldn't happen for
     # an attempted id, but stay defensive) sort first as "" so they're served
     # before anything with a real timestamp.
-    seen.sort(key=lambda mcq: last_seen.get(mcq.id, ""))
+    seen.sort(key=lambda ex: last_seen.get(ex.id, ""))
 
-    return unseen + seen
+    ordered = unseen + seen
+
+    # Sprinkle Code-Completion entries into random positions so they don't
+    # systematically lead every session (the insert point is chosen against the
+    # growing list, keeping the distribution roughly uniform).
+    random.shuffle(code_completion)
+    for ex in code_completion:
+        ordered.insert(random.randint(0, len(ordered)), ex)
+
+    return ordered
 
 
 def build_session(
@@ -247,9 +323,11 @@ def build_session(
     """Build a session from a list of exercises.
 
     Each MCQ carries its freshly sampled + shuffled ``displayedOptions`` (FR-20,
-    always random). Non-MCQ exercises (e.g. ``code_completion``) are **skipped**
-    — MCQ is the focus of this session builder and the endpoint can build
-    code-completion payloads separately.
+    always random). **(Story 4.1)** Code-Completion exercises are now included
+    too: they are rendered via :func:`build_code_completion_entry` (no
+    ``displayedOptions``; they carry ``template``/``answer``/``accepted`` for
+    client-side feedback). A single session may mix both types; the client routes
+    by ``type``. Other exercise types are skipped.
 
     Cross-exercise ordering depends on ``prioritize_unseen``:
 
@@ -272,17 +350,15 @@ def build_session(
         A list of session-entry dicts (see :func:`build_session_entry`) for the
         MCQs only, ordered per ``prioritize_unseen``.
     """
-    mcqs = [
-        ex for ex in exercises if isinstance(ex, MCQ) and ex.type != ExerciseType.CODE_COMPLETION
-    ]
+    runnable = [ex for ex in exercises if isinstance(ex, (MCQ, CodeCompletion))]
 
     if prioritize_unseen:
-        order = _order_unseen_first(mcqs)
+        order = _order_unseen_first(runnable)
     else:
-        order = list(mcqs)
+        order = list(runnable)
         random.shuffle(order)
 
-    return [build_session_entry(mcq) for mcq in order]
+    return [_build_entry(ex) for ex in order]
 
 
 def build_mock_session(exercises: list, *, exam: ExamType) -> list[SessionEntry]:
