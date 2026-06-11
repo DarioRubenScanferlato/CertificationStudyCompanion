@@ -193,6 +193,10 @@ def build_session_entry(mcq: MCQ) -> SessionEntry:
             "displayedOptions": [{"id": str, "text": str}, ... x4],
         }
 
+    The ``seen`` flag (Story 7.6) is NOT added here — :func:`build_session`
+    stamps it after building, since it depends on the attempt store rather than
+    the MCQ itself.
+
     Args:
         mcq: The MCQ to render.
 
@@ -232,6 +236,10 @@ def build_code_completion_entry(cc: CodeCompletion) -> SessionEntry:
             "references": [str, ...],
         }
 
+    As with the MCQ entry, the ``seen`` flag (Story 7.6) is stamped later by
+    :func:`build_session`; Code-Completion attempts are never recorded, so it is
+    always ``False`` here.
+
     Unlike the MCQ entry, this carries no ``displayedOptions`` — Code-Completion
     has no option pool. The canonical ``answer`` + ``accepted`` ARE delivered to
     the client because feedback is computed **client-side** (NFR-1): a deliberate
@@ -264,7 +272,7 @@ def _build_entry(exercise) -> SessionEntry:
     return build_session_entry(exercise)
 
 
-def _order_unseen_first(exercises: list) -> list:
+def _order_unseen_first(exercises: list, attempted=None, last_seen=None) -> list:
     """Order exercises unseen-first using the attempt store (FR-24).
 
     Partitions into *unseen* (no recorded attempt) and *seen* (>=1 recorded
@@ -281,11 +289,16 @@ def _order_unseen_first(exercises: list) -> list:
     the unseen/seen partition and then distributed at RANDOM positions across the
     ordered MCQs — so it neither dominates the top nor is buried.
 
-    The store is read exactly once each for ``attempted_ids`` and
+    ``attempted`` / ``last_seen`` may be supplied by the caller to avoid a
+    duplicate store read: ``build_session`` already fetches ``attempted`` once to
+    stamp the per-entry ``seen`` flag (Story 7.6) and threads it through here.
+    When omitted, the store is read exactly once each for ``attempted_ids`` and
     ``last_seen_map`` to keep the build efficient.
     """
-    attempted = store.attempted_ids()
-    last_seen = store.last_seen_map()
+    if attempted is None:
+        attempted = store.attempted_ids()
+    if last_seen is None:
+        last_seen = store.last_seen_map()
 
     # Recordable (MCQ) exercises get the unseen-first treatment; Code-Completion
     # is excluded from that bias (it can never be "seen").
@@ -339,6 +352,16 @@ def build_session(
       on history — used by callers like the Mock-Exam builder that want a
       representative set that may repeat seen exercises.
 
+    Every entry also carries a boolean ``seen`` flag (Story 7.6): ``True`` when
+    the exercise has >=1 recorded attempt in the store, ``False`` otherwise. It
+    is derived from the same ``store.attempted_ids()`` signal used for
+    unseen-first ordering: that set is fetched once here and threaded into
+    :func:`_order_unseen_first` so ``attempted_ids()`` is read only once per
+    call (not twice), regardless of ``prioritize_unseen``. When prioritizing,
+    ``_order_unseen_first`` still performs its own ``last_seen_map()`` read for
+    tie-breaking. Code-Completion exercises are never recorded in the
+    (MCQ-scoped) store, so their ``seen`` is always ``False``.
+
     The input list is not mutated; a reordered copy is produced internally.
 
     Args:
@@ -348,17 +371,28 @@ def build_session(
 
     Returns:
         A list of session-entry dicts (see :func:`build_session_entry`) for the
-        MCQs only, ordered per ``prioritize_unseen``.
+        MCQs only, ordered per ``prioritize_unseen``, each stamped with ``seen``.
     """
     runnable = [ex for ex in exercises if isinstance(ex, (MCQ, CodeCompletion))]
 
+    # Fetch the attempted-ids set once; it both stamps `seen` and (when
+    # prioritizing) drives unseen-first ordering without a second store read.
+    attempted = store.attempted_ids()
+
     if prioritize_unseen:
-        order = _order_unseen_first(runnable)
+        order = _order_unseen_first(runnable, attempted=attempted)
     else:
         order = list(runnable)
         random.shuffle(order)
 
-    return [_build_entry(ex) for ex in order]
+    cc_type = ExerciseType.CODE_COMPLETION.value
+    entries = [_build_entry(ex) for ex in order]
+    for entry in entries:
+        # Code-Completion has no seen signal (attempts aren't recorded for it):
+        # force False so it can never falsely render as seen, even on an id
+        # collision with an MCQ attempt row. MCQ `seen` is store membership.
+        entry["seen"] = entry["type"] != cc_type and entry["exerciseId"] in attempted
+    return entries
 
 
 def build_mock_session(exercises: list, *, exam: ExamType) -> list[SessionEntry]:
@@ -375,6 +409,10 @@ def build_mock_session(exercises: list, *, exam: ExamType) -> list[SessionEntry]
     session is capped at the available corpus rather than crashing). Non-MCQ
     exercises are skipped. Each entry still carries 4 sampled + shuffled,
     flag-less ``displayedOptions``.
+
+    The seen-before indicator (Story 7.6) is intentionally NOT stamped here:
+    mock entries carry no ``seen`` flag so the indicator stays hidden in
+    Mock-Exam mode, preserving exam realism.
 
     Args:
         exercises: Exercises already scoped to ``exam`` (caller filters by exam).

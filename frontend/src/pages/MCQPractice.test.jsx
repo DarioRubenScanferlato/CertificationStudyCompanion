@@ -74,6 +74,27 @@ describe('MCQPractice', () => {
     expect(screen.getByText(/What is Unity Catalog/)).toBeInTheDocument()
   })
 
+  it('shows the seen-before indicator only for exercises with seen=true', () => {
+    const seenLabel = "You've attempted this exercise before"
+    renderFlow([
+      { ...EXERCISES[0], seen: true },
+      { ...EXERCISES[1], seen: false },
+    ])
+    // First question is seen -> indicator present.
+    expect(screen.getByTitle(seenLabel)).toBeInTheDocument()
+
+    // Advance to the second (unseen) question; indicator gone.
+    fireEvent.click(screen.getByRole('button', { name: 'Skip this question' }))
+    expect(screen.queryByTitle(seenLabel)).not.toBeInTheDocument()
+  })
+
+  it('omits the indicator when seen is absent', () => {
+    renderFlow() // EXERCISES carry no `seen` field
+    expect(
+      screen.queryByTitle("You've attempted this exercise before")
+    ).not.toBeInTheDocument()
+  })
+
   it('renders a radiogroup with one radio per displayed option', () => {
     renderFlow()
     expect(screen.getByRole('radiogroup')).toBeInTheDocument()

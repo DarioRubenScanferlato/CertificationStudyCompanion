@@ -8,6 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import ExplanationPanel from '../components/ExplanationPanel'
 import FeedbackNote from '../components/FeedbackNote'
 import FeedbackTokens, { AttemptsCounter, AnswerReveal } from '../components/FeedbackTokens'
+import SeenIndicator from '../components/SeenIndicator'
 import { computeFeedback } from '../utils/codeFeedback'
 import { CODE_COMPLETION_MAX_ATTEMPTS } from '../constants'
 
@@ -144,6 +145,10 @@ export default function CodeCompletion() {
           >
             {exercise.difficulty}
           </span>
+          {/* Seen-before indicator (Story 7.6). Code-Completion `seen` is
+              always false today, but the wiring mirrors MCQPractice so it
+              lights up automatically if CC attempts are ever recorded. */}
+          <SeenIndicator seen={exercise.seen} />
           <button
             type="button"
             onClick={requestExit}

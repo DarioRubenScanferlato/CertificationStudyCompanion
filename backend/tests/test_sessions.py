@@ -53,6 +53,7 @@ class TestSessionResponseFormat:
             "question",
             "codeContext",
             "displayedOptions",
+            "seen",
         }
         cc_keys = {
             "exerciseId",
@@ -68,6 +69,7 @@ class TestSessionResponseFormat:
             "ignoreWhitespace",
             "explanation",
             "references",
+            "seen",
         }
         for entry in data:
             if entry["type"] == "code_completion":
@@ -98,6 +100,23 @@ class TestSessionResponseFormat:
                 assert "displayedOptions" not in entry
                 assert entry["template"].count("___") == 1
                 assert isinstance(entry["answer"], str) and entry["answer"]
+
+    def test_seen_flag_reflects_attempt_history(self, client):
+        # Story 7.6: every entry carries a boolean `seen`. With an empty store
+        # (autouse isolated DB) nothing is seen; after recording an attempt for
+        # one returned MCQ, a fresh request reports that entry as seen.
+        from app import store
+
+        data = client.get("/api/sessions?exam=associate").json()["data"]
+        assert len(data) > 0
+        assert all(entry["seen"] is False for entry in data)
+
+        target = next(e for e in data if e["type"] != "code_completion")
+        store.record_attempt(target["exerciseId"], exam="associate")
+
+        data2 = client.get("/api/sessions?exam=associate").json()["data"]
+        seen_by_id = {e["exerciseId"]: e["seen"] for e in data2}
+        assert seen_by_id[target["exerciseId"]] is True
 
 
 class TestNoAnswerLeakage:

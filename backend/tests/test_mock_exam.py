@@ -103,6 +103,18 @@ class TestBuildMockSession:
         session = build_mock_session(corpus, exam=ExamType.ASSOCIATE)
         assert len(session) == 45
 
+    def test_mock_entries_have_no_truthy_seen(self, tmp_path, monkeypatch):
+        # The seen-before indicator is suppressed in Mock-Exam mode (exam
+        # realism, Story 7.6): even with every exercise attempted, no mock entry
+        # carries a truthy `seen` flag.
+        monkeypatch.setenv("ATTEMPT_DB_PATH", str(tmp_path / "m.db"))
+        store.init_db()
+        corpus = _corpus(ExamType.ASSOCIATE, per_domain=50)
+        for mcq in corpus:
+            store.record_attempt(mcq.id, exam=mcq.exam.value, domain=mcq.domain.value, correct=True)
+        session = build_mock_session(corpus, exam=ExamType.ASSOCIATE)
+        assert all(not entry.get("seen") for entry in session)
+
 
 class TestMockEndpoint:
     def test_associate_mock_stamps_duration_90(self, client):

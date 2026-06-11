@@ -98,7 +98,7 @@ development_status:
   7-3-unseen-first-session-ordering: done
   7-4-stats-and-readiness-endpoints: done
   7-5-stats-dashboard-readiness-indicator: done
-  7-6-seen-before-indicator: ready-for-dev
+  7-6-seen-before-indicator: done
   epic-7-retrospective: optional
 
   # EPIC 8: Timed Practice / Mock Exam
@@ -113,7 +113,7 @@ development_status:
   # Story files not yet created; run create-story to author them. Keys below are the
   # planned file names. 9.2/9.3 must NOT regress Databricks DE (seed config re-expresses today's literals).
   epic-9: in-progress
-  9-1-per-certification-config-model-loader: ready-for-dev
+  9-1-per-certification-config-model-loader: review
   9-2-make-domains-mock-params-config-driven: backlog
   9-3-get-api-certifications-config-driven-frontend: backlog
   9-4-certification-scoped-validation-content-mapping: backlog

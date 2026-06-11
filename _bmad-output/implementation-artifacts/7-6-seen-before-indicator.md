@@ -1,6 +1,10 @@
+---
+baseline_commit: 247164b0171190bdd3630562503050f58917dd9c
+---
+
 # Story 7.6: Seen-Before Indicator
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -49,25 +53,33 @@ so that **I instantly know whether I'm seeing fresh material or revisiting somet
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Stamp `seen` onto session entries (backend)** (AC: 1, 2, 4)
-  - [ ] In `backend/app/session.py`, compute `attempted = store.attempted_ids()` **once** inside `build_session(...)` (covers BOTH `prioritize_unseen=True` and `False`) and stamp `entry["seen"] = entry["exerciseId"] in attempted` on each built entry.
-  - [ ] Avoid a duplicate store read: `_order_unseen_first` already calls `store.attempted_ids()`. Refactor it to accept an optional pre-fetched `attempted` set (e.g. `_order_unseen_first(exercises, attempted=None, last_seen=None)`) so `build_session` queries the store at most once per call. Keep the function's existing behavior identical when called without the new args.
-  - [ ] Confirm Code-Completion entries get `seen=false` for free (their ids are never in the MCQ-scoped `attempts` table) — do not special-case them, just verify.
-  - [ ] Do **not** stamp a truthy `seen` in `build_mock_session` (leave it absent / `False`) so the mock indicator stays hidden. Add a one-line comment stating this is intentional (exam realism).
-- [ ] **Task 2 — Document the new entry field (backend)** (AC: 1)
-  - [ ] Update the `SessionEntry` shape docstrings in `session.py` (`build_session_entry`, `build_code_completion_entry`, module-level shared-contract comment) and the `GET /api/sessions` docstring in `main.py` (the "Each session entry has the shape" block) to include `"seen": bool`.
-- [ ] **Task 3 — Shared `SeenIndicator` component (frontend)** (AC: 5, 6)
-  - [ ] Add `frontend/src/components/SeenIndicator.jsx`: renders nothing when `seen` is falsy; otherwise renders a small inline **grey eye SVG** (`text-gray-400`) with `title="You've attempted this exercise before"`, an `aria-label` (or `<span className="sr-only">`) carrying the same text, and `role="img"` on the SVG (or wrap appropriately). Match the metadata-badge sizing used by the sibling badges (`text-xs px-2 py-1`-scale).
-  - [ ] No new dependency — use an inline SVG (the codebase has no icon library; it uses inline SVG/emoji + native `title`, e.g. `Timer.jsx`, the `⌨`/`✓` glyphs in `MCQPractice.jsx`).
-- [ ] **Task 4 — Wire the indicator into both runners** (AC: 5, 6)
-  - [ ] In `frontend/src/pages/MCQPractice.jsx`, render `<SeenIndicator seen={exercise.seen} />` in the metadata header row (the `flex items-center gap-2 shrink-0` block around lines 235–262, next to the domain/difficulty badges, before the Timer/End-session controls).
-  - [ ] In `frontend/src/pages/CodeCompletion.jsx`, render the same indicator in its mirrored metadata header (around lines 132–146, next to the domain/difficulty badges).
-- [ ] **Task 5 — Tests** (AC: 7, 8, 9)
-  - [ ] Backend (`backend/tests/`): extend the session-builder / endpoint tests to assert `seen` is `True` for an attempted MCQ id, `False` for an unattempted one and for Code-Completion, present on both `GET` and `POST /api/sessions` entries, and not truthy on `mode=mock` entries. Use a temp DB (`ATTEMPT_DB_PATH` / `path=` override — see `store.py`) seeded via `store.record_attempt(...)`.
-  - [ ] Frontend: add `SeenIndicator.test.jsx` (renders icon + accessible name when `seen`, renders nothing when not). Extend `MCQPractice.test.jsx` (and a Code-Completion runner test if one exists) to assert the eye is present for a seen exercise and absent otherwise, querying by the accessible name / `title`.
-- [ ] **Task 6 — Verify** (AC: all)
-  - [ ] `cd backend && uv run pytest` green; `uv run ruff check .` clean. (Use **uv**, never pip — project rule.)
-  - [ ] `cd frontend && npm test` and the lint script green.
+- [x] **Task 1 — Stamp `seen` onto session entries (backend)** (AC: 1, 2, 4)
+  - [x] In `backend/app/session.py`, compute `attempted = store.attempted_ids()` **once** inside `build_session(...)` (covers BOTH `prioritize_unseen=True` and `False`) and stamp `entry["seen"]` on each built entry.
+  - [x] Avoid a duplicate store read: `_order_unseen_first` refactored to accept an optional pre-fetched `attempted`/`last_seen` (defaults preserve prior behavior); `build_session` now reads the store at most once per call.
+  - [x] Code-Completion entries report `seen=false`. Implemented defensively (keyed on entry type), so they never falsely render as seen even on an id collision — see Completion Notes.
+  - [x] `build_mock_session` leaves `seen` unset (mock indicator stays hidden); added an intentional-exclusion comment (exam realism).
+- [x] **Task 2 — Document the new entry field (backend)** (AC: 1)
+  - [x] Updated `build_session_entry` / `build_code_completion_entry` / `build_session` / `build_mock_session` docstrings in `session.py` and the `GET /api/sessions` shape block in `main.py` to document `"seen": bool` (and the mock omission).
+- [x] **Task 3 — Shared `SeenIndicator` component (frontend)** (AC: 5, 6)
+  - [x] Added `frontend/src/components/SeenIndicator.jsx`: renders nothing when `seen` is falsy; otherwise a grey eye SVG (`text-gray-400`) with `title` + `sr-only` accessible name. `aria-hidden` SVG.
+  - [x] No new dependency — inline SVG + native `title`, matching the existing convention.
+- [x] **Task 4 — Wire the indicator into both runners** (AC: 5, 6)
+  - [x] `MCQPractice.jsx`: `<SeenIndicator seen={exercise.seen} />` in the metadata header row, before the Timer.
+  - [x] `CodeCompletion.jsx`: same indicator in its mirrored metadata header.
+- [x] **Task 5 — Tests** (AC: 7, 8, 9)
+  - [x] Backend: `seen` true/false for attempted/unattempted MCQ, false for Code-Completion, present on `GET` + `POST /api/sessions`, not truthy on `mode=mock`. Updated the two shape-pinning endpoint tests to include `seen`.
+  - [x] Frontend: `SeenIndicator.test.jsx` (present/absent/accessible name) + `MCQPractice.test.jsx` (eye present for seen, absent for unseen/absent).
+- [x] **Task 6 — Verify** (AC: all)
+  - [x] `cd backend && uv run pytest` → 314 passed; `uv run ruff check .` → clean.
+  - [x] `cd frontend && npx vitest run` → 182 passed; `eslint` on changed files → clean.
+
+### Review Findings
+
+Code review 2026-06-11 (3 adversarial layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor). 0 decision-needed, 1 patch, 0 deferred, 6 dismissed as noise.
+
+- [x] [Review][Patch] `build_session` docstring overstates store reads — says "the store is read at most once per call", but `last_seen_map()` is still a separate read inside `_order_unseen_first` when `prioritize_unseen=True`. Only the `attempted_ids()` duplicate read is eliminated. [backend/app/session.py:359] — Fixed: docstring now states `attempted_ids()` is read once (not twice) and notes `_order_unseen_first` still does its own `last_seen_map()` read.
+
+Reviewer note (informational, not a 7.6 defect): the `git diff HEAD` for `backend/app/main.py` also contains Story 9.1's certification-registry startup code (pre-existing uncommitted work in the same file). 7.6's only main.py change is the `"seen": bool` docstring shape note. Keep the 9.1 code out of any 7.6-scoped commit; it's tracked under story 9-1.
 
 ## Dev Notes
 
@@ -168,8 +180,36 @@ export default function SeenIndicator({ seen }) {
 
 ### Agent Model Used
 
+claude-opus-4-8 (1M context)
+
 ### Debug Log References
+
+- Backend: `cd backend && uv run pytest -q` → 314 passed. `uv run ruff check .` → clean.
+- Frontend: `npx vitest run` → 182 passed (16 files). `eslint` on changed files → clean.
 
 ### Completion Notes List
 
+- **`seen` derived from the existing signal, fetched once.** `build_session` now calls `store.attempted_ids()` a single time and (a) threads it into `_order_unseen_first` (refactored to accept optional `attempted`/`last_seen`, defaults unchanged) and (b) stamps `entry["seen"]` on every built entry — so neither ordering mode adds a second store read. Flows automatically to both `GET` and `POST /api/sessions` (no endpoint logic change).
+- **Deviation from the story's "do not special-case Code-Completion" note — intentional.** AC explicitly requires CC `seen` to be `false` and to "never falsely render as seen". The generic `id in attempted` check would return `true` if an MCQ attempt row happened to share the CC id. The stamp is therefore keyed on entry type: `entry["seen"] = entry["type"] != "code_completion" and entry["exerciseId"] in attempted`. This satisfies the AC literally and defensively; a test seeds a colliding id to prove CC stays `false`.
+- **Mock-Exam excluded.** `build_mock_session` leaves `seen` unset; a test asserts no mock entry carries a truthy `seen` even when every exercise is attempted (exam realism).
+- **Two existing shape-pinning endpoint tests updated** (`test_sessions.py`, `test_sessions_post.py`) to include the new additive `seen` key — required because they assert the exact key set.
+- **Frontend:** `SeenIndicator` renders nothing when falsy; otherwise a grey eye SVG with a `title` tooltip + `sr-only` accessible name (no icon-library dependency, matching the repo convention). Wired into both runners via `exercise.seen`, which rides through `SessionContext` untouched. CC won't show the eye today (its `seen` is always false) but the wiring future-proofs it.
+
 ### File List
+
+- `backend/app/session.py` (modified) — `build_session` stamps `seen`; `_order_unseen_first` accepts pre-fetched `attempted`/`last_seen`; docstrings.
+- `backend/app/main.py` (modified) — `GET /api/sessions` docstring shape block documents `seen`.
+- `backend/tests/test_session.py` (modified) — `TestSeenFlag`.
+- `backend/tests/test_code_completion_session.py` (modified) — CC `seen` always false.
+- `backend/tests/test_mock_exam.py` (modified) — mock entries carry no truthy `seen`.
+- `backend/tests/test_sessions.py` (modified) — `seen` in expected MCQ/CC key sets + endpoint `seen` test.
+- `backend/tests/test_sessions_post.py` (modified) — `seen` in expected key set + replay `seen` test.
+- `frontend/src/components/SeenIndicator.jsx` (new) — the indicator component.
+- `frontend/src/components/SeenIndicator.test.jsx` (new) — component tests.
+- `frontend/src/pages/MCQPractice.jsx` (modified) — import + render `<SeenIndicator>`.
+- `frontend/src/pages/CodeCompletion.jsx` (modified) — import + render `<SeenIndicator>`.
+- `frontend/src/pages/MCQPractice.test.jsx` (modified) — indicator present/absent tests.
+
+## Change Log
+
+- 2026-06-11 — Implemented Story 7.6 (seen-before indicator): backend `seen` flag on session entries + frontend grey-eye `SeenIndicator` in both runners. Backend 314 tests pass, frontend 182 tests pass, lint clean. Status → review.

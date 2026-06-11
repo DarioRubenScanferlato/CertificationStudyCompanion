@@ -1,0 +1,49 @@
+# Per-Certification config registry (Story 9.1 / PRD §4.7 FR-29; architecture rev 6 / AR-19).
+#
+# Single source of truth for each certification's blueprint: Provider, the
+# canonical domain list + weights, and exam parameters (total_questions /
+# duration_minutes / pass_bar). Loaded + validated at startup by
+# backend/app/certifications.py.
+#
+# This seed re-expresses TODAY'S hardcoded Databricks values EXACTLY:
+#   - domains/weights         <- backend/app/session.py MOCK_EXAM_CONFIGS
+#   - domain name strings     <- backend/app/models.py Domain enum VALUES (byte-for-byte)
+#   - pass_bar                <- backend/app/store.py READINESS_THRESHOLD (0.70)
+# A parity test (backend/tests/test_certifications.py) enforces this match so
+# Story 9.2 can switch the runtime over to this config without behavior change.
+#
+# A certification's `id` IS the existing `exam` value (decision-log #36): do not
+# rename it. Each domain-weight set sums to 100.
+providers:
+  - id: databricks
+    name: "Databricks"
+    certifications:
+      - id: associate            # == the existing `exam` value
+        name: "Databricks Certified Data Engineer Associate"
+        total_questions: 45
+        duration_minutes: 90
+        pass_bar: 0.70
+        domains:                 # weights sum to 100
+          - { name: "Databricks Intelligence Platform", weight: 6 }
+          - { name: "Data Ingestion and Loading", weight: 21 }
+          - { name: "Data Transformation and Modeling", weight: 22 }
+          - { name: "Working with Lakeflow Jobs", weight: 16 }
+          - { name: "Implementing CI/CD", weight: 10 }
+          - { name: "Troubleshooting, Monitoring, and Optimization", weight: 10 }
+          - { name: "Governance and Security", weight: 15 }
+      - id: professional
+        name: "Databricks Certified Data Engineer Professional"
+        total_questions: 59
+        duration_minutes: 120
+        pass_bar: 0.70
+        domains:                 # weights sum to 100
+          - { name: "Developing Code for Data Processing", weight: 22 }
+          - { name: "Data Ingestion & Acquisition", weight: 7 }
+          - { name: "Data Transformation, Cleansing, and Quality", weight: 10 }
+          - { name: "Data Sharing and Federation", weight: 5 }
+          - { name: "Monitoring and Alerting", weight: 10 }
+          - { name: "Cost & Performance Optimization", weight: 13 }
+          - { name: "Ensuring Data Security and Compliance", weight: 10 }
+          - { name: "Debugging and Deploying", weight: 10 }
+          - { name: "Data Modelling", weight: 6 }
+          - { name: "Data Governance", weight: 7 }

@@ -1,5 +1,5 @@
 ---
-status: ready-for-dev
+status: review
 baseline_commit: 247164b
 ---
 
@@ -132,13 +132,26 @@ providers:
 ## Dev Agent Record
 
 ### Agent Model Used
-(To be filled in by the dev agent.)
+claude-opus-4-8[1m] (Claude Code, dev-story workflow).
 
 ### Completion Notes List
-(To be filled in upon task completion.)
+Implemented additive-only, per the scope discipline — no enum/`MOCK_EXAM_CONFIGS`/endpoint changes.
+
+- **Config (`config/certifications.yaml`):** seed registry at project root, re-expressing today's hardcoded values exactly (Databricks `associate` 45/90/0.70 + 7 domains; `professional` 59/120/0.70 + 10 domains; each weight set sums to 100). Domain name strings copied byte-for-byte from the `Domain` enum values.
+- **Models + loader (`backend/app/certifications.py`):** Pydantic **v1** (`validator`/`root_validator`, matching `models.py`) models `CertificationDomain` / `Certification` / `Provider` / `CertificationRegistry`. Validators: weight ≥ 0; `total_questions`/`duration_minutes` > 0; `pass_bar` in (0,1]; non-empty `id`; non-empty `domains` summing to exactly 100; non-empty `certifications`/`providers`; globally-unique certification ids (case-insensitive) across providers. `load_certifications(path=None)` resolves `config/certifications.yaml` via the SAME project-root walk `content.py` uses, parses with `yaml.safe_load`, and **fails loudly** — a new `CertificationConfigError` naming the file is raised on missing file / bad YAML / non-mapping / validation failure. Helpers `get_certification` / `domain_weights` / `exam_params` are keyed by `exam` id, case-insensitive (mirroring `filter_exercises`). These are what Story 9.2 will call.
+- **Startup wiring (`backend/app/main.py`):** `lifespan` now loads the registry into `app.state.certifications` after the existing exercise load and logs a one-line summary. A malformed config fails loudly at startup (not swallowed). No other behavior touched — exercise loading preserved exactly.
+- **Tests (`backend/tests/test_certifications.py`, 13 tests, all pass):** seed loads + validates (1 provider, 2 certs); helpers (`exam_params("associate")`→45/90/0.70, `domain_weights("professional")` sums to 100, case-insensitive lookup, unknown id raises); malformed configs fail loudly (bad weight sum, missing field, duplicate/case-variant id, empty domains, missing file, bad YAML, non-mapping); and the **parity anchor** — for each `ExamType`, asserts seed `total_questions`/`duration_minutes` == `MOCK_EXAM_CONFIGS[exam]`, `{domain: weight}` map matches exactly, every seed domain name is a valid `Domain` enum value, and `pass_bar == READINESS_THRESHOLD`.
+
+**Validation:** `uv run pytest tests/test_certifications.py` → 13 passed. `uv run ruff check` on all changed/new files → clean. Full suite → 312 passed, **2 failed** — both pre-existing failures in **uncommitted Story 7.6 WIP** (`app/session.py` is working-tree-modified, adding the `seen` flag; 7-6 is in `review`): `test_code_completion_session.py::...::test_code_completion_seen_is_always_false` (fails in isolation, exercises the 7.6 `seen` flag) and `test_sessions_post.py::...::test_post_entry_shape_matches_get` (passes in isolation; full-suite ordering only). Neither references certifications; both are independent of this additive story. No Databricks DE regression introduced by 9.1 (SM-C3 satisfied).
 
 ### File List
-(Files will be listed here upon completion.)
+**NEW:**
+- `config/certifications.yaml`
+- `backend/app/certifications.py`
+- `backend/tests/test_certifications.py`
+
+**MODIFIED:**
+- `backend/app/main.py` (`lifespan`: load registry into `app.state.certifications` + 1 import)
 
 ### Change Log
-(To be filled in upon task completion.)
+- 2026-06-11: Story 9.1 implemented — per-Certification config model (Pydantic v1), file-based fail-loud loader + lookup helpers, seed `config/certifications.yaml` re-expressing today's Databricks Associate/Professional literals, startup wiring into `app.state.certifications`, and 13 tests incl. the parity anchor vs `MOCK_EXAM_CONFIGS`/`Domain`/`READINESS_THRESHOLD`. Additive only — no enum/`MOCK_EXAM_CONFIGS`/endpoint changes. Status → review.

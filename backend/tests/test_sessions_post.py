@@ -71,7 +71,23 @@ class TestKnownIdSet:
                 "question",
                 "codeContext",
                 "displayedOptions",
+                "seen",
             }
+
+    def test_seen_flag_present_and_reflects_history(self, client):
+        # Story 7.6: replayed entries carry `seen`. Replay is the common
+        # already-seen case, so this is the path the indicator most relies on.
+        from app import store
+
+        ids = _all_mcq_ids(client)
+        requested = ids[:3]
+        store.record_attempt(requested[0], exam="associate")
+
+        data = client.post("/api/sessions", json={"exerciseIds": requested}).json()["data"]
+        seen_by_id = {e["exerciseId"]: e["seen"] for e in data}
+        assert seen_by_id[requested[0]] is True
+        assert seen_by_id[requested[1]] is False
+        assert seen_by_id[requested[2]] is False
 
     def test_each_entry_has_exactly_four_displayed_options(self, client):
         ids = _all_mcq_ids(client)

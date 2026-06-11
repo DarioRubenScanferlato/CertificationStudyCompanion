@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from app import feedback_store, store
 from app.anki import export_to_anki
+from app.certifications import load_certifications
 from app.content import filter_exercises, load_exercises_from_directory
 from app.feedback import (
     FeedbackValidationError,
@@ -38,6 +39,17 @@ async def lifespan(app: FastAPI):
     logger.info(f"Loaded {len(exercises)} exercises with {error_count} errors")
     if error_log:
         logger.warning(f"First error example: {error_log[0]}")
+    # Load the per-Certification config registry (Story 9.1 / AR-19). A malformed
+    # config fails loudly here at startup — it is NOT swallowed. The registry is
+    # made live in app.state but does not yet change any behavior (Story 9.2
+    # rewires the runtime to consume it).
+    registry = load_certifications()
+    app.state.certifications = registry
+    cert_count = sum(len(p.certifications) for p in registry.providers)
+    logger.info(
+        f"Loaded certification registry: {len(registry.providers)} provider(s), "
+        f"{cert_count} certification(s)"
+    )
     yield
     # Cleanup on shutdown
     logger.info("Shutting down...")
@@ -219,7 +231,10 @@ def get_session(
             "question": str,
             "codeContext": str | None,
             "displayedOptions": [{"id": str, "text": str}, ... x4],
+            "seen": bool,  # True if this exercise has a recorded attempt (Story 7.6)
         }
+
+    Mock-Exam entries (``mode=mock``) omit ``seen`` by design (exam realism).
     """
     # Guard against the endpoint being hit before startup populated state.
     exercises = getattr(app.state, "exercises", [])

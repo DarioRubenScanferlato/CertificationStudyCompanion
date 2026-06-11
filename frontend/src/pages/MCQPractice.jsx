@@ -9,6 +9,7 @@ import ProgressBar from '../components/ProgressBar'
 import ExplanationPanel from '../components/ExplanationPanel'
 import FeedbackNote from '../components/FeedbackNote'
 import Timer from '../components/Timer'
+import SeenIndicator from '../components/SeenIndicator'
 
 /**
  * Compute the CSS classes for an option row once feedback is shown:
@@ -243,6 +244,9 @@ export default function MCQPractice() {
           >
             {exercise.difficulty}
           </span>
+          {/* Seen-before indicator (Story 7.6): a quiet grey eye when this
+              exercise has a recorded attempt. Renders nothing otherwise. */}
+          <SeenIndicator seen={exercise.seen} />
           {/* Optional session countdown (Story 8.1). Renders only when the
               session was started timed; at zero it auto-ends to the partial
               Summary via endToSummary. Untimed sessions render nothing here. */}

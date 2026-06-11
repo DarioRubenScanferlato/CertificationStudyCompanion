@@ -319,3 +319,45 @@ class TestUnseenFirstOrdering:
             observed.add(tuple(shown_ids))
         # Sampling from a 6-option pool + shuffle => many distinct outcomes.
         assert len(observed) > 1
+
+
+class TestSeenFlag:
+    """Tests for the per-entry ``seen`` flag (Story 7.6).
+
+    Each session entry carries ``seen``: ``True`` when the exercise has >=1
+    recorded attempt in the store, ``False`` otherwise. The flag is derived from
+    the same ``store.attempted_ids()`` signal that drives unseen-first ordering,
+    and is stamped regardless of the ``prioritize_unseen`` flag.
+    """
+
+    def test_seen_true_for_attempted_false_for_unattempted(self):
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(4)]
+        store.record_attempt("dbx-de-0001", answered_at="2026-01-01T00:00:00+00:00")
+        store.record_attempt("dbx-de-0003", answered_at="2026-01-01T00:00:00+00:00")
+
+        session = build_session(exercises)
+        seen_by_id = {e["exerciseId"]: e["seen"] for e in session}
+
+        assert seen_by_id["dbx-de-0001"] is True
+        assert seen_by_id["dbx-de-0003"] is True
+        assert seen_by_id["dbx-de-0000"] is False
+        assert seen_by_id["dbx-de-0002"] is False
+
+    def test_seen_false_when_no_history(self):
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(3)]
+        session = build_session(exercises)
+        assert all(e["seen"] is False for e in session)
+        # Every entry carries the key (never absent).
+        assert all("seen" in e for e in session)
+
+    def test_seen_stamped_when_prioritize_unseen_false(self):
+        """The replay path (POST /api/sessions) also carries correct seen flags."""
+        exercises = [make_mcq(f"dbx-de-{i:04d}") for i in range(3)]
+        store.record_attempt("dbx-de-0002", answered_at="2026-01-01T00:00:00+00:00")
+
+        session = build_session(exercises, prioritize_unseen=False)
+        seen_by_id = {e["exerciseId"]: e["seen"] for e in session}
+
+        assert seen_by_id["dbx-de-0002"] is True
+        assert seen_by_id["dbx-de-0000"] is False
+        assert seen_by_id["dbx-de-0001"] is False

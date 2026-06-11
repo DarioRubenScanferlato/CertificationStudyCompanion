@@ -116,6 +116,15 @@ class TestBuildSessionMixedTypes:
         assert "displayedOptions" not in entry
         assert entry["answer"] == "format"
 
+    def test_code_completion_seen_is_always_false(self):
+        # Code-Completion attempts are not recorded in the MCQ-scoped attempt
+        # store, so a code-completion entry has no seen signal and must report
+        # seen=False even if a row with the same id exists (Story 7.6).
+        cc = make_code_completion("dbx-de-0148")
+        store.record_attempt("dbx-de-0148", answered_at="2026-01-01T00:00:00+00:00")
+        entry = build_session([cc])[0]
+        assert entry["seen"] is False
+
 
 class TestMockSessionStaysMcqOnly:
     def test_mock_session_excludes_code_completion(self):
