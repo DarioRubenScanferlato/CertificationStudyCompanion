@@ -129,7 +129,7 @@ exercises:
     domain: "Working with Lakeflow Jobs"
     difficulty: hard
     subdomain: "Control flow"
-    question: "In a Lakeflow Job, a cleanup task should run only when one or more of its three upstream load tasks have FAILED, so that it can roll back partial writes; if every load succeeds, the cleanup task must be skipped. Which Run if dependency setting on the cleanup task achieves this?"
+    question: "A cleanup task must roll back partial writes left by three parallel upstream load tasks. It should execute on any run where the loads did not all complete successfully, be skipped (marked Excluded) on a fully successful run, and crucially still run even when only one of the three loads is the problem. Which Run if dependency setting on the cleanup task achieves this?"
     options:
       - id: a
         text: "Set the Run if dependency to 'At least one failed' so the cleanup task runs when any upstream load fails and is excluded when all succeed."

@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 baseline_commit: 247164b
 ---
 
@@ -155,3 +155,29 @@ Implemented additive-only, per the scope discipline — no enum/`MOCK_EXAM_CONFI
 
 ### Change Log
 - 2026-06-11: Story 9.1 implemented — per-Certification config model (Pydantic v1), file-based fail-loud loader + lookup helpers, seed `config/certifications.yaml` re-expressing today's Databricks Associate/Professional literals, startup wiring into `app.state.certifications`, and 13 tests incl. the parity anchor vs `MOCK_EXAM_CONFIGS`/`Domain`/`READINESS_THRESHOLD`. Additive only — no enum/`MOCK_EXAM_CONFIGS`/endpoint changes. Status → review.
+- 2026-06-12: Code review (Blind Hunter + Edge Case Hunter + Acceptance Auditor, scoped to 9.1's 4 files). Auditor confirmed all 9 ACs satisfied. 7 patch findings + 4 deferred + 3 dismissed — see Review Findings below.
+- 2026-06-12: Applied all 7 review patches to `backend/app/certifications.py` — strict-int coercion via `conint(strict=True, …)` (+ `pass_bar` bool guard), file-aware `_resolve_config_path` (`is_file()`), `get_certification` empty/None guard, `id` stored stripped, duplicate-domain-name rejection, non-empty `name` fields, and full dup-id reporting. Added 10 regression tests (`TestReviewHardening`). `ruff` clean; full backend suite **324 passed, 0 failed** (the prior 2 failures were entangled 7.6 WIP, since committed). No unresolved High/Medium findings → Status → done.
+
+## Review Findings (AI Code Review — 2026-06-12)
+
+Scope: commit `2e4e9eb` limited to 9.1's files (`certifications.py`, `main.py`, `test_certifications.py`, `certifications.yaml`). Layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor (all completed; none failed). Acceptance Auditor confirmed **all 9 acceptance criteria satisfied** — these findings are robustness hardening, not AC violations.
+
+### Patch (fix candidates — unambiguous)
+- [x] [Review][Patch] **Lax numeric coercion defeats `ge=0` / sum-to-100 fail-loud guarantee** [backend/app/certifications.py:49,57-59,69-77] — Pydantic v1 coerces `int` fields *before* validators run, so a float `weight: 100.9`→`100` (and `weight: -0.5`→`0`) passes; `bool` (`weight: true`/YAML `yes`)→`1`; `pass_bar: 1`(int)→`1.0`. A fractional/typo'd weight is silently accepted or yields a misleading "got 99". Fix: use `StrictInt` for `weight`/`total_questions`/`duration_minutes` (+ reject `bool`), and reject `bool` for `pass_bar`. (HIGH; source: edge)
+- [x] [Review][Patch] **`_resolve_config_path` matches the first ancestor dir merely *named* `config`** [backend/app/certifications.py:138-144] — if an unrelated `config/` exists up-tree (or a non-dir file named `config`), it returns a path whose file is absent → misleading "not found" pointing at the wrong location, even when the real config exists higher up. Fix: require `(candidate / CONFIG_FILENAME).is_file()` (and/or `candidate.is_dir()`). NOTE: `content.py` shares this latent pattern; fixing here is a strict improvement, not a divergence from intent. (MEDIUM; source: blind+edge)
+- [x] [Review][Patch] **`get_certification(None)` raises `AttributeError`, violating its documented `Raises: CertificationConfigError`** [backend/app/certifications.py:~201] — `exam_id.strip()` on `None` crashes raw; `domain_weights`/`exam_params` inherit it. 9.2 consumers catching `CertificationConfigError` won't catch this. Fix: guard `if not exam_id or not exam_id.strip(): raise CertificationConfigError(...)` at the top. (MEDIUM; source: edge)
+- [x] [Review][Patch] **`Certification.id` validated stripped but stored unstripped** [backend/app/certifications.py:62-67] — `id: " associate "` is stored verbatim, so `cert.id != "associate"` even though lookup/dedup normalize with `.strip().lower()`. Dedup and storage disagree (`"associate"` vs `" associate "` collide on lookup but aren't flagged as dup). Fix: `return v.strip()` in `id_not_empty`. (MEDIUM; source: edge)
+- [x] [Review][Patch] **Duplicate domain `name`s within one certification silently collapse** [backend/app/certifications.py:69-77,~210] — the `domains` validator checks count + sum only; `domain_weights` builds `{d.name: d.weight}`, so two domains with the same name collapse and the returned map no longer sums to 100 — breaking the invariant on the helper's actual output. Fix: reject `len({d.name for d in v}) != len(v)` in the `domains` validator. (LOW; source: edge)
+- [x] [Review][Patch] **Empty-string `name` accepted on domain/cert/provider** [backend/app/certifications.py:48] — `id` has a non-empty validator but `name` fields don't; a blank `CertificationDomain.name` (the enum join key) produces a structurally-valid-but-useless entry. Fix: `min_length=1` (at minimum on `CertificationDomain.name`). (LOW; source: edge)
+- [x] [Review][Patch] **Duplicate-id error reports only the second (raw) colliding id** [backend/app/certifications.py:119-126] — collision is detected on the normalized key but `dupes.add(cert.id)` records only the later raw id, so the message omits the first conflicting entry. Fix: report all ids sharing a normalized key. (LOW; source: blind)
+
+### Deferred (recorded in deferred-work.md)
+- [x] [Review][Defer] **`pydantic` version mismatch: `requirements.txt`==2.5.0 vs `pyproject.toml`<2.0 (venv runs v1)** — pre-existing dependency inconsistency; affects this module's validator/coercion correctness. Reconcile to one canonical version. (elevated importance)
+- [x] [Review][Defer] **No startup cross-check of registry ids vs loaded exercise `exam` values** — intentionally out of scope; belongs to Story 9.4 (cert-scoped validation & content mapping).
+- [x] [Review][Defer] **`main.py` `"seen"` docstring hunk is out-of-scope Story 7.6 content** committed alongside 9.1 — documentation-only, no action for 9.1.
+- [x] [Review][Defer] **AC5 "every existing test green" not observable** in a clean full-suite run due to entangled 7.6 WIP (2 failing tests) — re-confirm once 7.6 lands.
+
+### Dismissed (noise / per-spec / handled-by-design)
+- `exam_params` returning `dict[str, object]` — the dict shape is exactly what the spec prescribed (`{total_questions, duration_minutes, pass_bar}`); design-per-spec, not a defect.
+- Broad `except Exception` in the loader — defensively correct: it also catches non-`ValidationError` construction errors (e.g. non-string YAML keys via `**data`), always names the file, and chains via `from e`. The edge layer tested it and cleared it; the spec's "ValidationError" was illustrative.
+- Parity test not asserting per-exam domain-set composition — the `seed_map == expected_map` assertion already pins exact per-exam domain membership against `MOCK_EXAM_CONFIGS`; non-issue (auditor self-retracted).

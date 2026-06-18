@@ -198,3 +198,86 @@ class TestParityWithHardcodedValues:
             valid_domain_values = {d.value for d in Domain}
             for name in seed_map:
                 assert name in valid_domain_values, f"'{name}' is not a Domain enum value"
+
+
+class TestReviewHardening:
+    """Regression tests for the 2026-06-12 code-review patches."""
+
+    def test_float_weight_rejected_not_truncated(self, tmp_path):
+        # Pydantic v1 would coerce 100.9 -> 100 and pass; StrictInt must reject it.
+        path = _write(tmp_path, _VALID_BODY.replace("weight: 60 }", "weight: 60.9 }"))
+        with pytest.raises(CertificationConfigError):
+            load_certifications(path=path)
+
+    def test_bool_weight_rejected(self, tmp_path):
+        # YAML `true`/`yes` would coerce to 1 under lax int; StrictInt must reject.
+        path = _write(tmp_path, _VALID_BODY.replace("weight: 60 }", "weight: true }"))
+        with pytest.raises(CertificationConfigError):
+            load_certifications(path=path)
+
+    def test_bool_pass_bar_rejected(self, tmp_path):
+        path = _write(tmp_path, _VALID_BODY.replace("pass_bar: 0.70", "pass_bar: true"))
+        with pytest.raises(CertificationConfigError):
+            load_certifications(path=path)
+
+    def test_float_total_questions_rejected(self, tmp_path):
+        path = _write(tmp_path, _VALID_BODY.replace("total_questions: 10", "total_questions: 10.5"))
+        with pytest.raises(CertificationConfigError):
+            load_certifications(path=path)
+
+    def test_empty_domain_name_rejected(self, tmp_path):
+        path = _write(tmp_path, _VALID_BODY.replace('name: "Alpha"', 'name: ""'))
+        with pytest.raises(CertificationConfigError):
+            load_certifications(path=path)
+
+    def test_duplicate_domain_names_rejected(self, tmp_path):
+        # Two domains with the same name would collapse in domain_weights.
+        path = _write(tmp_path, _VALID_BODY.replace('name: "Beta"', 'name: "Alpha"'))
+        with pytest.raises(CertificationConfigError, match="duplicate domain name"):
+            load_certifications(path=path)
+
+    def test_id_stored_stripped(self, tmp_path):
+        path = _write(tmp_path, _VALID_BODY.replace("id: foundations", 'id: "  foundations  "'))
+        registry = load_certifications(path=path)
+        cert = registry.providers[0].certifications[0]
+        assert cert.id == "foundations"
+
+    def test_get_certification_none_raises_config_error(self):
+        registry = load_certifications()
+        with pytest.raises(CertificationConfigError):
+            get_certification(registry, None)
+
+    def test_get_certification_empty_string_raises_config_error(self):
+        registry = load_certifications()
+        with pytest.raises(CertificationConfigError):
+            get_certification(registry, "   ")
+
+    def test_duplicate_id_error_lists_both_ids(self, tmp_path):
+        path = _write(
+            tmp_path,
+            """\
+            providers:
+              - id: acme
+                name: "Acme"
+                certifications:
+                  - id: alpha
+                    name: "First"
+                    total_questions: 10
+                    duration_minutes: 20
+                    pass_bar: 0.70
+                    domains:
+                      - { name: "X", weight: 100 }
+                  - id: Alpha
+                    name: "Second"
+                    total_questions: 10
+                    duration_minutes: 20
+                    pass_bar: 0.70
+                    domains:
+                      - { name: "Y", weight: 100 }
+            """,
+        )
+        with pytest.raises(CertificationConfigError) as exc:
+            load_certifications(path=path)
+        # Both the first ("alpha") and colliding ("Alpha") raw ids are surfaced.
+        msg = str(exc.value)
+        assert "alpha" in msg and "Alpha" in msg

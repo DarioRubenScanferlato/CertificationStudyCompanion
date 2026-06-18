@@ -2,6 +2,8 @@
 
 A local practice application to help you prepare for the Databricks Data Engineer **Associate** and **Professional** certification exams.
 
+![image](docs/image.png)
+
 ## Overview
 
 The app provides two types of practice exercises, both grounded in the official exam blueprints and Databricks documentation:
@@ -11,6 +13,7 @@ The app provides two types of practice exercises, both grounded in the official 
 
 Beyond plain practice, the app tracks your progress and helps you study efficiently:
 
+- **Generate new questions with the /write-mcq skill**
 - **Domain + exam filtering** and exercise-type selection when starting a session
 - **Unseen-first ordering** — questions you haven't answered yet are served before ones you've already seen
 - **Stats dashboard & readiness indicator** — overall and per-domain accuracy versus the ~70% pass bar

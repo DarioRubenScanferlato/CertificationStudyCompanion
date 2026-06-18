@@ -21,9 +21,24 @@ the file rather than starting with silently-wrong blueprints.
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, Field, conint, root_validator, validator
+
+# Strict int aliases: Pydantic v1's lax int coercion would otherwise truncate a float
+# (e.g. weight 100.9 -> 100) or accept a bool / YAML-yes (weight: true -> 1) BEFORE the
+# ge/gt + sum-to-100 checks run, silently defeating this module's fail-loud contract.
+# conint(strict=True, ...) rejects non-int input AND enforces the bound (a bare StrictInt
+# does not enforce Field(ge=) under v1).
+# conint() returns a value, not a type, so static checkers reject it in an annotation;
+# expose it as ``int`` to the type checker while keeping the constrained type at runtime.
+if TYPE_CHECKING:
+    _StrictNonNegInt = int
+    _StrictPosInt = int
+else:
+    _StrictNonNegInt = conint(strict=True, ge=0)
+    _StrictPosInt = conint(strict=True, gt=0)
 
 logger = logging.getLogger(__name__)
 
@@ -45,32 +60,52 @@ class CertificationConfigError(Exception):
 class CertificationDomain(BaseModel):
     """A single weighted domain within a certification's blueprint."""
 
-    name: str = Field(..., description="Domain name (must match the Domain enum value)")
-    weight: int = Field(..., ge=0, description="Domain weight in percent (the set sums to 100)")
+    name: str = Field(..., min_length=1, description="Domain name (matches the Domain enum value)")
+    weight: _StrictNonNegInt = Field(..., description="Domain weight in percent (set sums to 100)")
 
 
 class Certification(BaseModel):
     """One certification blueprint — ``id`` is the existing ``exam`` value."""
 
     id: str = Field(..., description="Certification id == the existing `exam` value")
-    name: str = Field(..., description="Human-readable certification name")
-    total_questions: int = Field(..., gt=0, description="Full-length exam question count")
-    duration_minutes: int = Field(..., gt=0, description="Exam clock in minutes")
+    name: str = Field(..., min_length=1, description="Human-readable certification name")
+    total_questions: _StrictPosInt = Field(..., description="Full-length exam question count")
+    duration_minutes: _StrictPosInt = Field(..., description="Exam clock in minutes")
     pass_bar: float = Field(..., gt=0, le=1, description="Pass threshold as a fraction (0,1]")
     domains: list[CertificationDomain] = Field(..., description="Weighted domain list")
 
+    @validator("pass_bar", pre=True)
+    def pass_bar_not_bool(cls, v):
+        """Reject a bool for pass_bar (bool is an int subclass; True would -> 1.0)."""
+        if isinstance(v, bool):
+            raise ValueError("pass_bar must be a number in (0, 1], not a bool")
+        return v
+
     @validator("id")
     def id_not_empty(cls, v):
-        """A certification id (== the `exam` value) must be non-empty."""
+        """A certification id (== the `exam` value) must be non-empty; stored stripped.
+
+        Returning the stripped value canonicalizes the stored id so it matches the
+        normalized key used by ``get_certification`` and the duplicate-id check
+        (otherwise ``id: " associate "`` would store with whitespace yet look up fine,
+        an inconsistency between storage and dedup/lookup).
+        """
         if not v or not v.strip():
             raise ValueError("certification 'id' must be non-empty")
-        return v
+        return v.strip()
 
     @validator("domains")
     def domains_non_empty_and_weights_sum_to_100(cls, v):
-        """Require at least one domain whose weights sum to exactly 100."""
+        """Require at least one domain, unique names, and weights summing to 100."""
         if not v:
             raise ValueError("certification must declare at least one domain")
+        # Reject duplicate domain names: domain_weights builds {name: weight}, so a
+        # duplicate would silently collapse — dropping a weight and breaking the
+        # sum-to-100 invariant on the helper's actual output.
+        names = [d.name for d in v]
+        dupe_names = sorted({n for n in names if names.count(n) > 1})
+        if dupe_names:
+            raise ValueError(f"duplicate domain name(s): {', '.join(dupe_names)}")
         total = sum(d.weight for d in v)
         if total != 100:
             raise ValueError(f"domain weights must sum to 100, got {total}")
@@ -81,7 +116,7 @@ class Provider(BaseModel):
     """A certification provider (e.g. Databricks) with >=1 certification."""
 
     id: str = Field(..., description="Provider id (e.g. 'databricks')")
-    name: str = Field(..., description="Human-readable provider name")
+    name: str = Field(..., min_length=1, description="Human-readable provider name")
     certifications: list[Certification] = Field(..., description="This provider's certifications")
 
     @validator("certifications")
@@ -112,14 +147,17 @@ class CertificationRegistry(BaseModel):
         would make ``get_certification`` ambiguous.
         """
         providers = values.get("providers") or []
-        seen: set[str] = set()
+        first_by_key: dict[str, str] = {}
         dupes: set[str] = set()
         for provider in providers:
             for cert in provider.certifications:
                 key = cert.id.strip().lower()
-                if key in seen:
+                if key in first_by_key:
+                    # Surface BOTH the first and the colliding id, not just the latter.
+                    dupes.add(first_by_key[key])
                     dupes.add(cert.id)
-                seen.add(key)
+                else:
+                    first_by_key[key] = cert.id
         if dupes:
             raise ValueError(
                 f"duplicate certification id(s) across providers: {', '.join(sorted(dupes))}"
@@ -131,15 +169,17 @@ def _resolve_config_path() -> Path:
     """Resolve ``config/certifications.yaml`` via a project-root walk.
 
     Mirrors ``content.load_exercises_from_directory``: walk up from this file
-    until a sibling ``config/`` directory is found, then return the path to the
-    config file inside it. Falls back to the relative ``config/...`` path if no
-    such directory is found on the way up.
+    looking for ``config/certifications.yaml`` and return it when found. Matching on
+    the file itself (not merely a directory named ``config``) means an unrelated
+    ``config/`` dir up-tree — or a non-directory named ``config`` — never shadows the
+    real config and produces a misleading "not found" pointing at the wrong path.
+    Falls back to the relative ``config/...`` path if nothing is found on the way up.
     """
     current_dir = Path(__file__).parent
     while current_dir != current_dir.parent:
-        candidate = current_dir.parent / CONFIG_DIRNAME
-        if candidate.exists():
-            return candidate / CONFIG_FILENAME
+        candidate = current_dir.parent / CONFIG_DIRNAME / CONFIG_FILENAME
+        if candidate.is_file():
+            return candidate
         current_dir = current_dir.parent
     return Path(CONFIG_DIRNAME) / CONFIG_FILENAME
 
@@ -190,8 +230,14 @@ def get_certification(registry: CertificationRegistry, exam_id: str) -> Certific
     """Look up a certification by its ``exam`` id (case-insensitive).
 
     Raises:
-        CertificationConfigError: if no certification matches ``exam_id``.
+        CertificationConfigError: if ``exam_id`` is empty/None, or no certification
+            matches it.
     """
+    # Guard empty/None up front so the documented CertificationConfigError contract
+    # holds (otherwise ``None.strip()`` would raise a raw AttributeError that
+    # downstream callers catching CertificationConfigError would miss).
+    if not exam_id or not exam_id.strip():
+        raise CertificationConfigError("exam id must be a non-empty string")
     exam_norm = exam_id.strip().lower()
     for provider in registry.providers:
         for cert in provider.certifications:

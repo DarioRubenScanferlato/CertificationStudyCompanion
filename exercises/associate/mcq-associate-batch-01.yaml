@@ -345,32 +345,6 @@ exercises:
     tags: [time-travel, versions]
     source: original
 
-  - id: dbx-de-0014
-    type: single_choice
-    exam: associate
-    domain: "Implementing CI/CD"
-    difficulty: medium
-    question: "A team wants their Databricks notebooks under version control so they can branch, commit, and integrate with a CI/CD pipeline backed by GitHub. Which workspace feature provides this Git integration?"
-    options:
-      - id: a
-        text: "A Git repository integration for version controlling notebooks and code"
-        correct: true
-      - id: b
-        text: "A managed folder in DBFS for storing data files and artifacts"
-        correct: false
-      - id: c
-        text: "A snapshot of a notebook's revision history within the workspace"
-        correct: false
-      - id: d
-        text: "A reusable cluster policy that pins library versions"
-        correct: false
-    answer: [a]
-    explanation: "Repos allow you to connect a Databricks workspace to a Git repository (GitHub, GitLab, Azure DevOps). This enables version control, collaboration, and CI/CD integration for notebooks and code files. The choice describing it as a managed DBFS folder confuses Repos with DBFS storage. The choice describing a notebook revision snapshot describes the workspace's built-in notebook revision history, which is separate from Git-backed Repos. The choice describing a reusable cluster policy describes cluster policies, an unrelated feature."
-    references:
-      - "https://docs.databricks.com/en/repos/index.html"
-    tags: [repos, git]
-    source: original
-
   - id: dbx-de-0015
     type: single_choice
     exam: associate
@@ -714,25 +688,26 @@ exercises:
     exam: associate
     domain: "Data Transformation and Modeling"
     difficulty: hard
-    question: "You need to apply a custom transformation to each row in a PySpark DataFrame. Which method should you use?"
+    question: "A data engineer needs to apply a custom Python transformation to every row of a large PySpark DataFrame as efficiently as possible, keeping the work distributed across the cluster. Which approach is preferred on current Databricks?"
     options:
       - id: a
-        text: "rdd.map(custom_function) to convert to RDD, apply function, then convert back to DataFrame"
+        text: "Use a vectorized pandas UDF (or DataFrame.mapInPandas), applying the Python logic in Arrow-backed batches while staying inside the optimized DataFrame engine"
         correct: true
       - id: b
-        text: "withColumn() with a simple UDF"
+        text: "Convert the DataFrame to an RDD with .rdd, apply map(custom_function), and convert back, bypassing the Catalyst/Photon-optimized DataFrame engine"
         correct: false
       - id: c
-        text: "foreach() to iterate rows"
+        text: "Call collect() to bring all rows to the driver and loop over them in Python"
         correct: false
       - id: d
-        text: "collect() then loop in Python"
+        text: "Use foreach() to iterate over the rows and build the transformed DataFrame inside the loop"
         correct: false
     answer: [a]
-    explanation: "For complex row-wise transformations, convert the DataFrame to an RDD using .rdd, apply map() with your custom function, then convert back to a DataFrame. UDFs are slower. foreach() is for side effects only. collect() brings all data to driver memory, which is inefficient for large datasets."
+    explanation: "On current Databricks, vectorized pandas UDFs and DataFrame.mapInPandas are the preferred way to run custom Python row logic at scale: they process data in Arrow-backed batches and stay within the Catalyst/Photon-optimized DataFrame engine. Dropping to .rdd.map works but serializes data in and out of the RDD API and bypasses those optimizations, so it is slower and discouraged. Calling collect() pulls the entire dataset into driver memory and runs single-threaded, so it does not scale. foreach() is an action for side effects only; it returns nothing and cannot produce a transformed DataFrame."
     references:
-      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
-    tags: [pyspark, transformations]
+      - "https://docs.databricks.com/aws/en/udf/"
+      - "https://docs.databricks.com/aws/en/pyspark/reference/classes/dataframe/mapInPandas"
+    tags: [pyspark, transformations, pandas-udf]
     source: original
 
   - id: dbx-de-0029
@@ -951,25 +926,25 @@ exercises:
     exam: associate
     domain: "Data Transformation and Modeling"
     difficulty: medium
-    question: "A data engineer reuses the same intermediate DataFrame across several downstream operations and wants to avoid recomputing it each time. What does calling cache() on that DataFrame do?"
+    question: "A data engineer calls df.cache() on a DataFrame that is reused across several downstream actions. Which statement most accurately describes what happens?"
     options:
       - id: a
-        text: "Caches the DataFrame in memory for reuse in multiple operations, improving performance"
+        text: "cache() is lazy: it marks the DataFrame for storage at the default level (MEMORY_AND_DISK), the data is materialized only when the first action runs, and later actions reuse the cached partitions"
         correct: true
       - id: b
-        text: "Deletes the DataFrame after first use"
+        text: "cache() eagerly reads and stores the entire DataFrame in memory the moment it is called, before any action runs"
         correct: false
       - id: c
-        text: "Compresses the DataFrame"
+        text: "cache() only rewrites the query plan so the DataFrame recomputes faster on each action, but stores no data"
         correct: false
       - id: d
-        text: "Saves the DataFrame to disk"
+        text: "cache() persists the DataFrame to a managed Delta table on disk so it survives cluster restarts"
         correct: false
     answer: [a]
-    explanation: "cache() (or persist()) keeps the DataFrame in memory across operations. Use when reusing a DataFrame multiple times. Remember to call unpersist() when done to free memory. Default storage level is MEMORY_AND_DISK."
+    explanation: "cache() is a lazy hint: it registers the DataFrame to be stored at the default storage level (MEMORY_AND_DISK), but nothing is held until the first action triggers computation; subsequent actions then reuse the materialized partitions instead of recomputing. It is not eager, so storage does not happen at the call site. It does store data, so it is more than a plan rewrite. And it is session/cluster-local in-memory storage, not a durable Delta table that survives restarts, so use a table write for durability and call unpersist() to release the cache."
     references:
-      - "https://docs.databricks.com/en/spark/latest/spark-sql/spark-dataframe-api.html"
-    tags: [pyspark, performance]
+      - "https://docs.databricks.com/aws/en/pyspark/reference/classes/dataframe/cache"
+    tags: [pyspark, performance, caching]
     source: original
 
   - id: dbx-de-0038
@@ -1003,22 +978,22 @@ exercises:
     exam: associate
     domain: "Data Ingestion and Loading"
     difficulty: easy
-    question: "New JSON files land continuously in a cloud storage path, and a data engineer needs a mechanism that picks up each new file automatically and ingests only the new data without reprocessing what was already loaded. Which Databricks feature is purpose-built for this?"
+    question: "JSON files arrive continuously in a cloud storage path. A data engineer needs them ingested incrementally and exactly once as they land: new files picked up automatically, already-loaded files never reprocessed, and no hand-maintained list of what has been seen. Which approach meets this with the least custom bookkeeping?"
     options:
       - id: a
-        text: "To automatically detect and ingest new data files as they arrive in cloud storage"
+        text: "Auto Loader via spark.readStream.format('cloudFiles'), which records processed files in its checkpoint state and ingests only new arrivals exactly once"
         correct: true
       - id: b
-        text: "To automatically run OPTIMIZE and VACUUM on ingested tables"
+        text: "A scheduled batch job that runs spark.read over the entire directory and overwrites the target table on every run"
         correct: false
       - id: c
-        text: "To automatically batch-load an entire directory once on a schedule"
+        text: "A custom job that lists the directory, compares filenames against a control table of already-loaded files, and processes only the difference"
         correct: false
       - id: d
-        text: "To automatically infer and enforce primary keys on incoming data"
+        text: "A static spark.read with mergeSchema enabled, which reprocesses the directory automatically whenever new files appear"
         correct: false
     answer: [a]
-    explanation: "Auto Loader continuously monitors a cloud storage location (S3, ADLS, GCS) and automatically ingests new files as they appear. It uses directory listing (default) or file notifications for efficiency, and can infer or evolve schema automatically. The choice about running OPTIMIZE and VACUUM describes table maintenance commands, not ingestion. The choice about a one-time scheduled directory load is closer to a one-time COPY INTO load and misses Auto Loader's incremental, exactly-once tracking. The choice about inferring and enforcing primary keys is not an Auto Loader feature."
+    explanation: "Auto Loader (the cloudFiles source) is purpose-built for incremental, exactly-once file ingestion: it tracks which files it has already processed in its checkpoint/state and handles only new ones, with no manual file tracking. The full-directory overwrite job reprocesses everything on each run, so it is neither incremental nor continuous. The control-table approach can work but is exactly the hand-maintained bookkeeping Auto Loader eliminates. mergeSchema only governs how schemas are merged on read/write; it does not detect or incrementally ingest new files."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [auto-loader, ingestion]
@@ -1029,23 +1004,24 @@ exercises:
     exam: associate
     domain: "Data Ingestion and Loading"
     difficulty: medium
-    question: "A data engineer setting up an Auto Loader stream must give it a place to persist the inferred schema so it can track schema changes across restarts. Which behavior does the cloudFiles.schemaLocation option provide?"
+    question: "A data engineer points cloudFiles.schemaLocation at an empty directory and starts an Auto Loader stream for the first time. What does Auto Loader keep at that location, and what does it enable?"
     options:
       - id: a
-        text: "Specifies where the inferred schema is stored for schema evolution tracking"
+        text: "It writes the inferred schema (under a _schemas subdirectory) and uses it to detect and evolve the schema as new columns appear across restarts"
         correct: true
       - id: b
-        text: "Specifies the location to read data from"
+        text: "It writes the ingested data files there, so the location doubles as the stream's output table"
         correct: false
       - id: c
-        text: "Specifies the location to write processed data"
+        text: "It stores the streaming checkpoint and source offsets, removing the need for a separate checkpointLocation"
         correct: false
       - id: d
-        text: "Specifies the backup location for old schemas"
+        text: "It keeps timestamped backups of every prior schema so the table can be rolled back to an earlier schema"
         correct: false
     answer: [a]
-    explanation: "cloudFiles.schemaLocation stores metadata about the inferred schema and detected changes. This enables Auto Loader to evolve the table schema automatically as new columns appear in source files, while tracking changes in the specified location."
+    explanation: "schemaLocation is where Auto Loader persists the inferred schema (in a _schemas subdirectory) and tracks changes over time, which is precisely what enables schema inference and evolution across stream restarts. It does not hold ingested data, which is written to the sink/target table. It is also distinct from checkpointLocation, which tracks stream progress and offsets, so it does not replace it. And it maintains the current evolving schema for forward evolution, not a versioned archive of old schemas for rollback."
     references:
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema"
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
     tags: [auto-loader, schema]
     source: original
@@ -1278,9 +1254,10 @@ exercises:
         text: "Use spark.read with inferSchema=true in a batch job"
         correct: false
     answer: [a]
-    explanation: "Auto Loader is designed for this: format('cloudFiles') enables Auto Loader, inferColumnTypes=true infers types, and cloudFiles.schemaLocation enables automatic schema evolution. This is efficient, scalable, and handles incremental ingestion."
+    explanation: "Auto Loader is designed for this: format('cloudFiles') enables Auto Loader, inferColumnTypes=true infers types, and cloudFiles.schemaLocation enables automatic schema inference and evolution by persisting the inferred schema (under a _schemas subdirectory) and tracking changes over time. This is efficient, scalable, and handles incremental ingestion. readStream with a manually defined schema gives up automatic inference and evolution. COPY INTO with an explicit schema is command-driven batch loading, not a streaming pipeline with evolving schema. And spark.read with inferSchema in a batch job re-reads the full directory each run rather than ingesting incrementally."
     references:
       - "https://docs.databricks.com/en/ingestion/cloud-object-storage/auto-loader/index.html"
+      - "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema"
     tags: [auto-loader, schema, ingestion]
     source: original
 
@@ -1630,25 +1607,25 @@ exercises:
     exam: associate
     domain: "Data Transformation and Modeling"
     difficulty: medium
-    question: "In a Lakeflow Declarative Pipeline, a data engineer wants invalid records either dropped or the pipeline failed when a data-quality rule is violated. What is the purpose of a @dp.expect() or @dp.expect_or_drop decorator?"
+    question: "A Lakeflow Declarative Pipeline must discard rows that violate a data-quality rule before they are written to the target table, while still recording how many rows were dropped. Which expectation decorator should the engineer apply?"
     options:
       - id: a
-        text: "To define data quality checks and specify what to do when checks fail (drop rows or fail pipeline)"
+        text: "@dp.expect_or_drop() — violating rows are dropped from the output and the violation count is tracked in pipeline metrics"
         correct: true
       - id: b
-        text: "To select which columns to include"
+        text: "@dp.expect() — violating rows are retained in the output and only flagged in the metrics"
         correct: false
       - id: c
-        text: "To define the table schema"
+        text: "@dp.expect_or_fail() — the pipeline update halts on the first violating row"
         correct: false
       - id: d
-        text: "To schedule the pipeline"
+        text: "@dp.expect_all() — invalid values are silently rewritten to null before the write"
         correct: false
     answer: [a]
-    explanation: "Expectations are quality checks. @dp.expect() or @dp.expect_or_drop() validate data. If they fail, you can drop rows with expect_or_drop or fail the pipeline with FAIL UPDATE. This ensures only quality data flows downstream."
+    explanation: "expect_or_drop drops violating rows before they reach the target while still emitting pass/fail metrics, which is exactly the requirement. Plain expect keeps the violating rows in the output and only records the failure in metrics, so bad rows would still be written. expect_or_fail stops the entire pipeline update on the first violation, which is stricter than simply dropping rows. expect_all groups several constraints together but, like expect, retains rows by default and never rewrites field values — no expectation decorator mutates data to null."
     references:
-      - "https://docs.databricks.com/en/lakehouse-lakeflow/index.html"
-    tags: [dlt, expectations]
+      - "https://docs.databricks.com/aws/en/ldp/expectations"
+    tags: [lakeflow, expectations, data-quality]
     source: original
 
   - id: dbx-de-0064
