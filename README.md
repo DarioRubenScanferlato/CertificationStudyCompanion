@@ -1,6 +1,7 @@
 # Databricks Data Engineer Certification Study Companion
 
 A local practice application to help you prepare for the Databricks Data Engineer **Associate** and **Professional** certification exams.
+Please note that questions used in this app are AI-generated and might not be up to date, so they might contain mistakes or be factually wrong. Always review the official documentation. You are welcome to contribute if your notice any errors or inaccuracies.
 
 ![image](docs/image.png)
 
